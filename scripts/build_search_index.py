@@ -80,6 +80,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Build the PathForward Azure AI Search index.")
     ap.add_argument("--dry-run", action="store_true",
                     help="build docs + schema and write search_docs.json; make NO Azure calls")
+    ap.add_argument("--recreate", action="store_true",
+                    help="delete the index first (required when removing or retyping a field)")
     args = ap.parse_args()
 
     settings = load_settings(os.path.join(_ROOT, ".env"))
@@ -113,7 +115,14 @@ def main() -> int:
     from azure.search.documents.indexes import SearchIndexClient
 
     cred = DefaultAzureCredential()
-    SearchIndexClient(endpoint=endpoint, credential=cred).create_or_update_index(index)
+    index_client = SearchIndexClient(endpoint=endpoint, credential=cred)
+    if args.recreate:
+        try:
+            index_client.delete_index(name)
+            print(f"deleted existing index '{name}' (recreate)")
+        except Exception as exc:  # noqa: BLE001
+            print(f"(no existing index to delete: {type(exc).__name__})")
+    index_client.create_or_update_index(index)
     print(f"index '{name}' created/updated on {endpoint}")
 
     client = SearchClient(endpoint=endpoint, index_name=name, credential=cred)
