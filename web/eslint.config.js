@@ -10,7 +10,7 @@ export default tseslint.config(
   { ignores: ["dist", "node_modules", "src/lib/fixture.json"] },
   {
     files: ["src/**/*.{ts,tsx}"],
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [js.configs.recommended, ...tseslint.configs.strict],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -25,7 +25,11 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...fluentA11y.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      // Strict policy: no warnings — promote every warn-level rule to error.
+      "react-hooks/exhaustive-deps": "error",
+      "react-refresh/only-export-components": ["error", { allowConstantExport: true }],
+      "@microsoft/fluentui-jsx-a11y/prefer-aria-over-title-attribute": "error",
+      "@microsoft/fluentui-jsx-a11y/visual-label-better-than-aria-suggestion": "error",
     },
   },
   {
