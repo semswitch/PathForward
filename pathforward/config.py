@@ -2,8 +2,9 @@
 
 Zero third-party deps: a tiny .env parser + a dataclass. Defaults encode the
 decisions from 03-Build-Plan.md as corrected by the Day-0 verification (region
-East US 2 — the only region with Fabric ontology+DTB, agentic retrieval, gpt-5.5,
-and native Voice Live; Voice Live api-version 2026-04-10; agentic-retrieval REST
+East US 2 — our chosen region co-locating Fabric ontology+DTB, agentic retrieval,
+gpt-5.5, and native Voice Live; not the only such region — Sweden Central also
+qualifies; Voice Live api-version 2026-04-10; agentic-retrieval REST
 2026-04-01; reasoning model gpt-5.5). Azure values are blank until provisioned —
 the offline core never reads them.
 """

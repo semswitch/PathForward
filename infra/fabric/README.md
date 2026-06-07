@@ -6,6 +6,11 @@ Worker/Skill/Role/Certification — + 6 relationships incl. the derived `certgap
 and `readiness` edges, with their lakehouse data bindings). Captured via the
 Fabric REST `items/getDefinition` API.
 
+> Note: this file embeds **workspace-scoped internal artifact IDs** (EntityType IDs,
+> DataBinding/Contextualization GUIDs). These are not credentials, but they are real
+> identifiers for this tenant's Fabric items — left intact because they're required for
+> the recovery import below; treat accordingly if this repo is made public.
+
 This is our **version backup**: Fabric IQ Ontology (preview) has no native
 versioning, so a deleted ontology or its backing "Graph in Microsoft Fabric"
 child item is otherwise only recoverable via the workspace recycle bin (off by
@@ -18,7 +23,7 @@ saved definition (Fabric auto-creates a fresh graph child):
 ```powershell
 $tok = az account get-access-token --resource "https://api.fabric.microsoft.com" --query accessToken -o tsv
 $h = @{ Authorization = "Bearer $tok"; "Content-Type" = "application/json" }
-$ws  = "1568f5b8-3d1f-460b-8a74-bebb59a15a62"   # PathForward-IQ workspace
+$ws  = $env:FABRIC_WORKSPACE_ID   # PathForward-IQ workspace ID (set in .env — gitignored)
 $def = (Get-Content infra/fabric/ontology-definition.json -Raw | ConvertFrom-Json).definition
 $body = @{ displayName = "PathForwardOntology"; type = "Ontology"; definition = $def } | ConvertTo-Json -Depth 40
 Invoke-WebRequest -Uri "https://api.fabric.microsoft.com/v1/workspaces/$ws/items" -Headers $h -Method POST -Body $body
@@ -28,9 +33,9 @@ Invoke-WebRequest -Uri "https://api.fabric.microsoft.com/v1/workspaces/$ws/items
 > both create and recycle-bin restore. Rename/delete the old item first.
 
 ## Environment
-- Workspace `PathForward-IQ` = `1568f5b8-3d1f-460b-8a74-bebb59a15a62`
-- Lakehouse `PathForwardLH` = `9ebf220c-1e7c-49bb-a715-517e701cccb7` (10 Delta tables)
-- Capacity `pffabriccus` (F2, **Central US**)
+- Workspace `PathForward-IQ` = `<FABRIC_WORKSPACE_ID>` (real value in `.env`, gitignored)
+- Lakehouse `PathForwardLH` = `<FABRIC_LAKEHOUSE_ID>` (10 Delta tables; real value in `.env`)
+- Capacity `<fabric-capacity>` (F2, **Central US**)
 - Tables loaded by `scripts/load_fabric_lakehouse.py`; rebuild source CSVs with `scripts/export_fabric_tables.py`.
 
 > Bindings reference lakehouse table GUIDs in **this** workspace; restoring into a
