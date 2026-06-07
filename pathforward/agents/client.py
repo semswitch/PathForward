@@ -88,7 +88,7 @@ class FoundryLLMClient:
     input=..., previous_response_id=...)`, with Entra `DefaultAzureCredential`.
     """
     endpoint: str = ""
-    model: str = "gpt-4o"
+    model: str = "reasoning"  # deployment name; underlying model gpt-5.5 (2026-04-24)
 
     def respond(self, instructions: str, input: str, *,  # pragma: no cover - Azure-only
                 previous_response_id: Optional[str] = None,

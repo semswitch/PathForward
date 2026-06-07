@@ -70,7 +70,7 @@ flowchart TB
 | Grounding | **GA agentic retrieval is extractive** (rerank + citations over agent-supplied `intents[]`). The agent layer plans the queries; Search does not. |
 | Fabric | Ontology authored as a **non-Power BI Fabric item** on a **paid F2+** capacity (Trial can't run the data agent). The **Search mirror** is the runtime path. |
 | Mirror | Pre-materializes base + **derived** edges (provenance + validity-time) + traversal paths as first-class docs; build-time non-empty guard. |
-| Region | **North Central US** (satisfies risk evaluators + hosted agents + Voice WebSocket). |
+| Region | **East US 2** — Foundry + gpt-5.5 + Fabric. **Azure AI Search runs in East US** (eastus2 was Search-capacity-constrained; cross-region Search↔model is fine — only the Fabric data agent needs co-location). |
 | Reliability | Loop hard-capped **N=3 → fail-closed abstain**; the credential mint refuses abstained results and asserts `cited_edge_id == driving CertGap edge`. |
 
 ## Offline ↔ Azure boundary
