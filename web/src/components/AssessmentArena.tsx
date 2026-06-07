@@ -1,55 +1,56 @@
-// Adversarial Assessment Arena (skeleton).
+// Adversarial Assessment Arena (skeleton, Fluent UI v9).
 // Renders the Generator->Verifier transcript: each attempt with its pass/reject
 // verdict, cited evidence, and the cited reason on rejection. The hero shot
 // animates this reject->regenerate; the data contract is already what the loop emits.
-import { Tile, Tag, InlineNotification } from "@carbon/react";
+import {
+  Card, Badge, Subtitle1, Body1,
+  MessageBar, MessageBarBody, MessageBarTitle,
+} from "@fluentui/react-components";
 import type { Fixture } from "../lib/contracts";
 
 export function AssessmentArena({ fixture }: { fixture: Fixture }) {
   const { loop, targeted_skill } = fixture;
   return (
-    <Tile className="pf-panel">
-      <h3>Adversarial Assessment Arena</h3>
-      <p className="pf-panel">
+    <Card className="pf-panel">
+      <Subtitle1>Adversarial Assessment Arena</Subtitle1>
+      <Body1 block className="pf-panel">
         Testing <strong>{targeted_skill}</strong> — driven by edge{" "}
         <span className="pf-mono">{loop.driving_edge_id}</span>. Loop status:{" "}
-        <Tag type={loop.status === "verified" ? "green" : "red"}>{loop.status}</Tag>
-      </p>
+        <Badge appearance="filled" color={loop.status === "verified" ? "success" : "danger"}>
+          {loop.status}
+        </Badge>
+      </Body1>
 
       {loop.transcript.map((t) => (
-        <Tile key={t.attempt} className="pf-panel">
+        <Card key={t.attempt} appearance="subtle" className="pf-panel">
           <div className="pf-row-spaced">
-            <Tag type="cool-gray">attempt {t.attempt}</Tag>
-            <Tag type={t.verdict.passed ? "green" : "red"}>
+            <Badge appearance="outline">attempt {t.attempt}</Badge>
+            <Badge appearance="filled" color={t.verdict.passed ? "success" : "danger"}>
               {t.verdict.passed ? "PASS" : "REJECT"}
-            </Tag>
-            <span>
-              citations: {t.item.cited_ref_ids.length
-                ? t.item.cited_ref_ids.join(", ")
-                : "(none)"}
-            </span>
+            </Badge>
+            <Body1>
+              citations: {t.item.cited_ref_ids.length ? t.item.cited_ref_ids.join(", ") : "(none)"}
+            </Body1>
           </div>
-          <p className="pf-panel">{t.item.stem}</p>
+          <Body1 block className="pf-panel">{t.item.stem}</Body1>
           {!t.verdict.passed &&
             t.verdict.failed_reasons.map((fr, i) => (
-              <InlineNotification
-                key={i}
-                kind="error"
-                lowContrast
-                hideCloseButton
-                title={fr.criterion}
-                subtitle={fr.reason}
-              />
+              <MessageBar key={i} intent="error" className="pf-panel">
+                <MessageBarBody>
+                  <MessageBarTitle>{fr.criterion}</MessageBarTitle>
+                  {fr.reason}
+                </MessageBarBody>
+              </MessageBar>
             ))}
           {t.verdict.passed && (
             <div className="pf-row-spaced">
               {Object.entries(t.verdict.criteria).map(([k, v]) => (
-                <Tag key={k} type={v ? "green" : "red"}>{k}</Tag>
+                <Badge key={k} appearance="tint" color={v ? "success" : "danger"}>{k}</Badge>
               ))}
             </div>
           )}
-        </Tile>
+        </Card>
       ))}
-    </Tile>
+    </Card>
   );
 }

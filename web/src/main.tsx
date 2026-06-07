@@ -1,10 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@carbon/styles/css/styles.css";
+import { FluentProvider, webDarkTheme } from "@fluentui/react-components";
 import { App } from "./App";
+import "./app.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <FluentProvider theme={webDarkTheme} style={{ minHeight: "100vh" }}>
+      <App />
+    </FluentProvider>
   </React.StrictMode>
 );

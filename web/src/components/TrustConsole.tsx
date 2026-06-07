@@ -1,11 +1,11 @@
-// Trust Console (skeleton).
+// Trust Console (skeleton, Fluent UI v9).
 // Surfaces the invisible 60% (the rubric's Reliability weight): hero metrics, the
 // cold-start calibration label, and the credential's causal-spine assertion. The
 // live eval/red-team/OTel panels plug in here once Azure is wired.
 import {
-  Tile, Tag, StructuredListWrapper, StructuredListBody, StructuredListRow,
-  StructuredListCell,
-} from "@carbon/react";
+  Card, Badge, Subtitle1,
+  Table, TableBody, TableRow, TableCell,
+} from "@fluentui/react-components";
 import type { Fixture } from "../lib/contracts";
 
 export function TrustConsole({ fixture }: { fixture: Fixture }) {
@@ -23,24 +23,24 @@ export function TrustConsole({ fixture }: { fixture: Fixture }) {
   ];
 
   return (
-    <Tile className="pf-panel">
-      <h3>Trust Console</h3>
+    <Card className="pf-panel">
+      <Subtitle1>Trust Console</Subtitle1>
       <div className="pf-row-spaced pf-panel">
-        <Tag type={spineOk ? "green" : "red"}>
+        <Badge appearance="filled" color={spineOk ? "success" : "danger"}>
           causal spine {spineOk ? "intact" : "BROKEN"}
-        </Tag>
+        </Badge>
         <span className="pf-mono">credential cites {citedEdge || "(none)"}</span>
       </div>
-      <StructuredListWrapper aria-label="Trust metrics" isCondensed>
-        <StructuredListBody>
+      <Table aria-label="Trust metrics" size="small">
+        <TableBody>
           {rows.map(([k, v]) => (
-            <StructuredListRow key={k}>
-              <StructuredListCell>{k}</StructuredListCell>
-              <StructuredListCell><span className="pf-mono">{v}</span></StructuredListCell>
-            </StructuredListRow>
+            <TableRow key={k}>
+              <TableCell>{k}</TableCell>
+              <TableCell><span className="pf-mono">{v}</span></TableCell>
+            </TableRow>
           ))}
-        </StructuredListBody>
-      </StructuredListWrapper>
-    </Tile>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

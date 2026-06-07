@@ -1,4 +1,4 @@
-/* Minimal layout only — colours/type come from Carbon tokens, not here. */
+/* Layout only — colours/type come from Fluent UI v9 tokens (FluentProvider). */
 .pf-page {
   min-height: 100vh;
   padding: 2rem;
@@ -8,8 +8,13 @@
 .pf-panel {
   margin-block-end: 1.5rem;
 }
+.pf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 .pf-mono {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
   font-size: 0.8125rem;
 }
 .pf-row-spaced {
