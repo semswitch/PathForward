@@ -18,12 +18,15 @@ ITEM_SCHEMA = {
     "additionalProperties": False,
     "properties": {
         "stem": {"type": "string"},
-        "options": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+        "options": {"type": "array", "items": {"type": "string"}},
         "answer_index": {"type": "integer"},
         "cited_ref_ids": {"type": "array", "items": {"type": "string"}},
         "numeric_claim": {"type": ["string", "null"]},
     },
-    "required": ["stem", "options", "answer_index", "cited_ref_ids"],
+    # strict json_schema (the live Foundry agent enforces it): every property must be listed in
+    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Verifier
+    # enforces the >=2-option rule in code.
+    "required": ["stem", "options", "answer_index", "cited_ref_ids", "numeric_claim"],
 }
 
 

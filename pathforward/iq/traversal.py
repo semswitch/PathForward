@@ -11,7 +11,7 @@ the front-end can render the citation panel and the live/mirror degradation badg
 from __future__ import annotations
 
 from . import derivation as dv
-from .models import Edge, Ontology, Worker
+from .models import Edge, Ontology, Skill, Worker
 
 
 def _node(node_id: str, kind: str, label: str, **extra) -> dict:
@@ -76,3 +76,24 @@ def cert_gap_edges(worker: Worker, onto: Ontology, edges: list[Edge]) -> list[Ed
     order = {dv.certgap_edge_id(worker.id, sid): i for i, sid in enumerate(role.required_skill_ids)}
     found = [e for e in edges if e.id in wanted]
     return sorted(found, key=lambda e: order.get(e.id, 1_000))
+
+
+def approved_refs(worker: Worker, skill: Skill, onto: Ontology) -> tuple[str, ...]:
+    """The grounding evidence neighborhood for assessing `skill` in `worker`'s gap context.
+
+    An assessment item may ground ONLY in: the CertGap edge that selected the skill, the role's
+    requirement for it, and the certifications (plus their corpus cards) that certify it. Anything
+    cited outside this set fails the Verifier's grounded gate. Deterministically ordered.
+    """
+    refs = [dv.certgap_edge_id(worker.id, skill.id),
+            dv.requires_edge_id(worker.target_role_id, skill.id)]
+    for cert in onto.certs_for_skill(skill.id):
+        refs.append(dv.certifies_edge_id(cert.id, skill.id))
+        refs.append(f"corpus::{cert.id}")
+    seen: set[str] = set()
+    out: list[str] = []
+    for r in refs:
+        if r not in seen:
+            seen.add(r)
+            out.append(r)
+    return tuple(out)
