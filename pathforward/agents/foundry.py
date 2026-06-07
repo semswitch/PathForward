@@ -89,6 +89,9 @@ class FoundryLLMClient:
         if schema:
             text = PromptAgentDefinitionTextOptions(format=TextResponseFormatJsonSchema(
                 type="json_schema", name="assessment_item", schema=schema, strict=True))
+        # RAI is enforced at the model DEPLOYMENT (raiPolicyName) and DECLARED on the governed toolbox
+        # version; agent-definition rai_config is not honored by the prompt-agent runtime on 2.2.0
+        # (it rejects even system policy names), so it is intentionally not set here.
         self._agent = self._project.agents.create_version(
             agent_name=self.agent_name,
             definition=PromptAgentDefinition(model=self.model, instructions=instructions + _LIVE_SUFFIX,

@@ -72,6 +72,7 @@ flowchart TB
 | Mirror | Pre-materializes base + **derived** edges (provenance + validity-time) + traversal paths as first-class docs; build-time non-empty guard. |
 | Region | **East US 2** — Foundry + gpt-5.5 + Fabric. **Azure AI Search runs in East US** (eastus2 was Search-capacity-constrained; cross-region Search↔model is fine — only the Fabric data agent needs co-location). |
 | Reliability | Loop hard-capped **N=3 → fail-closed abstain**; the credential mint refuses abstained results and asserts `cited_edge_id == driving CertGap edge`. |
+| Governance | A **Foundry Toolbox** (`pathforward-toolbox`) + named **Skill** (`pathforward`) register the search capability as a **versioned, RAI-policy-bearing catalog** (`scripts/build_toolbox.py`). RAI (`pathforward-rai`, Blocking) is **enforced at the model deployment** and **declared on the toolbox**; agent-definition `rai_config` is a 2.2.0 preview gap (rejects even system policies) so it is not used. The registered toolbox is a **governance/registry artifact, not an inference consume-seam** (CRUD-only routes, no `/mcp`; `PromptAgentDefinition` carries no toolbox ref) — inference stays on the proven GA direct-attach. Framed as *governed seam + versioned RAI registry*, **not** platform-enforced least-privilege (Discover & Govern is roadmap). |
 
 ## Offline ↔ Azure boundary
 

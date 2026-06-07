@@ -47,6 +47,7 @@ def main() -> int:
 
     client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                               index_name=s.search_index)
+    print(f"rai: enforced at deployment + declared on toolbox (policy '{s.rai_policy or 'default'}')")
     rc = 1
     try:
         result = run_assessment_loop(driving, skill, allowed, Generator(client),
