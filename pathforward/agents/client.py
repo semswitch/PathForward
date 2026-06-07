@@ -85,23 +85,3 @@ class FakeLLMClient:
             "cited_ref_ids": allowed[:1] or [edge],
             "numeric_claim": "18 + 6 == 24",
         }
-
-
-@dataclass
-class FoundryLLMClient:
-    """Azure stub — wire to azure-ai-projects Responses API on Day 3.
-
-    Build (Day 0): verify `from azure.ai.projects import AIProjectClient` and
-    `PromptAgentDefinition` / `create_version` import from the pinned >=2.2.0 SDK.
-    Runtime: `project.get_openai_client().responses.create(model=..., instructions=...,
-    input=..., previous_response_id=...)`, with Entra `DefaultAzureCredential`.
-    """
-    endpoint: str = ""
-    model: str = "reasoning"  # deployment name; underlying model gpt-5.5 (2026-04-24)
-
-    def respond(self, instructions: str, input: str, *,  # pragma: no cover - Azure-only
-                previous_response_id: Optional[str] = None,
-                schema: Optional[dict] = None) -> LLMResponse:
-        raise NotImplementedError(
-            "Wire to the GA Responses API on Day 3 (see 03-Build-Plan.md §3.1 / §8)."
-        )

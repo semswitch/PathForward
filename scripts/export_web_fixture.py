@@ -42,7 +42,7 @@ def build_fixture() -> dict:
     result = run_assessment_loop(driving, skill, allowed,
                                  Generator(FakeLLMClient()), Verifier(LocalNumericChecker()))
     cal = cold_start_calibrate(_learner_responses(onto)).get(f"item-{skill.id}", {})
-    cred = mint(worker, driving.id, skill.id, gb["meta"]["readiness"], result, cal)
+    cred = mint(worker, role, driving.id, skill.id, result, cal)
 
     verified = [t for t in result.transcript if t["verdict"].passed]
     return {

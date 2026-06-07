@@ -10,10 +10,13 @@ tool trace (never model-authored), feeding the loop's corpus-intersect-retrieved
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Optional
 
 from .client import LLMResponse
+
+_RATE_LIMIT_RETRIES = 6   # the eval/red-team batch can exceed the deployment's per-minute quota
 
 DEFAULT_CONNECTION = "pathforward-search"
 DEFAULT_AGENT = "pathforward-generator"
@@ -31,6 +34,14 @@ _LIVE_SUFFIX = (
 
 def _key_to_ref(key: str) -> str:
     return key.replace("__", "::")
+
+
+def _is_content_filter(exc: Exception) -> bool:
+    """True when the request was blocked by the RAI/content policy (e.g. a jailbreak prompt)."""
+    if getattr(exc, "code", None) == "content_filter":
+        return True
+    s = str(exc).lower()
+    return "content_filter" in s or "content management policy" in s
 
 
 def retrieved_ref_ids(resp) -> tuple[str, ...]:
@@ -99,14 +110,38 @@ class FoundryLLMClient:
             description="PathForward live generator agent.",
         )
 
+    def _create_with_backoff(self, input: str):
+        """Call the agent, backing off on the deployment's per-minute rate limit (429)."""
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            try:
+                return self._openai.responses.create(
+                    input=input, tool_choice="auto",   # AUTONOMY: the model decides to search
+                    extra_body={"agent_reference": {"name": self._agent.name, "type": "agent_reference"}},
+                )
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))   # 8,16,24,... clears the 60s quota window
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
     def respond(self, instructions: str, input: str, *,
                 previous_response_id: Optional[str] = None,
                 schema: Optional[dict] = None) -> LLMResponse:
         self._ensure(instructions, schema)
-        resp = self._openai.responses.create(
-            input=input, tool_choice="auto",   # AUTONOMY: the model decides to search
-            extra_body={"agent_reference": {"name": self._agent.name, "type": "agent_reference"}},
-        )
+        try:
+            resp = self._create_with_backoff(input)
+        except Exception as exc:  # noqa: BLE001
+            if _is_content_filter(exc):
+                # RAI policy blocked the prompt (e.g. a jailbreak) — surface an empty, ungrounded
+                # response so the loop fail-closes. The block IS the defense holding.
+                return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
+                                   retrieved_ref_ids=())
+            raise
         try:
             parsed = json.loads(resp.output_text or "{}")
         except Exception:  # noqa: BLE001

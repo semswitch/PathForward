@@ -92,7 +92,7 @@ def main() -> None:
           f"discrimination={cal.get('discrimination')}  ({cal.get('label')})")
 
     rule("5. CREDENTIAL MINT  - citation-backed, causal-spine asserted")
-    cred = mint(worker, driving.id, skill.id, gb["meta"]["readiness"], result, cal)
+    cred = mint(worker, role, driving.id, skill.id, result, cal)
     cs = cred.credential_subject
     print(f"  subject: worker={cs['worker_id']} skill={cs['skill_id']} "
           f"readiness={cs['readiness']}")

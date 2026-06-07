@@ -62,8 +62,7 @@ def main() -> int:
                 print(f"    failed: {[f['criterion'] for f in v.failed_reasons]}")
 
         if result.status == "verified":
-            readiness = dv.readiness_score(worker, role)
-            cred = mint(worker, driving.id, skill.id, readiness, result)
+            cred = mint(worker, role, driving.id, skill.id, result)
             cs = cred.credential_subject
             print(f"\nMINTED credential: worker={cs['worker_id']} skill={cs['skill_id']} "
                   f"readiness={cs['readiness']} cited_edge_id={cs['cited_edge_id']}")

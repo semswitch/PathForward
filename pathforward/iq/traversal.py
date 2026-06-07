@@ -78,6 +78,15 @@ def cert_gap_edges(worker: Worker, onto: Ontology, edges: list[Edge]) -> list[Ed
     return sorted(found, key=lambda e: order.get(e.id, 1_000))
 
 
+def is_assessable(skill_id: str, onto: Ontology) -> bool:
+    """A skill is assessable only if it has learning content — at least one certification corpus
+    card. Skills with no certification (e.g. S09 Containers) carry only structural edges (requires/
+    certgap), which state a requirement but contain nothing to author or answer a competency item;
+    the blueprint flags them 'no assessment available' rather than bluffing one.
+    """
+    return len(onto.certs_for_skill(skill_id)) > 0
+
+
 def approved_refs(worker: Worker, skill: Skill, onto: Ontology) -> tuple[str, ...]:
     """The grounding evidence neighborhood for assessing `skill` in `worker`'s gap context.
 
