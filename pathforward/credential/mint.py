@@ -12,6 +12,7 @@ from __future__ import annotations
 from ..agents.types import LoopResult
 from ..iq.derivation import ONTOLOGY_AS_OF, readiness_score
 from ..iq.models import Role, Worker
+from ..obs import tracing
 from .schema import (CredentialIntegrityError, ISSUER, ProofCredential,
                      VC_CONTEXT, VC_TYPE)
 
@@ -19,6 +20,15 @@ from .schema import (CredentialIntegrityError, ISSUER, ProofCredential,
 def mint(worker: Worker, role: Role, driving_edge_id: str, skill_id: str,
          loop_result: LoopResult, calibration: dict | None = None,
          valid_from: str = ONTOLOGY_AS_OF) -> ProofCredential:
+    with tracing.span("mint", **{"pf.worker": worker.id, "pf.skill": skill_id,
+                                 "pf.driving_edge": driving_edge_id}) as _span:
+        return _mint(worker, role, driving_edge_id, skill_id, loop_result, calibration,
+                     valid_from, _span)
+
+
+def _mint(worker: Worker, role: Role, driving_edge_id: str, skill_id: str,
+          loop_result: LoopResult, calibration: dict | None, valid_from: str,
+          _span) -> ProofCredential:
     if loop_result.status != "verified":
         raise CredentialIntegrityError(
             f"refusing to mint: loop status is '{loop_result.status}' (fail-closed)")
@@ -48,6 +58,7 @@ def mint(worker: Worker, role: Role, driving_edge_id: str, skill_id: str,
 
     # Readiness is DERIVED here from the ontology — never a caller-supplied (inflatable) input.
     readiness = round(readiness_score(worker, role), 4)
+    _span.set(**{"pf.readiness": readiness, "pf.minted": True})
 
     return ProofCredential(
         context=VC_CONTEXT,

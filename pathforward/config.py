@@ -49,6 +49,7 @@ class Settings:
     search_index: str = "pathforward-iq"
     rai_policy: str = ""                              # enforced Responsible AI policy name (blank = none)
     eval_judge_api_version: str = "2025-01-01-preview"  # AOAI api-version for the groundedness judge
+    azure_monitor_connection_string: str = ""         # App Insights conn string for OTel trace export
     fabric_workspace_id: str = ""
     fabric_artifact_id: str = ""
     voice_resource_endpoint: str = ""
@@ -70,6 +71,7 @@ def load_settings(dotenv_path: str = ".env") -> Settings:
         search_index=g("AZURE_SEARCH_INDEX", "pathforward-iq"),
         rai_policy=g("AZURE_RAI_POLICY", ""),
         eval_judge_api_version=g("EVAL_JUDGE_API_VERSION", "2025-01-01-preview"),
+        azure_monitor_connection_string=g("AZURE_MONITOR_CONNECTION_STRING", ""),
         fabric_workspace_id=g("FABRIC_WORKSPACE_ID", ""),
         fabric_artifact_id=g("FABRIC_ARTIFACT_ID", ""),
         voice_resource_endpoint=g("VOICE_LIVE_ENDPOINT", ""),

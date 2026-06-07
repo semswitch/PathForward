@@ -13,5 +13,9 @@ azure-identity>=1.17              # DefaultAzureCredential — Entra-only auth (
 azure-search-documents>=11.6.0    # agentic retrieval / knowledge sources (need the build supporting api 2026-04-01)
 azure-ai-evaluation>=1.0.0        # eval SDK: groundedness / relevance / tool-accuracy / intent / task-adherence
 
+# observability — OPTIONAL OTel tracing (no-op unless configure_tracing() is called; offline core unaffected)
+opentelemetry-sdk==1.37.0         # pinned: the Azure Monitor exporter (b45) imports LogData, removed in sdk 1.38+
+azure-monitor-opentelemetry-exporter>=1.0.0b40   # Azure Monitor / App Insights trace export (Console exporter ships in the sdk)
+
 # dev / optional
 pytest>=8.0                       # (the suite also runs under stdlib unittest)
