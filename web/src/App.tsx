@@ -23,11 +23,13 @@ export function App() {
       <main className={styles.page}>
         <header className={styles.header}>
           <Title1 as="h1">PathForward</Title1>
-          <Body1 as="p" block className={styles.intro}>
-            Grounded reskilling for displaced workers — Agents League @ AISF 2026 ·
-            Reasoning Agents track.{" "}
+          <div className={styles.intro}>
+            <Body1>
+              Grounded reskilling for displaced workers — Agents League @ AISF 2026 ·
+              Reasoning Agents track.{" "}
+            </Body1>
             <Badge appearance="tint" color="brand">synthetic data</Badge>
-          </Body1>
+          </div>
           <div className={styles.row}>
             <Badge appearance="outline" role="img" aria-label={`worker ${worker.id}`}>
               {worker.id}
