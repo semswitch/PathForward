@@ -1,0 +1,20 @@
+/* Minimal layout only — colours/type come from Carbon tokens, not here. */
+.pf-page {
+  min-height: 100vh;
+  padding: 2rem;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.pf-panel {
+  margin-block-end: 1.5rem;
+}
+.pf-mono {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8125rem;
+}
+.pf-row-spaced {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}

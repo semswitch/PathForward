@@ -1,0 +1,17 @@
+# PathForward — Python dependencies
+#
+# The OFFLINE CORE (pathforward/, scripts/, tests/) uses the STANDARD LIBRARY ONLY.
+# You can run the demo and the full test suite with zero installs:
+#     python scripts/run_demo.py
+#     python -m unittest discover -s tests -t .
+#
+# The Azure layer below is wired starting Day 0/3 (see 03-Build-Plan.md). Pins reflect
+# the red-team's correctness findings; verify exact versions on Day 0.
+
+azure-ai-projects>=2.2.0          # GA Responses API + agents (v2.x is incompatible with v1.x — pin it)
+azure-identity>=1.17              # DefaultAzureCredential — Entra-only auth (no API keys)
+azure-search-documents>=11.6.0    # agentic retrieval / knowledge sources (need the build supporting api 2026-04-01)
+azure-ai-evaluation>=1.0.0        # eval SDK: groundedness / relevance / tool-accuracy / intent / task-adherence
+
+# dev / optional
+pytest>=8.0                       # (the suite also runs under stdlib unittest)

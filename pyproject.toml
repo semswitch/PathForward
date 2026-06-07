@@ -1,0 +1,28 @@
+[project]
+name = "pathforward"
+version = "0.1.0"
+description = "A multi-agent reskilling system for displaced/at-risk workers — Agents League @ AISF 2026 (Reasoning Agents track)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# Offline core has no runtime deps; the Azure layer is listed in requirements.txt.
+dependencies = []
+
+[project.optional-dependencies]
+azure = [
+  "azure-ai-projects>=2.2.0",
+  "azure-identity>=1.17",
+  "azure-search-documents>=11.6.0",
+  "azure-ai-evaluation>=1.0.0",
+]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pathforward*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
