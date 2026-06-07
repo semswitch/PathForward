@@ -28,3 +28,9 @@ web/src/lib/fixture.json
 Thumbs.db
 .idea/
 .vscode/
+
+# agent workspace — never commit (planning, evidence, temp, logs)
+.agents/
+
+# stray pip cache from a mis-expanded %appdata% in a shell command
+%appdata%/
