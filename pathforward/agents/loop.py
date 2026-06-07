@@ -22,16 +22,22 @@ def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ..
                         max_attempts: int = MAX_ATTEMPTS) -> LoopResult:
     transcript: list[dict] = []
     previous_response_id = None
+    corpus = set(allowed_ref_ids)
     for attempt in range(max_attempts):
         item = generator.generate(edge, skill, allowed_ref_ids, attempt,
                                   previous_response_id=previous_response_id)
-        verdict = verifier.verify(item, allowed_ref_ids)
+        # Phantom-citation gate: an id counts only if it is BOTH approved corpus AND was
+        # actually retrieved by the tool this turn. Under autonomous tool-calling the model
+        # could cite a real corpus id it never fetched — this intersection strikes it.
+        # Retrieval can only ADD to the deterministic floor, never fabricate grounding.
+        effective_allowed = tuple(r for r in item.retrieved_ref_ids if r in corpus)
+        verdict = verifier.verify(item, effective_allowed)
         transcript.append({"attempt": attempt, "item": item, "verdict": verdict})
         if verdict.passed:
             return LoopResult(
                 status="verified", driving_edge_id=edge.id, targeted_skill_id=skill.id,
                 attempts=attempt + 1, item=item, verdict=verdict, transcript=transcript,
-                citations=item.cited_ref_ids,   # assembled & owned here
+                citations=tuple(c for c in item.cited_ref_ids if c in set(effective_allowed)),
             )
     # exhausted -> fail closed
     last = transcript[-1]

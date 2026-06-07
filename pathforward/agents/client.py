@@ -26,6 +26,7 @@ class LLMResponse:
     output_text: str
     parsed: Optional[dict] = None
     previous_response_id: Optional[str] = None
+    retrieved_ref_ids: tuple[str, ...] = ()   # ids the retrieval tool returned this turn (from the tool trace)
 
 
 @runtime_checkable
@@ -46,8 +47,16 @@ class FakeLLMClient:
         self._n += 1
         rid = f"resp_fake_{self._n:04d}"
         if GENERATOR_TAG in instructions:
-            parsed = self._generate(json.loads(input))
-            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+            p = json.loads(input)
+            parsed = self._generate(p)
+            # retrieved_ref_ids simulates the TOOL TRACE (what retrieval physically returned),
+            # not model output: attempt 0 grounds on nothing (the on-camera refusal); later
+            # attempts retrieve the approved doc the revision then cites.
+            allowed = list(p.get("allowed_ref_ids", []))
+            attempt = int(p.get("attempt", 0))
+            retrieved = () if attempt == 0 else tuple(allowed[:1])
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id,
+                               retrieved_ref_ids=retrieved)
         # default: echo (verifier semantic rationale path, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
 

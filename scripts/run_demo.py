@@ -75,6 +75,7 @@ def main() -> None:
         status = "PASS" if v.passed else "REJECT"
         print(f"\n  attempt {t['attempt']}: {status}")
         print(f"    stem: {t['item'].stem[:72]}...")
+        print(f"    retrieved (tool trace): {list(t['item'].retrieved_ref_ids) or '(none)'}")
         print(f"    citations: {list(t['item'].cited_ref_ids) or '(none)'}")
         if not v.passed:
             for fr in v.failed_reasons:

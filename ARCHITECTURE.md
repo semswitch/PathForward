@@ -66,8 +66,8 @@ flowchart TB
 
 | Area | Decision |
 |---|---|
-| Loop | **Code-driven GA Responses loop**, not classic connected agents (which don't exist on the GA SDK). Orchestrator owns the payload → citations propagate deterministically. |
-| Grounding | **GA agentic retrieval is extractive** (rerank + citations over agent-supplied `intents[]`). The agent layer plans the queries; Search does not. |
+| Loop | **Agentic tool-calling on the GA Responses API**: gpt‑5.5 is given the retrieval tool and *itself* decides when to call it (`tool_choice='auto'`, not `'required'`). Server-side prompt agents *with tools* DO exist on `azure-ai-projects 2.2.0` (`PromptAgentDefinition` / `create_version`); only classic thread/run is gone. The orchestrator still owns the payload → citations propagate deterministically, and the Verifier gates on `corpus ∩ retrieved`. |
+| Grounding | The model's tool is the **GA agentic-retrieval knowledge base** (`KnowledgeBaseRetrievalClient`, `2026-04-01`, extractive `intents[]` + citations). **gpt‑5.5 plans/authors the searches; Search reranks + cites, it does not plan** (Search-side query planning is preview — kept off the critical path). |
 | Fabric | Ontology authored as a **non-Power BI Fabric item** on a **paid F2+** capacity (Trial can't run the data agent). The **Search mirror** is the runtime path. |
 | Mirror | Pre-materializes base + **derived** edges (provenance + validity-time) + traversal paths as first-class docs; build-time non-empty guard. |
 | Region | **East US 2** — Foundry + gpt-5.5 + Fabric. **Azure AI Search runs in East US** (eastus2 was Search-capacity-constrained; cross-region Search↔model is fine — only the Fabric data agent needs co-location). |

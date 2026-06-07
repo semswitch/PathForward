@@ -14,6 +14,7 @@ class AssessmentItem:
     options: tuple[str, ...]
     answer_index: int
     cited_ref_ids: tuple[str, ...] = ()
+    retrieved_ref_ids: tuple[str, ...] = ()   # ids the retrieval TOOL physically returned (trace, not model output)
     numeric_claim: Optional[str] = None   # arithmetic the Verifier must independently check
     attempt: int = 0
 
@@ -32,6 +33,7 @@ class AssessmentItem:
             "options": list(self.options),
             "answer_index": self.answer_index,
             "cited_ref_ids": list(self.cited_ref_ids),
+            "retrieved_ref_ids": list(self.retrieved_ref_ids),
             "numeric_claim": self.numeric_claim,
             "attempt": self.attempt,
         }

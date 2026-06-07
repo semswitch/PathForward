@@ -52,6 +52,7 @@ class Generator:
             options=tuple(d.get("options", ())),
             answer_index=int(d.get("answer_index", 0)),
             cited_ref_ids=tuple(d.get("cited_ref_ids", ())),
+            retrieved_ref_ids=tuple(resp.retrieved_ref_ids),   # provenance from the tool trace
             numeric_claim=d.get("numeric_claim"),
             attempt=attempt,
         )

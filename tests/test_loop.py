@@ -24,6 +24,25 @@ class _AlwaysUngroundedClient:
         })
 
 
+class _PhantomCitationClient:
+    """Cites an APPROVED corpus id the tool never actually returned.
+
+    This is the autonomous-tool-calling threat the manual-RAG design couldn't have:
+    the model knows a real corpus id exists and cites it WITHOUT retrieval returning
+    it. The loop's `corpus INTERSECT retrieved` gate (retrieved is empty here) must
+    strike it so it can never mint. retrieved_ref_ids defaults to () on this response.
+    """
+    def __init__(self, phantom: str):
+        self.phantom = phantom
+
+    def respond(self, instructions, input, *, previous_response_id=None, schema=None):
+        return LLMResponse("r", "", {
+            "stem": "A plausible competency item about the target skill.",
+            "options": ["alpha", "beta", "gamma"], "answer_index": 1,
+            "cited_ref_ids": [self.phantom], "numeric_claim": None,
+        })
+
+
 class TestLoop(unittest.TestCase):
     def setUp(self):
         self.onto = build_seed()
@@ -56,6 +75,20 @@ class TestLoop(unittest.TestCase):
         self.assertEqual(res.status, "abstained")
         self.assertEqual(res.attempts, 3)
         self.assertEqual(res.citations, ())        # nothing minted from an abstain
+
+    def test_phantom_citation_is_struck(self):
+        # The model cites a REAL approved corpus id that retrieval never returned.
+        # corpus INTERSECT retrieved (empty) must filter it out -> 'grounded' fails ->
+        # fail-closed abstain. This is the autonomy-era anti-bluff guarantee.
+        phantom = self.allowed[0]
+        self.assertIn(phantom, self.allowed)       # the id IS approved corpus...
+        gen = Generator(_PhantomCitationClient(phantom))
+        ver = Verifier(LocalNumericChecker())
+        res = run_assessment_loop(self.driving, self.skill, self.allowed, gen, ver, max_attempts=3)
+        self.assertEqual(res.status, "abstained")  # ...but never retrieved -> never verified
+        self.assertEqual(res.citations, ())
+        for t in res.transcript:                   # struck specifically on grounding, every attempt
+            self.assertFalse(t["verdict"].criteria["grounded"])
 
 
 if __name__ == "__main__":
