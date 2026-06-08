@@ -16,6 +16,7 @@ from __future__ import annotations
 from ..iq import traversal
 from ..iq.models import Edge, Ontology, Worker
 from ..obs import tracing
+from .adaptive import AdaptiveController
 from .critic import Critic
 from .curator import Curator
 from .generator import Generator
@@ -27,7 +28,8 @@ from .evidence_gate import EvidenceGate
 
 def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
                    curator: Curator, generator: Generator, evidence_gate: EvidenceGate,
-                   planner: Planner, critic: Critic | None = None) -> MultiAgentResult:
+                   planner: Planner, critic: Critic | None = None,
+                   adaptive: AdaptiveController | None = None) -> MultiAgentResult:
     role = onto.roles[worker.target_role_id]
     with tracing.span("multiagent", **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:
         with tracing.span("curate", **{"pf.worker": worker.id}) as cur_span:
@@ -53,7 +55,8 @@ def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
         # corpus cards) — replaces the demo's old hardcoded `corpus::AZ-204` shortcut.
         allowed = traversal.approved_refs(worker, skill, onto)
 
-        loop = run_assessment_loop(driving, skill, allowed, generator, evidence_gate, critic=critic)
+        loop = run_assessment_loop(driving, skill, allowed, generator, evidence_gate,
+                                   critic=critic, adaptive=adaptive)
         root.set(**{"pf.status": loop.status, "pf.attempts": loop.attempts})
 
         with tracing.span("plan", **{"pf.worker": worker.id,

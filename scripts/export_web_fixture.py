@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
 
+from pathforward.agents.adaptive import AdaptiveController                 # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate           # noqa: E402
 from pathforward.agents.client import FakeLLMClient                        # noqa: E402
 from pathforward.agents.critic import Critic                               # noqa: E402
@@ -41,14 +42,16 @@ def build_fixture() -> dict:
     gb = traversal.build_glassbox(worker, onto, edges)
 
     # The reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner.
+    stats = cold_start_calibrate(_learner_responses(onto))
+    adaptive = AdaptiveController(calibration=stats)
     result = run_multiagent(worker, onto, edges,
                             Curator(FakeLLMClient()), Generator(FakeLLMClient()),
                             EvidenceGate(LocalNumericChecker()),
                             Planner(FakeLLMClient(), LocalNumericChecker()),
-                            critic=Critic(FakeLLMClient()))
+                            critic=Critic(FakeLLMClient()), adaptive=adaptive)
     decision, loop_result, plan = result.curator, result.loop, result.plan
     skill = onto.skills[decision.chosen_skill_id]
-    cal = cold_start_calibrate(_learner_responses(onto)).get(f"item-{skill.id}", {})
+    cal = stats.get(f"item-{skill.id}", {})
     cred = mint(worker, role, decision.chosen_edge_id, skill.id, loop_result, cal)
 
     verified = [t for t in loop_result.transcript if t["verdict"].passed]
@@ -63,6 +66,7 @@ def build_fixture() -> dict:
         "glassbox": gb,
         "driving_edge_id": decision.chosen_edge_id,
         "targeted_skill": skill.name,
+        "difficulty_band": adaptive.band_for(skill.id),   # adaptive (cold-start, selection-only)
         "curator": decision.to_doc(),
         "loop": loop_result.to_doc(),
         "calibration": cal,

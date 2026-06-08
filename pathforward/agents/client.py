@@ -71,6 +71,9 @@ class FakeLLMClient:
         # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
 
+    # adaptive band -> (practice hours, review hours); 'core' reproduces the canonical 18+6==24 item.
+    _BAND_HOURS = {"foundational": (8, 4), "core": (18, 6), "stretch": (30, 10)}
+
     @staticmethod
     def _generate(p: dict) -> dict:
         skill = p.get("skill_name", "the target skill")
@@ -87,14 +90,20 @@ class FakeLLMClient:
                 "cited_ref_ids": [],
                 "numeric_claim": None,
             }
-        # grounded, verifiable revision
+        # grounded, verifiable revision — the adaptive BAND hint materially changes the item (so
+        # adaptivity is observable offline) while keeping it grounded + numerically valid. 'core'
+        # (the default) reproduces the canonical item exactly.
+        practice, review = FakeLLMClient._BAND_HOURS.get(p.get("difficulty_band") or "core",
+                                                         FakeLLMClient._BAND_HOURS["core"])
+        total = practice + review
         return {
-            "stem": (f"A learner studied for {skill}. Given a recommended 24 study hours "
-                     f"split as 18 hours of practice and 6 hours of review, what is the total?"),
-            "options": ["20 hours", "24 hours", "30 hours"],
+            "stem": (f"A learner studied for {skill}. Given a recommended {total} study hours "
+                     f"split as {practice} hours of practice and {review} hours of review, "
+                     f"what is the total?"),
+            "options": [f"{total - 4} hours", f"{total} hours", f"{total + 6} hours"],
             "answer_index": 1,
             "cited_ref_ids": allowed[:1] or [edge],
-            "numeric_claim": "18 + 6 == 24",
+            "numeric_claim": f"{practice} + {review} == {total}",
         }
 
     @staticmethod

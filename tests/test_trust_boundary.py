@@ -85,6 +85,11 @@ class TestGateIndependentOfCritic(unittest.TestCase):
         self.assertNotIn("CriticReview", src)
         self.assertNotIn("critic", src.lower())
 
+    def test_difficulty_band_never_reaches_the_gate_or_mint(self):
+        # Adaptive difficulty is selection-only: neither the gate's verdict nor mint() may read it.
+        self.assertNotIn("difficulty_band", _read("agents/evidence_gate.py"))
+        self.assertNotIn("difficulty_band", _read("credential/mint.py"))
+
 
 class TestMintReDerivesNotTrusts(unittest.TestCase):
     """mint() trusts loop_result.status + citations but RE-CHECKS the causal spine itself, so a

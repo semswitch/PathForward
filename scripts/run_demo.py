@@ -18,6 +18,7 @@ from collections import OrderedDict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from pathforward.agents.adaptive import AdaptiveController                # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
 from pathforward.agents.client import FakeLLMClient                       # noqa: E402
 from pathforward.agents.critic import Critic                              # noqa: E402
@@ -65,12 +66,15 @@ def main() -> None:
     print(f"  Readiness (derived): {gb['meta']['readiness'] * 100:.0f}%")
 
     # --- the reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner ----------
+    stats = cold_start_calibrate(_learner_responses(onto))      # cold-start item calibration
+    adaptive = AdaptiveController(calibration=stats)            # pure-code difficulty selection
     cur = Curator(FakeLLMClient())
     gen = Generator(FakeLLMClient())
     critic = Critic(FakeLLMClient())
     gate = EvidenceGate(LocalNumericChecker())
     planner = Planner(FakeLLMClient(), LocalNumericChecker())
-    result = run_multiagent(worker, onto, edges, cur, gen, gate, planner, critic=critic)
+    result = run_multiagent(worker, onto, edges, cur, gen, gate, planner,
+                            critic=critic, adaptive=adaptive)
     decision, loop_result, plan = result.curator, result.loop, result.plan
 
     rule("3. CURATOR AGENT  - which gap to certify first (reasoned, then gated)")
@@ -88,6 +92,10 @@ def main() -> None:
     allowed = traversal.approved_refs(worker, skill, onto)
     print(f"  Driving edge: {decision.chosen_edge_id}  ->  tests skill '{skill.name}'")
     print(f"  Approved grounding refs: {list(allowed)}")
+    _bcal = stats.get(f"item-{skill.id}", {})
+    print(f"  Adaptive difficulty (pure code, cold-start, selection-only): band "
+          f"'{adaptive.band_for(skill.id)}' from difficulty={_bcal.get('difficulty')} "
+          f"(hint to the Generator; never an input to the gate or mint)")
     for t in loop_result.transcript:
         v = t["verdict"]
         gate_status = "PASS" if v.passed else "REJECT"
@@ -113,8 +121,7 @@ def main() -> None:
         print("    gate cannot compute, on an item the gate still PASSED -- advisory, never overriding.")
     print(f"\n  loop status: {loop_result.status.upper()}  (attempts: {loop_result.attempts})")
 
-    rule("5. COLD-START CALIBRATION  - honest psychometrics")
-    stats = cold_start_calibrate(_learner_responses(onto))
+    rule("5. COLD-START CALIBRATION  - honest psychometrics (drives the adaptive band above)")
     item_id = f"item-{skill.id}"
     cal = stats.get(item_id, {})
     print(f"  {item_id}: difficulty={cal.get('difficulty')}  "
