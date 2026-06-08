@@ -5,7 +5,7 @@ OWNS every trust-bearing fact:
   - per-skill HOURS are taken from the certification blueprint (`canonical_hours`), never the model;
   - the weekly LOAD is phased in code to respect `worker.weekly_capacity_hours` (an over-ambitious
     model pace is clamped and flagged `corrected`);
-  - the arithmetic is proven by the same `NumericChecker` the Verifier trusts;
+  - the arithmetic is proven by the same `NumericChecker` the Evidence Gate trusts;
   - accessibility ADAPTATIONS are derived from a fixed vocabulary keyed to the worker's declared
     needs (a model suggestion outside that vocabulary never enters the plan).
 
@@ -78,7 +78,7 @@ class Planner:
         derived = [(s, h, c) for (s, h, c) in derived if h > 0]   # drop uncorpused defensively
         total = float(sum(h for _, h, _ in derived))
 
-        # Prove the sum with the NumericChecker (same trust as the Verifier's numeric gate).
+        # Prove the sum with the NumericChecker (same trust as the Evidence Gate's numeric gate).
         if derived:
             claim = f"{' + '.join(str(h) for _, h, _ in derived)} == {int(total)}"
             res = self.numeric_checker.check(claim)

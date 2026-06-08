@@ -1,11 +1,11 @@
 """Offline end-to-end demo — proves the multi-agent reasoning spine with no Azure.
 
 Runs the full PathForward flow for the hero worker EMP-001 against the FakeLLMClient:
-  Glass-Box traversal -> Curator (gap prioritization, reasoned) -> Generator/Verifier loop
+  Glass-Box traversal -> Curator (gap prioritization, reasoned) -> Generator/Evidence Gate loop
   (reject->regenerate) -> cold-start calibration -> citation-backed credential mint
   -> Planner (capacity + accessibility learning plan), with the causal-spine assertion enforced.
 
-Three reasoning agents (Curator, Generator, Planner) are orchestrated in code; the Verifier gate
+Three reasoning agents (Curator, Generator, Planner) are orchestrated in code; the Evidence Gate gate
 and the mint's causal-spine check remain deterministic. This is the textual storyboard for the
 demo video. Run:
   python scripts/run_demo.py
@@ -18,14 +18,16 @@ from collections import OrderedDict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from pathforward.agents.adaptive import AdaptiveController                # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
 from pathforward.agents.client import FakeLLMClient                       # noqa: E402
+from pathforward.agents.critic import Critic                              # noqa: E402
 from pathforward.agents.curator import Curator                            # noqa: E402
 from pathforward.agents.generator import Generator                       # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
 from pathforward.agents.planner import Planner                           # noqa: E402
-from pathforward.agents.verifier import Verifier                         # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate                         # noqa: E402
 from pathforward.credential.mint import mint                             # noqa: E402
 from pathforward.iq import derivation as dv                              # noqa: E402
 from pathforward.iq import traversal                                     # noqa: E402
@@ -63,12 +65,16 @@ def main() -> None:
           f"{[onto.skills[s].name for s in gap]}")
     print(f"  Readiness (derived): {gb['meta']['readiness'] * 100:.0f}%")
 
-    # --- the three-agent reasoning loop: Curator -> Generator/Verifier -> Planner ---------------
+    # --- the reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner ----------
+    stats = cold_start_calibrate(_learner_responses(onto))      # cold-start item calibration
+    adaptive = AdaptiveController(calibration=stats)            # pure-code difficulty selection
     cur = Curator(FakeLLMClient())
     gen = Generator(FakeLLMClient())
-    ver = Verifier(LocalNumericChecker())
+    critic = Critic(FakeLLMClient())
+    gate = EvidenceGate(LocalNumericChecker())
     planner = Planner(FakeLLMClient(), LocalNumericChecker())
-    result = run_multiagent(worker, onto, edges, cur, gen, ver, planner)
+    result = run_multiagent(worker, onto, edges, cur, gen, gate, planner,
+                            critic=critic, adaptive=adaptive)
     decision, loop_result, plan = result.curator, result.loop, result.plan
 
     rule("3. CURATOR AGENT  - which gap to certify first (reasoned, then gated)")
@@ -81,27 +87,41 @@ def main() -> None:
     print(f"  Chosen target: {chosen_skill.name} ({decision.chosen_skill_id})")
     print(f"  Driving edge:  {decision.chosen_edge_id}")
 
-    rule("4. ASSESSMENT LOOP  - blueprint driven by the Curator-chosen CertGap edge")
+    rule("4. ASSESSMENT LOOP  - Generator -> Critic (agent) -> Evidence Gate (code)")
     skill = chosen_skill
     allowed = traversal.approved_refs(worker, skill, onto)
     print(f"  Driving edge: {decision.chosen_edge_id}  ->  tests skill '{skill.name}'")
     print(f"  Approved grounding refs: {list(allowed)}")
+    _bcal = stats.get(f"item-{skill.id}", {})
+    print(f"  Adaptive difficulty (pure code, cold-start, selection-only): band "
+          f"'{adaptive.band_for(skill.id)}' from difficulty={_bcal.get('difficulty')} "
+          f"(hint to the Generator; never an input to the gate or mint)")
     for t in loop_result.transcript:
         v = t["verdict"]
-        status = "PASS" if v.passed else "REJECT"
-        print(f"\n  attempt {t['attempt']}: {status}")
+        gate_status = "PASS" if v.passed else "REJECT"
+        cr = t.get("critic")
+        print(f"\n  attempt {t['attempt']}:")
         print(f"    stem: {t['item'].stem[:72]}...")
         print(f"    retrieved (tool trace): {list(t['item'].retrieved_ref_ids) or '(none)'}")
         print(f"    citations: {list(t['item'].cited_ref_ids) or '(none)'}")
+        if cr:
+            concerns = ", ".join(f"{c.criterion_name}({c.severity})" for c in cr.concerns) or "none"
+            print(f"    Critic agent (advisory) : {cr.recommendation.upper():6}  concerns: {concerns}")
+        print(f"    Evidence Gate (decides) : {gate_status}")
         if not v.passed:
             for fr in v.failed_reasons:
-                print(f"    x {fr['criterion']}: {fr['reason']}")
+                print(f"      x {fr['criterion']}: {fr['reason']}")
         else:
-            print(f"    criteria: {v.criteria}")
+            print(f"      criteria: {v.criteria}")
+    # The maker-checker beat: on the PASSING item the Critic still raised a quality concern the
+    # deterministic gate cannot compute — agents reason, code notarizes.
+    passed = [t for t in loop_result.transcript if t["verdict"].passed]
+    if passed and passed[-1].get("critic") and passed[-1]["critic"].concerns:
+        print("\n  ^ note: the Critic agent flagged a quality dimension (ambiguity) the deterministic")
+        print("    gate cannot compute, on an item the gate still PASSED -- advisory, never overriding.")
     print(f"\n  loop status: {loop_result.status.upper()}  (attempts: {loop_result.attempts})")
 
-    rule("5. COLD-START CALIBRATION  - honest psychometrics")
-    stats = cold_start_calibrate(_learner_responses(onto))
+    rule("5. COLD-START CALIBRATION  - honest psychometrics (drives the adaptive band above)")
     item_id = f"item-{skill.id}"
     cal = stats.get(item_id, {})
     print(f"  {item_id}: difficulty={cal.get('difficulty')}  "
@@ -140,7 +160,7 @@ def main() -> None:
     rule("HERO METRICS  - on screen in the first 30s")
     verified_items = [t for t in loop_result.transcript if t["verdict"].passed]
     cited = [t for t in verified_items if t["item"].cited_ref_ids]
-    print(f"  reasoning agents in the loop: 3 (Curator, Generator, Planner) + deterministic Verifier")
+    print(f"  reasoning agents in the loop: 3 (Curator, Generator, Planner) + deterministic Evidence Gate")
     print(f"  grounded-citation rate: {len(cited)}/{len(verified_items)} verified items cited")
     print(f"  attempts to a verified item: {loop_result.attempts} "
           f"({loop_result.attempts - 1} rejected on grounding/quality)")

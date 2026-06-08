@@ -1,8 +1,9 @@
-"""The multi-agent reasoning loop: Curator -> (Generator/Verifier loop) -> Planner, in code.
+"""The multi-agent reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner, in code.
 
-The Curator reasons over the worker's gaps and selects the assessment target; the existing
-Generator/Verifier loop authors and gates a grounded competency item for that target; the Planner
-reasons an advisory, capacity- and accessibility-aware learning plan around the full gap.
+The Curator reasons over the worker's gaps and selects the assessment target; the Generator authors a
+grounded competency item; an advisory Critic AGENT reviews item quality; the deterministic Evidence
+Gate decides whether it passes; the Planner reasons an advisory, capacity- and accessibility-aware
+learning plan around the full gap. Agents reason; code notarizes.
 
 The trust boundary is unchanged: the loop's `corpus ∩ retrieved` gate, the N=3 fail-closed
 ABSTAIN, and the credential's causal-spine assertion all stay exactly as they were. The Curator
@@ -15,17 +16,20 @@ from __future__ import annotations
 from ..iq import traversal
 from ..iq.models import Edge, Ontology, Worker
 from ..obs import tracing
+from .adaptive import AdaptiveController
+from .critic import Critic
 from .curator import Curator
 from .generator import Generator
 from .loop import run_assessment_loop
 from .planner import Planner
 from .types import LoopResult, MultiAgentResult
-from .verifier import Verifier
+from .evidence_gate import EvidenceGate
 
 
 def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
-                   curator: Curator, generator: Generator, verifier: Verifier,
-                   planner: Planner) -> MultiAgentResult:
+                   curator: Curator, generator: Generator, evidence_gate: EvidenceGate,
+                   planner: Planner, critic: Critic | None = None,
+                   adaptive: AdaptiveController | None = None) -> MultiAgentResult:
     role = onto.roles[worker.target_role_id]
     with tracing.span("multiagent", **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:
         with tracing.span("curate", **{"pf.worker": worker.id}) as cur_span:
@@ -51,7 +55,8 @@ def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
         # corpus cards) — replaces the demo's old hardcoded `corpus::AZ-204` shortcut.
         allowed = traversal.approved_refs(worker, skill, onto)
 
-        loop = run_assessment_loop(driving, skill, allowed, generator, verifier)
+        loop = run_assessment_loop(driving, skill, allowed, generator, evidence_gate,
+                                   critic=critic, adaptive=adaptive)
         root.set(**{"pf.status": loop.status, "pf.attempts": loop.attempts})
 
         with tracing.span("plan", **{"pf.worker": worker.id,

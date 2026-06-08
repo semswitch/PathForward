@@ -1,8 +1,8 @@
-"""Numeric checker — the Verifier routes every numeric/threshold claim here.
+"""Numeric checker — the Evidence Gate routes every numeric/threshold claim here.
 
 Offline: a safe AST arithmetic evaluator (no `eval`, no names, no calls). On Azure
 this is replaced by the GA Code Interpreter tool (batch all checks into one billed
-session). The Verifier never trusts the model for arithmetic — code answers what
+session). The Evidence Gate never trusts the model for arithmetic — code answers what
 code can answer.
 """
 from __future__ import annotations

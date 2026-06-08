@@ -92,7 +92,7 @@ def approved_refs(worker: Worker, skill: Skill, onto: Ontology) -> tuple[str, ..
 
     An assessment item may ground ONLY in: the CertGap edge that selected the skill, the role's
     requirement for it, and the certifications (plus their corpus cards) that certify it. Anything
-    cited outside this set fails the Verifier's grounded gate. Deterministically ordered.
+    cited outside this set fails the Evidence Gate's grounded gate. Deterministically ordered.
     """
     refs = [dv.certgap_edge_id(worker.id, skill.id),
             dv.requires_edge_id(worker.target_role_id, skill.id)]

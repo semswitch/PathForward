@@ -9,14 +9,14 @@ from pathforward.agents.client import FakeLLMClient, LLMResponse
 from pathforward.agents.generator import Generator
 from pathforward.agents.loop import run_assessment_loop
 from pathforward.agents.numeric import LocalNumericChecker
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.iq import derivation as dv
 from pathforward.iq import traversal
 from pathforward.iq.seed import build_seed, HERO_WORKER_ID
 
 
 class _AlwaysUngroundedClient:
-    """Every generation cites nothing -> the Verifier always rejects."""
+    """Every generation cites nothing -> the Evidence Gate always rejects."""
     def respond(self, instructions, input, *, previous_response_id=None, schema=None):
         return LLMResponse("r", "", {
             "stem": "ungrounded stem", "options": ["a", "b"], "answer_index": 0,
@@ -54,14 +54,14 @@ class TestLoop(unittest.TestCase):
 
     def test_verifies_and_stops(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         res = run_assessment_loop(self.driving, self.skill, self.allowed, gen, ver)
         self.assertEqual(res.status, "verified")
         self.assertEqual(res.attempts, 2)          # attempt 0 rejected, attempt 1 passes
 
     def test_citations_survive(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         res = run_assessment_loop(self.driving, self.skill, self.allowed, gen, ver)
         self.assertTrue(res.citations)             # propagated into the owned payload
         self.assertTrue(all(c in self.allowed for c in res.citations))
@@ -70,7 +70,7 @@ class TestLoop(unittest.TestCase):
 
     def test_fail_closed_abstain_at_N(self):
         gen = Generator(_AlwaysUngroundedClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         res = run_assessment_loop(self.driving, self.skill, self.allowed, gen, ver, max_attempts=3)
         self.assertEqual(res.status, "abstained")
         self.assertEqual(res.attempts, 3)
@@ -83,7 +83,7 @@ class TestLoop(unittest.TestCase):
         phantom = self.allowed[0]
         self.assertIn(phantom, self.allowed)       # the id IS approved corpus...
         gen = Generator(_PhantomCitationClient(phantom))
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         res = run_assessment_loop(self.driving, self.skill, self.allowed, gen, ver, max_attempts=3)
         self.assertEqual(res.status, "abstained")  # ...but never retrieved -> never verified
         self.assertEqual(res.citations, ())

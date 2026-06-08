@@ -6,7 +6,7 @@ FoundryLLMClient are drop-in interchangeable. The orchestrator chains turns with
 `previous_response_id` and owns the assembled payload.
 
 The FakeLLMClient is deterministic: on a Generator's attempt 0 it returns a
-DELIBERATELY ungrounded item (so the Verifier rejects it on camera), then on
+DELIBERATELY ungrounded item (so the Evidence Gate rejects it on camera), then on
 attempt >= 1 a clean, grounded, numerically-valid item — producing the
 reject -> regenerate moment the demo leads with.
 """
@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Protocol, runtime_checkable
 
 GENERATOR_TAG = "[GENERATOR]"
-VERIFIER_TAG = "[VERIFIER]"
+CRITIC_TAG = "[CRITIC]"      # the Critic AGENT (advisory quality review); the Evidence Gate is deterministic code, not an agent
 CURATOR_TAG = "[CURATOR]"
 PLANNER_TAG = "[PLANNER]"
 
@@ -65,8 +65,14 @@ class FakeLLMClient:
         if PLANNER_TAG in instructions:
             parsed = self._plan(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
-        # default: echo (verifier semantic rationale path, unused offline)
+        if CRITIC_TAG in instructions:
+            parsed = self._critique(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+        # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
+
+    # adaptive band -> (practice hours, review hours); 'core' reproduces the canonical 18+6==24 item.
+    _BAND_HOURS = {"foundational": (8, 4), "core": (18, 6), "stretch": (30, 10)}
 
     @staticmethod
     def _generate(p: dict) -> dict:
@@ -75,7 +81,7 @@ class FakeLLMClient:
         allowed = list(p.get("allowed_ref_ids", []))
         attempt = int(p.get("attempt", 0))
         if attempt == 0:
-            # ungrounded draft: cites nothing -> Verifier strikes it (the hero refusal)
+            # ungrounded draft: cites nothing -> Evidence Gate strikes it (the hero refusal)
             return {
                 "stem": f"Which approach best demonstrates competency in {skill}?",
                 "options": [f"A plausible-sounding answer about {skill}",
@@ -84,14 +90,20 @@ class FakeLLMClient:
                 "cited_ref_ids": [],
                 "numeric_claim": None,
             }
-        # grounded, verifiable revision
+        # grounded, verifiable revision — the adaptive BAND hint materially changes the item (so
+        # adaptivity is observable offline) while keeping it grounded + numerically valid. 'core'
+        # (the default) reproduces the canonical item exactly.
+        practice, review = FakeLLMClient._BAND_HOURS.get(p.get("difficulty_band") or "core",
+                                                         FakeLLMClient._BAND_HOURS["core"])
+        total = practice + review
         return {
-            "stem": (f"A learner studied for {skill}. Given a recommended 24 study hours "
-                     f"split as 18 hours of practice and 6 hours of review, what is the total?"),
-            "options": ["20 hours", "24 hours", "30 hours"],
+            "stem": (f"A learner studied for {skill}. Given a recommended {total} study hours "
+                     f"split as {practice} hours of practice and {review} hours of review, "
+                     f"what is the total?"),
+            "options": [f"{total - 4} hours", f"{total} hours", f"{total + 6} hours"],
             "answer_index": 1,
             "cited_ref_ids": allowed[:1] or [edge],
-            "numeric_claim": "18 + 6 == 24",
+            "numeric_claim": f"{practice} + {review} == {total}",
         }
 
     @staticmethod
@@ -107,6 +119,26 @@ class FakeLLMClient:
         for s in candidates:
             rationale[s] = f"gap skill {s}: prioritized by adjacency and certification coverage"
         return {"ranking": ranking, "rationale": rationale}
+
+    @staticmethod
+    def _critique(p: dict) -> dict:
+        """Deterministic Critic stand-in. On a grounded item (the one the gate PASSES) it still
+        raises a low-severity ambiguity concern — the on-camera proof the Critic reasons about a
+        quality dimension the deterministic gate cannot compute. On an ungrounded draft it advises
+        reject. Either way it only RECOMMENDS; the gate still decides."""
+        cited = list(p.get("cited_ref_ids", []))
+        if not cited:
+            return {
+                "recommendation": "reject",
+                "concerns": [{"criterion_name": "answerable_from_evidence", "severity": "high"},
+                             {"criterion_name": "citation_relevance", "severity": "high"}],
+                "advisory_notes": "No cited evidence — not answerable from sources (advisory only).",
+            }
+        return {
+            "recommendation": "pass",
+            "concerns": [{"criterion_name": "ambiguity", "severity": "low"}],
+            "advisory_notes": "Grounded and answerable; minor option-phrasing ambiguity (advisory).",
+        }
 
     @staticmethod
     def _plan(p: dict) -> dict:

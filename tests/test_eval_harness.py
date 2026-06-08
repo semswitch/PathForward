@@ -10,9 +10,11 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.client import FakeLLMClient
+from pathforward.agents.critic import Critic
 from pathforward.agents.generator import Generator
 from pathforward.agents.numeric import LocalNumericChecker
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
+from pathforward.eval.attacks import LIVE_ATTACKS, run_live_attack
 from pathforward.eval.cases import build_eval_cases
 from pathforward.eval.runner import Scorecard, run_eval_case
 from pathforward.iq import derivation as dv
@@ -35,19 +37,40 @@ class EvalHarnessTest(unittest.TestCase):
 
     def test_every_legit_case_scores_grounded_and_spine_intact_offline(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
         failed = [r.headline for r in results if not r.passed]
         self.assertTrue(all(r.passed for r in results), f"offline eval regressions: {failed}")
 
     def test_scorecard_reports_full_pass_rate(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
         card = Scorecard("offline eval", "grounded + spine-intact", results)
         self.assertEqual(card.n_passed, card.n)
         self.assertEqual(card.rate, 1.0)
         self.assertIn("grounded + spine-intact", card.to_markdown())
+
+    def test_eval_case_runs_the_full_flow_with_a_critic(self):
+        # run_eval_case must accept + thread a live-shaped Critic without changing the verdict.
+        gen, ver = Generator(FakeLLMClient()), EvidenceGate(LocalNumericChecker())
+        critic = Critic(FakeLLMClient())
+        results = [run_eval_case(c, gen, ver, self.onto, critic=critic) for c in self.cases]
+        self.assertTrue(all(r.passed for r in results))
+
+    def test_red_team_harness_runs_the_full_post_p2_flow_offline(self):
+        # Drives run_live_attack -> the loop with Critic + bounded reflection. This locks the
+        # AdversarialGenerator signature against the loop's feedback/difficulty_band kwargs (a
+        # regression TypeErrors here) and exercises the new reflection-injection family. With the
+        # FakeLLMClient (which ignores the injection) every 'clean'-expect attack must hold.
+        critic = Critic(FakeLLMClient())
+        clean = [a for a in LIVE_ATTACKS if a.expect == "clean"]
+        for atk in clean:
+            r = run_live_attack(atk, FakeLLMClient(), self.onto, self.edges, critic=critic)
+            self.assertTrue(r.passed, f"{atk.id} should hold offline: {r.headline}")
+        ids = {a.id for a in LIVE_ATTACKS}
+        self.assertTrue({"reflection_exfil", "reflection_answer_smuggle",
+                         "reflection_gate_teaching"} <= ids)
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ ITEM_SCHEMA = {
         "numeric_claim": {"type": ["string", "null"]},
     },
     # strict json_schema (the live Foundry agent enforces it): every property must be listed in
-    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Verifier
+    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Evidence Gate
     # enforces the >=2-option rule in code.
     "required": ["stem", "options", "answer_index", "cited_ref_ids", "numeric_claim"],
 }
@@ -35,7 +35,8 @@ class Generator:
         self.client = client
 
     def generate(self, edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ...],
-                 attempt: int, previous_response_id: str | None = None) -> AssessmentItem:
+                 attempt: int, previous_response_id: str | None = None,
+                 feedback: dict | None = None, difficulty_band: str | None = None) -> AssessmentItem:
         import json
         payload = {
             "skill_id": skill.id,
@@ -43,6 +44,10 @@ class Generator:
             "driving_edge_id": edge.id,
             "allowed_ref_ids": list(allowed_ref_ids),
             "attempt": attempt,
+            # bounded reflection feedback (criterion NAMES + static remediation only — assembled by
+            # the loop in code; never gate free-text/citations/answer) and the adaptive band HINT.
+            "feedback": feedback,
+            "difficulty_band": difficulty_band,
         }
         resp = self.client.respond(GEN_INSTRUCTIONS, json.dumps(payload),
                                    previous_response_id=previous_response_id, schema=ITEM_SCHEMA)

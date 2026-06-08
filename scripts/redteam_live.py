@@ -22,12 +22,15 @@ import sys
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
-from pathforward.agents.foundry import FoundryLLMClient    # noqa: E402
+from pathforward.agents.critic import Critic               # noqa: E402
+from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
 from pathforward.config import load_settings               # noqa: E402
 from pathforward.eval.attacks import LIVE_ATTACKS, run_live_attack  # noqa: E402
 from pathforward.eval.runner import Scorecard              # noqa: E402
 from pathforward.iq import derivation as dv                # noqa: E402
 from pathforward.iq.seed import build_seed                 # noqa: E402
+
+CRITIC_AGENT = "pathforward-critic"
 
 
 def main() -> int:
@@ -46,15 +49,21 @@ def main() -> int:
 
     client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                               index_name=s.search_index)
-    print(f"running {len(attacks)} live attacks against the agent (RAI: {s.rai_policy or 'default'})...")
+    # Live Critic agent (tool-less reasoning prompt agent) — the red-team now runs the FULL post-P2
+    # flow (Critic + bounded reflection), so the ASR numbers reflect the new surface.
+    critic = Critic(ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
+                                           agent_name=CRITIC_AGENT, model=s.model_deployment))
+    print(f"running {len(attacks)} live attacks against the agent + live Critic "
+          f"(RAI: {s.rai_policy or 'default'})...")
     results = []
     try:
         for atk in attacks:
-            r = run_live_attack(atk, client, onto, edges)
+            r = run_live_attack(atk, client, onto, edges, critic=critic)
             print(f"  {'HELD ' if r.passed else 'BREACH'} {atk.id}: {r.detail.get('why')}")
             results.append(r)
     finally:
         client.close()
+        critic.client.close()
 
     card = Scorecard("PathForward — Adversarial Red-Team (live)", "defense held",
                      results, adversarial=True)

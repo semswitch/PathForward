@@ -4,7 +4,7 @@ The LLM RANKS the gap skills (reasoning over adjacency to skills the worker alre
 proximity, and certification coverage). Deterministic code OWNS the trust-bearing facts: the
 candidate set is the derivation's *assessable* CertGap skills (the model cannot invent a gap, nor
 pick one with no learning content), and the chosen skill MUST be a member — otherwise the gate
-falls back to the top admissible gap in role order. This mirrors the Generator->Verifier shape:
+falls back to the top admissible gap in role order. This mirrors the Generator->Evidence Gate shape:
 reasoning proposes, code gates.
 """
 from __future__ import annotations
