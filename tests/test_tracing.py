@@ -69,7 +69,7 @@ class TracingTest(unittest.TestCase):
         # the on-camera refusal is a real, attributed span event
         v0 = spans["verify.attempt.0"]
         self.assertFalse(v0.attributes.get("pf.passed"))
-        self.assertIn("verifier.struck", [e.name for e in v0.events])
+        self.assertIn("gate.struck", [e.name for e in v0.events])
         self.assertTrue(spans["verify.attempt.1"].attributes.get("pf.passed"))
 
         # generate spans carry the retrieval count; mint records the derived readiness
