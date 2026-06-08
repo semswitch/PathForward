@@ -18,6 +18,8 @@ from typing import Optional, Protocol, runtime_checkable
 
 GENERATOR_TAG = "[GENERATOR]"
 VERIFIER_TAG = "[VERIFIER]"
+CURATOR_TAG = "[CURATOR]"
+PLANNER_TAG = "[PLANNER]"
 
 
 @dataclass
@@ -57,6 +59,12 @@ class FakeLLMClient:
             retrieved = () if attempt == 0 else tuple(allowed[:1])
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id,
                                retrieved_ref_ids=retrieved)
+        if CURATOR_TAG in instructions:
+            parsed = self._curate(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+        if PLANNER_TAG in instructions:
+            parsed = self._plan(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         # default: echo (verifier semantic rationale path, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
 
@@ -84,4 +92,32 @@ class FakeLLMClient:
             "answer_index": 1,
             "cited_ref_ids": allowed[:1] or [edge],
             "numeric_claim": "18 + 6 == 24",
+        }
+
+    @staticmethod
+    def _curate(p: dict) -> dict:
+        """Deterministic Curator stand-in with a built-in over-reach beat: rank a skill the worker
+        ALREADY HOLDS first (inadmissible) so the Curator's gate visibly strikes it (corrected),
+        then the admissible candidates in role order -> the chosen target is candidates[0]."""
+        candidates = list(p.get("candidate_skill_ids", []))
+        has = list(p.get("has_skill_ids", []))
+        head = has[0] if has else "S99"   # a held skill is by definition not a gap -> inadmissible
+        ranking = [head] + candidates
+        rationale = {head: "(over-reach) suggested a skill the worker already holds"}
+        for s in candidates:
+            rationale[s] = f"gap skill {s}: prioritized by adjacency and certification coverage"
+        return {"ranking": ranking, "rationale": rationale}
+
+    @staticmethod
+    def _plan(p: dict) -> dict:
+        """Deterministic Planner stand-in with two built-in beats the gate must catch: an
+        OVER-CAPACITY weekly pace (3x the worker's capacity -> clamped + flagged corrected) and an
+        OUT-OF-VOCABULARY accessibility suggestion (dropped by the vocabulary gate)."""
+        capacity = float(p.get("weekly_capacity_hours", 0) or 0)
+        gap = [g.get("id") for g in p.get("gap_skills", [])]
+        return {
+            "sequence": gap,
+            "weekly_hours": capacity * 3 if capacity else 99,   # unrealistic -> gate clamps it
+            "accessibility_adaptations": ["unlimited tutor hours", "high-contrast materials"],
+            "rationale": "Front-load the highest-priority gap, then proceed in adjacency order.",
         }

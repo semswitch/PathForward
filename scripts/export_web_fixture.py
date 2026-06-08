@@ -16,9 +16,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from pathforward.agents.calibration import cold_start_calibrate           # noqa: E402
 from pathforward.agents.client import FakeLLMClient                        # noqa: E402
+from pathforward.agents.curator import Curator                             # noqa: E402
 from pathforward.agents.generator import Generator                        # noqa: E402
-from pathforward.agents.loop import run_assessment_loop                   # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker                # noqa: E402
+from pathforward.agents.orchestrator import run_multiagent                # noqa: E402
+from pathforward.agents.planner import Planner                            # noqa: E402
 from pathforward.agents.verifier import Verifier                          # noqa: E402
 from pathforward.credential.mint import mint                              # noqa: E402
 from pathforward.iq import derivation as dv                               # noqa: E402
@@ -36,15 +38,18 @@ def build_fixture() -> dict:
     edges = dv.build_all_edges(onto)
 
     gb = traversal.build_glassbox(worker, onto, edges)
-    driving = traversal.cert_gap_edges(worker, onto, edges)[0]
-    skill = onto.skills[driving.target_id]
-    allowed = tuple(driving.source_ref_ids) + ("corpus::AZ-204",)
-    result = run_assessment_loop(driving, skill, allowed,
-                                 Generator(FakeLLMClient()), Verifier(LocalNumericChecker()))
-    cal = cold_start_calibrate(_learner_responses(onto)).get(f"item-{skill.id}", {})
-    cred = mint(worker, role, driving.id, skill.id, result, cal)
 
-    verified = [t for t in result.transcript if t["verdict"].passed]
+    # The three-agent reasoning loop: Curator -> Generator/Verifier -> Planner.
+    result = run_multiagent(worker, onto, edges,
+                            Curator(FakeLLMClient()), Generator(FakeLLMClient()),
+                            Verifier(LocalNumericChecker()),
+                            Planner(FakeLLMClient(), LocalNumericChecker()))
+    decision, loop_result, plan = result.curator, result.loop, result.plan
+    skill = onto.skills[decision.chosen_skill_id]
+    cal = cold_start_calibrate(_learner_responses(onto)).get(f"item-{skill.id}", {})
+    cred = mint(worker, role, decision.chosen_edge_id, skill.id, loop_result, cal)
+
+    verified = [t for t in loop_result.transcript if t["verdict"].passed]
     return {
         "worker": {
             "id": worker.id, "name": worker.name,
@@ -54,15 +59,17 @@ def build_fixture() -> dict:
             "accessibility_needs": list(worker.accessibility_needs),
         },
         "glassbox": gb,
-        "driving_edge_id": driving.id,
+        "driving_edge_id": decision.chosen_edge_id,
         "targeted_skill": skill.name,
-        "loop": result.to_doc(),
+        "curator": decision.to_doc(),
+        "loop": loop_result.to_doc(),
         "calibration": cal,
         "credential": cred.to_doc(),
+        "plan": plan.to_doc(),
         "metrics": {
             "grounded_citation_rate": f"{len(verified)}/{len(verified)}",
-            "attempts_to_verified": result.attempts,
-            "rejected_before_pass": result.attempts - 1,
+            "attempts_to_verified": loop_result.attempts,
+            "rejected_before_pass": loop_result.attempts - 1,
             "readiness_pct": round(gb["meta"]["readiness"] * 100),
             "ungrounded_credentials": 0,
         },
