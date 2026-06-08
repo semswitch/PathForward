@@ -20,6 +20,7 @@ from pathforward.agents.client import FakeLLMClient                        # noq
 from pathforward.agents.critic import Critic                               # noqa: E402
 from pathforward.agents.curator import Curator                             # noqa: E402
 from pathforward.agents.generator import Generator                        # noqa: E402
+from pathforward.agents.insights import ProgramInsightsAgent              # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker                # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent                # noqa: E402
 from pathforward.agents.planner import Planner                            # noqa: E402
@@ -48,7 +49,8 @@ def build_fixture() -> dict:
                             Curator(FakeLLMClient()), Generator(FakeLLMClient()),
                             EvidenceGate(LocalNumericChecker()),
                             Planner(FakeLLMClient(), LocalNumericChecker()),
-                            critic=Critic(FakeLLMClient()), adaptive=adaptive)
+                            critic=Critic(FakeLLMClient()), adaptive=adaptive,
+                            insights=ProgramInsightsAgent(FakeLLMClient()))
     decision, loop_result, plan = result.curator, result.loop, result.plan
     skill = onto.skills[decision.chosen_skill_id]
     cal = stats.get(f"item-{skill.id}", {})
@@ -72,6 +74,8 @@ def build_fixture() -> dict:
         "calibration": cal,
         "credential": cred.to_doc(),
         "plan": plan.to_doc(),
+        # read-only cohort/program reasoning (advisory). Optional on MultiAgentResult -> None-guard.
+        "insights": result.insights.to_doc() if result.insights else None,
         "metrics": {
             "grounded_citation_rate": f"{len(verified)}/{len(verified)}",
             "attempts_to_verified": loop_result.attempts,

@@ -52,9 +52,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 ## Current state → Target state
 
-**Current (verified 2026-06-07):**
-- One real Foundry **Prompt agent** (the Generator, `pathforward/agents/foundry.py`). The
-  the Evidence Gate (deterministic notary, formerly "Verifier") and orchestrator are **deterministic code**, not agents.
+**Current (verified 2026-06-08):**
+- **Five code-orchestrated reasoning agents** — Curator, Generator, Critic, Planner, and the
+  read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
+  (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
+  `ReasoningFoundryClient`). The Evidence Gate (deterministic notary, formerly "Verifier"),
+  the reflection/adaptive controllers, and the orchestrator are **deterministic code**, not agents.
 - The default demo (`scripts/run_demo.py`) and the web fixture run on **`FakeLLMClient`**
   (deterministic stub). The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
   `scripts/eval_groundedness.py`, and `scripts/redteam_live.py` (16/16 grounded, 0% ASR).
@@ -63,9 +66,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
-  Generator→Evidence Gate; add real reasoning agents (a **Critic** before the gate, a **Curator** for adjacency/gap
-  reasoning, a **Planner** for capacity + accessibility), orchestrated in code. Plural agents
-  that genuinely reason — not a single one-off GPT call.
+  Generator→Evidence Gate; add real reasoning agents (a **Critic** before the gate, a **Curator** for
+  adjacency/gap reasoning, a **Planner** for capacity + accessibility, a read-only **Program Insights**
+  agent for cohort/why-this-path), orchestrated in code. Plural agents that genuinely reason — not a
+  single one-off GPT call. **(Done as of 2026-06-08 — all five exist; see `current-state-assessment.md`.)**
+- **Program Insights live tier:** promote the cohort read-path from the derivation floor to a live
+  Fabric data agent over OneLake (`FabricTool`, OBO) when F2 capacity is un-paused (ADR 007).
 - Wire the **live `FoundryLLMClient`** into the demo and the web UI (not just smoke tests), and
   re-export the web fixture from a live run.
 - Wire `CodeInterpreterChecker` (Foundry Code Interpreter) for numeric checks.

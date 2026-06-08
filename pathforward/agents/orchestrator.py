@@ -14,22 +14,37 @@ configured) so the whole reasoning chain is one observable trace.
 from __future__ import annotations
 
 from ..iq import traversal
-from ..iq.models import Edge, Ontology, Worker
+from ..iq.models import Edge, Ontology, Role, Worker
 from ..obs import tracing
 from .adaptive import AdaptiveController
 from .critic import Critic
 from .curator import Curator
 from .generator import Generator
+from .insights import ProgramInsightsAgent
 from .loop import run_assessment_loop
 from .planner import Planner
-from .types import LoopResult, MultiAgentResult
+from .types import LoopResult, MultiAgentResult, ProgramInsights
 from .evidence_gate import EvidenceGate
+
+
+def _run_insights(insights: ProgramInsightsAgent | None, worker: Worker, role: Role,
+                  onto: Ontology) -> ProgramInsights | None:
+    """Run the read-only Program Insights agent (advisory, OFF the mint path). Nothing it returns is
+    passed to mint or the Evidence Gate; it is a sibling of the Planner, not part of the trust chain."""
+    if insights is None:
+        return None
+    with tracing.span("insights", **{"pf.worker": worker.id}) as ins_span:
+        program_insights = insights.analyze(worker, role, onto)
+        ins_span.set(**{"pf.cohort_n": program_insights.worker_comparison.get("n_cohort"),
+                        "pf.source": program_insights.source})
+    return program_insights
 
 
 def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
                    curator: Curator, generator: Generator, evidence_gate: EvidenceGate,
                    planner: Planner, critic: Critic | None = None,
-                   adaptive: AdaptiveController | None = None) -> MultiAgentResult:
+                   adaptive: AdaptiveController | None = None,
+                   insights: ProgramInsightsAgent | None = None) -> MultiAgentResult:
     role = onto.roles[worker.target_role_id]
     with tracing.span("multiagent", **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:
         with tracing.span("curate", **{"pf.worker": worker.id}) as cur_span:
@@ -46,7 +61,9 @@ def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
                               attempts=0, item=None, verdict=None, transcript=[], citations=())
             with tracing.span("plan", **{"pf.worker": worker.id}):
                 plan = planner.plan(worker, decision.ranking, onto)
-            return MultiAgentResult(curator=decision, loop=loop, plan=plan)
+            program_insights = _run_insights(insights, worker, role, onto)
+            return MultiAgentResult(curator=decision, loop=loop, plan=plan,
+                                    insights=program_insights)
 
         skill = onto.skills[decision.chosen_skill_id]
         driving = next(e for e in traversal.cert_gap_edges(worker, onto, edges)
@@ -65,4 +82,7 @@ def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
             plan_span.set(**{"pf.weeks": plan.weeks, "pf.total_hours": plan.total_hours,
                              "pf.corrected": plan.corrected})
 
-        return MultiAgentResult(curator=decision, loop=loop, plan=plan)
+        # Program Insights: read-only cohort/program reasoning, advisory and OFF the mint trust path.
+        program_insights = _run_insights(insights, worker, role, onto)
+
+        return MultiAgentResult(curator=decision, loop=loop, plan=plan, insights=program_insights)

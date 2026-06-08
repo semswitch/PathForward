@@ -24,6 +24,7 @@ from pathforward.agents.client import FakeLLMClient                       # noqa
 from pathforward.agents.critic import Critic                              # noqa: E402
 from pathforward.agents.curator import Curator                            # noqa: E402
 from pathforward.agents.generator import Generator                       # noqa: E402
+from pathforward.agents.insights import ProgramInsightsAgent             # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
 from pathforward.agents.planner import Planner                           # noqa: E402
@@ -73,8 +74,9 @@ def main() -> None:
     critic = Critic(FakeLLMClient())
     gate = EvidenceGate(LocalNumericChecker())
     planner = Planner(FakeLLMClient(), LocalNumericChecker())
+    insights = ProgramInsightsAgent(FakeLLMClient())          # read-only cohort/program reasoning
     result = run_multiagent(worker, onto, edges, cur, gen, gate, planner,
-                            critic=critic, adaptive=adaptive)
+                            critic=critic, adaptive=adaptive, insights=insights)
     decision, loop_result, plan = result.curator, result.loop, result.plan
 
     rule("3. CURATOR AGENT  - which gap to certify first (reasoned, then gated)")
@@ -157,10 +159,29 @@ def main() -> None:
     print(f"  Accessibility adaptations (from declared needs): "
           f"{list(plan.accessibility_adaptations) or 'none'}")
 
+    rule("8. PROGRAM INSIGHTS AGENT  - read-only cohort reasoning (off the credential path)")
+    ins = result.insights
+    if ins is not None:
+        wc, rc, prog = ins.worker_comparison, ins.role_cohort, ins.program
+        print(f"  Source tier: {ins.source}  (derivation floor; Fabric-ready live tier is a swap-in seam)")
+        print(f"  This worker vs cohort: rank {wc['rank']}/{wc['n_cohort']} targeting {rc['role_name']}  "
+              f"(readiness {wc['worker_readiness']} vs cohort mean {wc['cohort_mean_readiness']})")
+        top = rc["bottleneck_skills"][0] if rc["bottleneck_skills"] else None
+        if top:
+            print(f"  Cohort's biggest bottleneck: {top['name']} ({top['skill_id']}) "
+                  f"- missing for {top['gap_count']}/{rc['n_workers']} in the cohort")
+        print(f"  Program-wide: {prog['n_workers']} workers, mean readiness "
+              f"{prog['overall_mean_readiness']}; un-certifiable gap skills: "
+              f"{list(prog['unassessable_gap_skill_ids']) or 'none'}")
+        print(f"  Agent narrative (display-only): {ins.narrative[:96]}...")
+        print("  ^ every number above is recomputed by code from the SAME derivation as the credential;")
+        print("    the agent only NARRATES it (cannot fabricate a statistic), and never touches the mint.")
+
     rule("HERO METRICS  - on screen in the first 30s")
     verified_items = [t for t in loop_result.transcript if t["verdict"].passed]
     cited = [t for t in verified_items if t["item"].cited_ref_ids]
-    print(f"  reasoning agents in the loop: 3 (Curator, Generator, Planner) + deterministic Evidence Gate")
+    print(f"  reasoning agents: 5 (Curator, Generator, Critic, Planner, Program Insights) "
+          f"+ deterministic Evidence Gate")
     print(f"  grounded-citation rate: {len(cited)}/{len(verified_items)} verified items cited")
     print(f"  attempts to a verified item: {loop_result.attempts} "
           f"({loop_result.attempts - 1} rejected on grounding/quality)")

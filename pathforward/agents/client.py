@@ -20,6 +20,7 @@ GENERATOR_TAG = "[GENERATOR]"
 CRITIC_TAG = "[CRITIC]"      # the Critic AGENT (advisory quality review); the Evidence Gate is deterministic code, not an agent
 CURATOR_TAG = "[CURATOR]"
 PLANNER_TAG = "[PLANNER]"
+INSIGHTS_TAG = "[INSIGHTS]"  # the Program Insights AGENT (read-only cohort narration over code-computed aggregates)
 
 
 @dataclass
@@ -67,6 +68,9 @@ class FakeLLMClient:
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         if CRITIC_TAG in instructions:
             parsed = self._critique(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+        if INSIGHTS_TAG in instructions:
+            parsed = self._insights(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
@@ -139,6 +143,26 @@ class FakeLLMClient:
             "concerns": [{"criterion_name": "ambiguity", "severity": "low"}],
             "advisory_notes": "Grounded and answerable; minor option-phrasing ambiguity (advisory).",
         }
+
+    @staticmethod
+    def _insights(p: dict) -> dict:
+        """Deterministic Program Insights stand-in. It NARRATES the code-computed cohort aggregates
+        handed to it (it does not — and structurally cannot — change a number): the agent's only
+        output is `narrative`, display-only prose. The trust-bearing facts come from iq/cohort.py."""
+        wc = p.get("worker_comparison", {}) or {}
+        rc = p.get("role_cohort", {}) or {}
+        prog = p.get("program", {}) or {}
+        bottlenecks = rc.get("bottleneck_skills", []) or []
+        top = bottlenecks[0]["name"] if bottlenecks else "the role's required skills"
+        narrative = (
+            f"This worker sits at rank {wc.get('rank', '?')} of {wc.get('n_cohort', '?')} in the "
+            f"{rc.get('role_name', 'target')} cohort (readiness {wc.get('worker_readiness')} vs a "
+            f"cohort mean of {wc.get('cohort_mean_readiness')}). The biggest bottleneck across this "
+            f"cohort is {top}, which is why the reskilling path leads there first. Program-wide mean "
+            f"readiness is {prog.get('overall_mean_readiness')}. (Cohort reasoning is advisory and "
+            f"read-only — it never enters the credential decision.)"
+        )
+        return {"narrative": narrative}
 
     @staticmethod
     def _plan(p: dict) -> dict:

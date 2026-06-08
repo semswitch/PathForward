@@ -186,17 +186,52 @@ class LearningPlan:
 
 
 @dataclass
+class ProgramInsights:
+    """Advisory output of the Program Insights AGENT — READ-ONLY and OFF the credential trust path.
+
+    The trust-bearing FACTS (cohort readiness, this worker's standing, the program's skill
+    bottlenecks) are computed in code by `iq/cohort.py` from `derivation.py` and copied here
+    verbatim — the agent CANNOT change them. The agent contributes only `narrative` (display-only
+    prose: cohort framing, "why this path"). Nothing here is read by the Evidence Gate's `verify()`
+    or by `mint()`. `source` records which tier produced the data: 'derivation-floor' (in-process,
+    always green) or 'fabric-live' (governed OneLake via MicrosoftFabricPreviewTool / OBO, on paid
+    F2+/P1+ capacity)."""
+    worker_id: str
+    role_id: str
+    role_cohort: dict                # cohort.RoleCohort.to_doc() — code-computed, not model output
+    worker_comparison: dict          # cohort.WorkerCohortComparison.to_doc() — code-computed
+    program: dict                    # cohort.ProgramAggregates.to_doc() — code-computed
+    narrative: str = ""              # display-only model prose; never trusted, never gates
+    source: str = "derivation-floor"
+
+    def to_doc(self) -> dict:
+        return {
+            "worker_id": self.worker_id,
+            "role_id": self.role_id,
+            "role_cohort": dict(self.role_cohort),
+            "worker_comparison": dict(self.worker_comparison),
+            "program": dict(self.program),
+            "narrative": self.narrative,
+            "source": self.source,
+        }
+
+
+@dataclass
 class MultiAgentResult:
-    """The combined output of the three-agent reasoning loop: Curator -> (Generator/Evidence Gate
-    loop) -> Planner. The loop and the credential trust chain are unchanged; the Curator selects
-    the assessment target and the Planner produces an advisory plan around it."""
+    """The combined output of the multi-agent reasoning loop: Curator -> (Generator/Critic/Evidence
+    Gate loop) -> Planner -> Program Insights. The loop and the credential trust chain are
+    unchanged; the Curator selects the assessment target, the Planner produces an advisory plan, and
+    the Program Insights agent adds read-only cohort/program reasoning. `insights` is None when no
+    Insights agent is wired (the loop and mint never depend on it)."""
     curator: CuratorDecision
     loop: LoopResult
     plan: LearningPlan
+    insights: Optional[ProgramInsights] = None
 
     def to_doc(self) -> dict:
         return {
             "curator": self.curator.to_doc(),
             "loop": self.loop.to_doc(),
             "plan": self.plan.to_doc(),
+            "insights": self.insights.to_doc() if self.insights else None,
         }

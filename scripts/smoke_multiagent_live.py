@@ -33,6 +33,7 @@ from pathforward.agents.critic import Critic                          # noqa: E4
 from pathforward.agents.curator import Curator                        # noqa: E402
 from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
 from pathforward.agents.generator import Generator                    # noqa: E402
+from pathforward.agents.insights import ProgramInsightsAgent          # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker            # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent            # noqa: E402
 from pathforward.agents.planner import Planner                        # noqa: E402
@@ -47,6 +48,7 @@ from generate_data import _learner_responses                         # noqa: E40
 CURATOR_AGENT = "pathforward-curator"
 PLANNER_AGENT = "pathforward-planner"
 CRITIC_AGENT = "pathforward-critic"
+INSIGHTS_AGENT = "pathforward-insights"
 
 
 def main() -> int:
@@ -68,6 +70,8 @@ def main() -> int:
                                             agent_name=PLANNER_AGENT, model=s.model_deployment)
     critic_client = ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
                                            agent_name=CRITIC_AGENT, model=s.model_deployment)
+    insights_client = ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
+                                             agent_name=INSIGHTS_AGENT, model=s.model_deployment)
     generator_client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                                         index_name=s.search_index)
     adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
@@ -80,8 +84,9 @@ def main() -> int:
             Curator(curator_client), Generator(generator_client),
             EvidenceGate(LocalNumericChecker()), Planner(planner_client, LocalNumericChecker()),
             critic=Critic(critic_client), adaptive=adaptive,
+            insights=ProgramInsightsAgent(insights_client),
         )
-        d, loop, plan = result.curator, result.loop, result.plan
+        d, loop, plan, ins = result.curator, result.loop, result.plan, result.insights
 
         # --- Curator (live reasoning, deterministically gated) ---
         admissible = [s_ for s_ in dv.cert_gap_skill_ids(worker, role)
@@ -126,12 +131,24 @@ def main() -> int:
         capacity_ok = plan.capacity_respected and all(
             load <= plan.weekly_capacity_hours + 1e-6 for load in weekly.values())
 
+        # --- Program Insights (live reasoning over code-computed cohort aggregates, read-only) ---
+        print("\n[INSIGHTS]")
+        wc, rc = ins.worker_comparison, ins.role_cohort
+        print(f"  source tier: {ins.source}")
+        print(f"  worker rank {wc['rank']}/{wc['n_cohort']} in the {rc['role_name']} cohort  "
+              f"(readiness {wc['worker_readiness']} vs cohort mean {wc['cohort_mean_readiness']})")
+        print(f"  narrative (display-only): {ins.narrative[:100]}")
+        # Guardrail: the agent must NARRATE the code-computed number, not fabricate one. The live
+        # readiness it reports must equal the derivation recompute (floor reconciles by construction).
+        insights_ok = abs(wc["worker_readiness"] - dv.readiness_score(worker, role)) < 1e-9
+
         checks = {
             "curator chose an admissible gap": chosen_ok,
             "loop verified a grounded item": loop.status == "verified",
             "credential spine intact": spine_ok,
             "plan respects weekly capacity": capacity_ok,
             "plan numeric check passed": bool(plan.numeric_check.get("ok")),
+            "insights reconcile to derivation": insights_ok,
         }
         print("\n=== checks ===")
         for name, ok in checks.items():
@@ -139,7 +156,7 @@ def main() -> int:
         rc = 0 if all(checks.values()) else 1
         print("\nLIVE MULTI-AGENT", "PASS" if rc == 0 else "FAIL")
     finally:
-        for c in (curator_client, planner_client, critic_client, generator_client):
+        for c in (curator_client, planner_client, critic_client, insights_client, generator_client):
             try:
                 c.close()
             except Exception:  # noqa: BLE001

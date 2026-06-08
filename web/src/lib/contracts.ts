@@ -54,6 +54,17 @@ export interface Verdict {
   numeric_ok: boolean | null;
 }
 
+export interface CriticConcern {
+  criterion_name: string;
+  severity: string;
+}
+
+export interface CriticReview {
+  recommendation: "pass" | "repair" | "reject";
+  concerns: CriticConcern[];
+  advisory_notes: string;
+}
+
 export interface LoopResult {
   status: "verified" | "abstained";
   driving_edge_id: string;
@@ -61,8 +72,92 @@ export interface LoopResult {
   attempts: number;
   item: AssessmentItem | null;
   verdict: Verdict | null;
-  transcript: { attempt: number; item: AssessmentItem; verdict: Verdict }[];
+  transcript: { attempt: number; item: AssessmentItem; critic: CriticReview | null; verdict: Verdict }[];
   citations: string[];
+}
+
+export interface CuratorDecision {
+  worker_id: string;
+  role_id: string;
+  admissible_skill_ids: string[];
+  ranking: string[];
+  chosen_skill_id: string;
+  chosen_edge_id: string;
+  rationale: Record<string, string>;
+  corrected: boolean;
+}
+
+export interface PlannedPhase {
+  week: number;
+  skill_id: string;
+  hours: number;
+  cert_id: string;
+}
+
+export interface LearningPlan {
+  worker_id: string;
+  phases: PlannedPhase[];
+  total_hours: number;
+  weekly_capacity_hours: number;
+  weeks: number;
+  capacity_respected: boolean;
+  corrected: boolean;
+  accessibility_adaptations: string[];
+  numeric_check: { claim?: string; ok?: boolean; detail?: string };
+  rationale: string;
+}
+
+// Program Insights (read-only cohort/program reasoning; advisory, off the credential trust path).
+// Every number is code-computed by pathforward/iq/cohort.py; `narrative` is display-only model prose.
+export interface SkillGap {
+  skill_id: string;
+  name: string;
+  domain: string;
+  gap_count: number;
+  assessable: boolean;
+}
+
+export interface RoleCohort {
+  role_id: string;
+  role_name: string;
+  n_workers: number;
+  mean_readiness: number;
+  median_readiness: number;
+  bottleneck_skills: SkillGap[];
+  as_of: string;
+  derivation_version: string;
+}
+
+export interface WorkerCohortComparison {
+  worker_id: string;
+  role_id: string;
+  worker_readiness: number;
+  cohort_mean_readiness: number;
+  cohort_median_readiness: number;
+  n_cohort: number;
+  delta_vs_mean: number;
+  rank: number;
+  percentile: number;
+}
+
+export interface ProgramAggregates {
+  n_workers: number;
+  n_roles: number;
+  overall_mean_readiness: number;
+  top_bottlenecks: SkillGap[];
+  unassessable_gap_skill_ids: string[];
+  as_of: string;
+  derivation_version: string;
+}
+
+export interface ProgramInsights {
+  worker_id: string;
+  role_id: string;
+  role_cohort: RoleCohort;
+  worker_comparison: WorkerCohortComparison;
+  program: ProgramAggregates;
+  narrative: string;
+  source: string; // "derivation-floor" | "fabric-live"
 }
 
 export interface Fixture {
@@ -77,9 +172,13 @@ export interface Fixture {
   glassbox: GlassBox;
   driving_edge_id: string;
   targeted_skill: string;
+  difficulty_band: string;
+  curator: CuratorDecision;
   loop: LoopResult;
   calibration: { difficulty?: number; discrimination?: number; label?: string };
   credential: Record<string, unknown>;
+  plan: LearningPlan;
+  insights: ProgramInsights | null;
   metrics: {
     grounded_citation_rate: string;
     attempts_to_verified: number;

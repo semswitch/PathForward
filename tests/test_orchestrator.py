@@ -60,7 +60,9 @@ class TestOrchestrator(unittest.TestCase):
         cur, gen, gate, plan, critic = _agents()
         res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
         doc = res.to_doc()
-        self.assertEqual(set(doc), {"curator", "loop", "plan"})
+        # insights is an additive key (None here — no Insights agent wired in this test).
+        self.assertEqual(set(doc), {"curator", "loop", "plan", "insights"})
+        self.assertIsNone(doc["insights"])
         # the critic review serializes inside the loop transcript
         self.assertEqual(doc["loop"]["transcript"][-1]["critic"]["recommendation"], "pass")
         json.dumps(doc)   # must be JSON-serializable end to end
