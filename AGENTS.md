@@ -54,7 +54,7 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 **Current (verified 2026-06-07):**
 - One real Foundry **Prompt agent** (the Generator, `pathforward/agents/foundry.py`). The
-  Verifier and orchestrator are **deterministic code**, not agents.
+  the Evidence Gate (deterministic notary, formerly "Verifier") and orchestrator are **deterministic code**, not agents.
 - The default demo (`scripts/run_demo.py`) and the web fixture run on **`FakeLLMClient`**
   (deterministic stub). The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
   `scripts/eval_groundedness.py`, and `scripts/redteam_live.py` (16/16 grounded, 0% ASR).
@@ -63,13 +63,13 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
-  Generator→Verifier, add real reasoning agents (e.g., a **Curator** for adjacency/gap
+  Generator→Evidence Gate; add real reasoning agents (a **Critic** before the gate, a **Curator** for adjacency/gap
   reasoning, a **Planner** for capacity + accessibility), orchestrated in code. Plural agents
   that genuinely reason — not a single one-off GPT call.
 - Wire the **live `FoundryLLMClient`** into the demo and the web UI (not just smoke tests), and
   re-export the web fixture from a live run.
 - Wire `CodeInterpreterChecker` (Foundry Code Interpreter) for numeric checks.
-- Keep the deterministic **Verifier gate** as the trust boundary — it must NOT become an LLM
+- Keep the deterministic **Evidence Gate** (`pathforward/agents/evidence_gate.py`) as the trust boundary — it must NOT become an LLM
   judging its own work.
 
 ## Stubs are temporary — preserve the seams

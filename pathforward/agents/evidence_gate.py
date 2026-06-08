@@ -1,12 +1,17 @@
-"""Verifier agent — the 5-criterion + evidence-answerability gate.
+"""Evidence Gate — the deterministic 5-criterion notary (this is NOT an agent).
 
-The verdict is computed in CODE (deterministic) — the model is never trusted for the
-gate. Numeric claims route to the NumericChecker. This is what makes the credential
-trustworthy and what the demo's "refusal" moment shows on screen.
+This is the trust boundary: "agents reason, code notarizes." The verdict is computed
+entirely in CODE — no model call is ever made here, so an LLM can never judge its own
+grounding. A real Critic AGENT (`critic.py`) does the *advisory* reasoning (ambiguity /
+fairness / answerability) BEFORE this gate; only the gate decides whether an item may pass,
+and only a passing verdict sets `status="verified"` (in `loop.py`, one place). Numeric
+claims route to the NumericChecker (code). This is what makes the credential trustworthy and
+what the demo's "refusal" moment shows on screen.
 
 Criteria:
   1. grounded            — every citation is inside the approved corpus, and there is >=1
-  2. evidence_answerable — the answer is derivable from cited evidence (offline: implied by grounding)
+  2. evidence_answerable — derivable from cited evidence (currently implied by grounding; an
+                           optional NON-GATING semantic hook is reserved — see __init__)
   3. single_correct      — exactly one valid correct option (bounds + no multi-correct/duplicate smell)
   4. no_leakage          — the answer text is not embedded in the stem (unicode/homoglyph-robust)
   5. numeric_valid       — any numeric claim independently checks out AND is tied to the item; an
@@ -48,10 +53,17 @@ def _numbers(s: str) -> set[str]:
     return set(_NUM.findall(s or ""))
 
 
-class Verifier:
-    def __init__(self, numeric_checker: NumericChecker, client: Optional[LLMClient] = None):
+class EvidenceGate:
+    """Deterministic notary. `verify()` returns a Verdict computed only from code + the
+    NumericChecker; it never calls a model. The Critic agent's recommendation is NOT an input
+    here — the gate is the sole authority over whether an item passes."""
+
+    def __init__(self, numeric_checker: NumericChecker, semantic_hook: Optional[LLMClient] = None):
         self.numeric_checker = numeric_checker
-        self.client = client  # reserved for the Azure semantic-answerability judge
+        # NON-GATING, reserved hook for a future semantic-answerability judge. The gate's verdict
+        # does NOT read this — it exists only to preserve the seam (deleting it would silently
+        # hard-code evidence_answerable == grounded). Any semantic check must remain advisory.
+        self.semantic_hook = semantic_hook
 
     def verify(self, item: AssessmentItem, allowed_ref_ids: tuple[str, ...]) -> Verdict:
         allowed = set(allowed_ref_ids)

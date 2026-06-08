@@ -20,7 +20,7 @@ flowchart TB
 
     subgraph LOOP["Code-driven Responses loop (the signature)"]
         gen[Generator agent]
-        ver[Verifier agent\n5-criterion + evidence gate]
+        ver[Evidence Gate\ndeterministic 5-criterion notary]
         gen -- propose --> ver
         ver -- reject, regenerate (cap N=3) --> gen
         ver -- fail-closed --> abstain([ABSTAIN / escalate])
@@ -66,7 +66,7 @@ flowchart TB
 
 | Area | Decision |
 |---|---|
-| Loop | **Agentic tool-calling on the GA Responses API**: gpt‑5.5 is given the retrieval tool and *itself* decides when to call it (`tool_choice='auto'`, not `'required'`). Server-side prompt agents *with tools* DO exist on `azure-ai-projects 2.2.0` (`PromptAgentDefinition` / `create_version`); the classic thread/run surface is **deprecated (retiring 2027-03-31)**, not yet removed. The orchestrator still owns the payload → citations propagate deterministically, and the Verifier gates on `corpus ∩ retrieved`. |
+| Loop | **Agentic tool-calling on the GA Responses API**: gpt‑5.5 is given the retrieval tool and *itself* decides when to call it (`tool_choice='auto'`, not `'required'`). Server-side prompt agents *with tools* DO exist on `azure-ai-projects 2.2.0` (`PromptAgentDefinition` / `create_version`); the classic thread/run surface is **deprecated (retiring 2027-03-31)**, not yet removed. The orchestrator still owns the payload → citations propagate deterministically, and the Evidence Gate (deterministic notary, formerly "Verifier") gates on `corpus ∩ retrieved`. |
 | Grounding | The model's tool is the **GA agentic-retrieval knowledge base** (`KnowledgeBaseRetrievalClient`, `2026-04-01`, extractive `intents[]` + citations). **gpt‑5.5 plans/authors the searches; Search reranks + cites, it does not plan** (Search-side query planning is preview — kept off the critical path). |
 | Fabric | Ontology authored as a **non-Power BI Fabric item** on a **paid F2+** (or Power BI Premium **P1+**) capacity (Trial can't run the data agent). The **Search mirror** is the runtime path. |
 | Mirror | Pre-materializes base + **derived** edges (provenance + validity-time) + traversal paths as first-class docs; build-time non-empty guard. |
@@ -79,7 +79,7 @@ flowchart TB
 ## Multi-agent reasoning loop (implemented)
 
 The "Foundry Workflow" box is realized in code as `run_multiagent` (`pathforward/agents/orchestrator.py`):
-**Curator → Generator/Verifier loop → Planner**, three reasoning agents orchestrated deterministically.
+**Curator → Generator → Evidence Gate (deterministic notary) → Planner**, agents doing the reasoning and code notarizing the trust boundary; a Critic agent before the gate is being added (see ADR 006).
 Each LLM step is paired with a code-owned gate (the project thesis — *reasoning proposes, code verifies*):
 the **Curator** (`curator.py`) ranks the CertGap skills but the choice is restricted to the derivation's
 *assessable* gap set; the **Planner** (`planner.py`) proposes a pace/plan but the hours (cert blueprint),

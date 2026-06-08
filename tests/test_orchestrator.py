@@ -14,7 +14,7 @@ from pathforward.agents.generator import Generator
 from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.orchestrator import run_multiagent
 from pathforward.agents.planner import Planner
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.credential.mint import mint
 from pathforward.credential.schema import CredentialIntegrityError
 from pathforward.iq import derivation as dv
@@ -25,7 +25,7 @@ from pathforward.iq.seed import build_seed, HERO_WORKER_ID
 def _agents():
     """One client per agent (the loop chains generator turns; others are single-shot)."""
     return (Curator(FakeLLMClient()), Generator(FakeLLMClient()),
-            Verifier(LocalNumericChecker()), Planner(FakeLLMClient(), LocalNumericChecker()))
+            EvidenceGate(LocalNumericChecker()), Planner(FakeLLMClient(), LocalNumericChecker()))
 
 
 class TestOrchestrator(unittest.TestCase):

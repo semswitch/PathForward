@@ -1,7 +1,7 @@
-"""The multi-agent reasoning loop: Curator -> (Generator/Verifier loop) -> Planner, in code.
+"""The multi-agent reasoning loop: Curator -> (Generator/Evidence Gate loop) -> Planner, in code.
 
 The Curator reasons over the worker's gaps and selects the assessment target; the existing
-Generator/Verifier loop authors and gates a grounded competency item for that target; the Planner
+Generator/Evidence Gate loop authors and gates a grounded competency item for that target; the Planner
 reasons an advisory, capacity- and accessibility-aware learning plan around the full gap.
 
 The trust boundary is unchanged: the loop's `corpus ∩ retrieved` gate, the N=3 fail-closed
@@ -20,11 +20,11 @@ from .generator import Generator
 from .loop import run_assessment_loop
 from .planner import Planner
 from .types import LoopResult, MultiAgentResult
-from .verifier import Verifier
+from .evidence_gate import EvidenceGate
 
 
 def run_multiagent(worker: Worker, onto: Ontology, edges: list[Edge],
-                   curator: Curator, generator: Generator, verifier: Verifier,
+                   curator: Curator, generator: Generator, verifier: EvidenceGate,
                    planner: Planner) -> MultiAgentResult:
     role = onto.roles[worker.target_role_id]
     with tracing.span("multiagent", **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:

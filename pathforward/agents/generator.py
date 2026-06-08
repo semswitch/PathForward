@@ -24,7 +24,7 @@ ITEM_SCHEMA = {
         "numeric_claim": {"type": ["string", "null"]},
     },
     # strict json_schema (the live Foundry agent enforces it): every property must be listed in
-    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Verifier
+    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Evidence Gate
     # enforces the >=2-option rule in code.
     "required": ["stem", "options", "answer_index", "cited_ref_ids", "numeric_claim"],
 }

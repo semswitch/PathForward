@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from ..agents.generator import Generator
 from ..agents.loop import run_assessment_loop
-from ..agents.verifier import Verifier
+from ..agents.evidence_gate import EvidenceGate
 from ..credential.mint import mint
 from ..iq.models import Ontology
 from .cases import EvalCase
@@ -78,7 +78,7 @@ class Scorecard:
         return "\n".join(lines) + "\n"
 
 
-def run_eval_case(case: EvalCase, generator: Generator, verifier: Verifier,
+def run_eval_case(case: EvalCase, generator: Generator, verifier: EvidenceGate,
                   onto: Ontology) -> CaseResult:
     """Run the real loop on a legit case and score grounded + spine-intact in code."""
     corpus = set(case.approved_refs)

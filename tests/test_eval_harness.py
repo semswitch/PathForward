@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathforward.agents.client import FakeLLMClient
 from pathforward.agents.generator import Generator
 from pathforward.agents.numeric import LocalNumericChecker
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.eval.cases import build_eval_cases
 from pathforward.eval.runner import Scorecard, run_eval_case
 from pathforward.iq import derivation as dv
@@ -35,14 +35,14 @@ class EvalHarnessTest(unittest.TestCase):
 
     def test_every_legit_case_scores_grounded_and_spine_intact_offline(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
         failed = [r.headline for r in results if not r.passed]
         self.assertTrue(all(r.passed for r in results), f"offline eval regressions: {failed}")
 
     def test_scorecard_reports_full_pass_rate(self):
         gen = Generator(FakeLLMClient())
-        ver = Verifier(LocalNumericChecker())
+        ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
         card = Scorecard("offline eval", "grounded + spine-intact", results)
         self.assertEqual(card.n_passed, card.n)

@@ -25,7 +25,7 @@ sys.path.insert(0, _ROOT)
 from pathforward.agents.foundry import FoundryLLMClient        # noqa: E402
 from pathforward.agents.generator import Generator             # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker     # noqa: E402
-from pathforward.agents.verifier import Verifier               # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate               # noqa: E402
 from pathforward.config import load_settings                   # noqa: E402
 from pathforward.eval.cases import build_eval_cases            # noqa: E402
 from pathforward.eval.foundry_eval import FoundryGroundedness  # noqa: E402
@@ -65,7 +65,7 @@ def main() -> int:
 
     client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                               index_name=s.search_index)
-    gen, ver = Generator(client), Verifier(LocalNumericChecker())
+    gen, ver = Generator(client), EvidenceGate(LocalNumericChecker())
     print(f"running {len(cases)} groundedness cases...")
     results = []
     try:

@@ -21,7 +21,7 @@ from pathforward.agents.generator import Generator                        # noqa
 from pathforward.agents.numeric import LocalNumericChecker                # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent                # noqa: E402
 from pathforward.agents.planner import Planner                            # noqa: E402
-from pathforward.agents.verifier import Verifier                          # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate                          # noqa: E402
 from pathforward.credential.mint import mint                              # noqa: E402
 from pathforward.iq import derivation as dv                               # noqa: E402
 from pathforward.iq import traversal                                      # noqa: E402
@@ -39,10 +39,10 @@ def build_fixture() -> dict:
 
     gb = traversal.build_glassbox(worker, onto, edges)
 
-    # The three-agent reasoning loop: Curator -> Generator/Verifier -> Planner.
+    # The three-agent reasoning loop: Curator -> Generator/Evidence Gate -> Planner.
     result = run_multiagent(worker, onto, edges,
                             Curator(FakeLLMClient()), Generator(FakeLLMClient()),
-                            Verifier(LocalNumericChecker()),
+                            EvidenceGate(LocalNumericChecker()),
                             Planner(FakeLLMClient(), LocalNumericChecker()))
     decision, loop_result, plan = result.curator, result.loop, result.plan
     skill = onto.skills[decision.chosen_skill_id]

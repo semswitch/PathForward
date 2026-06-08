@@ -3,7 +3,7 @@
 HONEST LABELING (red-team correction): we do NOT claim population IRT on synthetic
 data. We compute classical item statistics — difficulty (p-value) and discrimination
 (point-biserial) — from the synthetic learner-response set, label every item
-'estimated (cold-start)', and let the Verifier's filtering be the real quality ratchet.
+'estimated (cold-start)', and let the Evidence Gate's filtering be the real quality ratchet.
 
   difficulty      = proportion answering correctly (p-value)
   discrimination  = point-biserial correlation between item correctness and total score

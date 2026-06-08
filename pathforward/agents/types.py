@@ -15,7 +15,7 @@ class AssessmentItem:
     answer_index: int
     cited_ref_ids: tuple[str, ...] = ()
     retrieved_ref_ids: tuple[str, ...] = ()   # ids the retrieval TOOL physically returned (trace, not model output)
-    numeric_claim: Optional[str] = None   # arithmetic the Verifier must independently check
+    numeric_claim: Optional[str] = None   # arithmetic the Evidence Gate must independently check
     attempt: int = 0
 
     @property
@@ -158,7 +158,7 @@ class LearningPlan:
 
 @dataclass
 class MultiAgentResult:
-    """The combined output of the three-agent reasoning loop: Curator -> (Generator/Verifier
+    """The combined output of the three-agent reasoning loop: Curator -> (Generator/Evidence Gate
     loop) -> Planner. The loop and the credential trust chain are unchanged; the Curator selects
     the assessment target and the Planner produces an advisory plan around it."""
     curator: CuratorDecision

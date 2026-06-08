@@ -16,7 +16,7 @@ from pathforward.agents.client import FakeLLMClient
 from pathforward.agents.generator import Generator
 from pathforward.agents.loop import run_assessment_loop
 from pathforward.agents.numeric import LocalNumericChecker
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.credential.mint import mint
 from pathforward.iq import derivation as dv
 from pathforward.iq import traversal
@@ -40,7 +40,7 @@ class TracingTest(unittest.TestCase):
 
     def _run(self):
         return run_assessment_loop(self.driving, self.skill, self.allowed,
-                                   Generator(FakeLLMClient()), Verifier(LocalNumericChecker()))
+                                   Generator(FakeLLMClient()), EvidenceGate(LocalNumericChecker()))
 
     def test_noop_when_not_configured(self):
         # No configure_tracing() -> the loop still runs, no spans, no error.
@@ -84,7 +84,7 @@ class TracingTest(unittest.TestCase):
         tracing.configure_tracing(exporter=exporter)
         # force abstention: an empty corpus means every citation is struck for all 3 attempts
         run_assessment_loop(self.driving, self.skill, (), Generator(FakeLLMClient()),
-                            Verifier(LocalNumericChecker()))
+                            EvidenceGate(LocalNumericChecker()))
         tracing.flush()
         root = {s.name: s for s in exporter.get_finished_spans()}["assessment.loop"]
         self.assertEqual(root.attributes.get("pf.status"), "abstained")

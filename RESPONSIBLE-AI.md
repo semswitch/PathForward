@@ -16,7 +16,7 @@ citation-backed credential. Built for the Agents League hackathon.
 - **Synthetic data only.** The ontology, learner responses, and corpus are fabricated.
 - **Cold-start calibration, not population IRT.** Item difficulty/discrimination are *estimated*
   from a synthetic response set and labelled `estimated (cold-start)` — they are not validated
-  psychometrics. The Verifier's filtering is the real quality ratchet, not the statistics.
+  psychometrics. The Evidence Gate's filtering is the real quality ratchet, not the statistics.
 - **Grounding scope.** Answers and items are grounded only in the supplied synthetic corpus; the
   system abstains rather than answer outside it.
 - The LLM is never trusted for the assessment gate or for arithmetic — those are computed in code.

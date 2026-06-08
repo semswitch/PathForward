@@ -6,7 +6,7 @@ FoundryLLMClient are drop-in interchangeable. The orchestrator chains turns with
 `previous_response_id` and owns the assembled payload.
 
 The FakeLLMClient is deterministic: on a Generator's attempt 0 it returns a
-DELIBERATELY ungrounded item (so the Verifier rejects it on camera), then on
+DELIBERATELY ungrounded item (so the Evidence Gate rejects it on camera), then on
 attempt >= 1 a clean, grounded, numerically-valid item — producing the
 reject -> regenerate moment the demo leads with.
 """
@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Protocol, runtime_checkable
 
 GENERATOR_TAG = "[GENERATOR]"
-VERIFIER_TAG = "[VERIFIER]"
+CRITIC_TAG = "[CRITIC]"      # the Critic AGENT (advisory quality review); the Evidence Gate is deterministic code, not an agent
 CURATOR_TAG = "[CURATOR]"
 PLANNER_TAG = "[PLANNER]"
 
@@ -65,7 +65,7 @@ class FakeLLMClient:
         if PLANNER_TAG in instructions:
             parsed = self._plan(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
-        # default: echo (verifier semantic rationale path, unused offline)
+        # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
 
     @staticmethod
@@ -75,7 +75,7 @@ class FakeLLMClient:
         allowed = list(p.get("allowed_ref_ids", []))
         attempt = int(p.get("attempt", 0))
         if attempt == 0:
-            # ungrounded draft: cites nothing -> Verifier strikes it (the hero refusal)
+            # ungrounded draft: cites nothing -> Evidence Gate strikes it (the hero refusal)
             return {
                 "stem": f"Which approach best demonstrates competency in {skill}?",
                 "options": [f"A plausible-sounding answer about {skill}",

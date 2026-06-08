@@ -10,7 +10,7 @@ from pathforward.agents.generator import Generator
 from pathforward.agents.loop import run_assessment_loop
 from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.types import LoopResult
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.credential.mint import mint
 from pathforward.credential.schema import CredentialIntegrityError
 from pathforward.iq import derivation as dv
@@ -29,7 +29,7 @@ class TestCredential(unittest.TestCase):
         self.allowed = tuple(self.driving.source_ref_ids) + ("corpus::AZ-204",)
         self.result = run_assessment_loop(
             self.driving, self.skill, self.allowed,
-            Generator(FakeLLMClient()), Verifier(LocalNumericChecker()))
+            Generator(FakeLLMClient()), EvidenceGate(LocalNumericChecker()))
 
     def test_mint_asserts_causal_spine(self):
         cred = mint(self.worker, self.role, self.driving.id, self.skill.id, self.result)

@@ -2,7 +2,7 @@
 first CertGap.
 
 Proves end to end on live Azure: gpt-5.5 autonomously retrieves, produces a grounded structured
-item that passes the Verifier's corpus-INTERSECT-retrieved gate, and mints a citation-backed
+item that passes the Evidence Gate's corpus-INTERSECT-retrieved gate, and mints a citation-backed
 credential whose cited_edge_id is the driving CertGap edge. The offline core (FakeLLMClient) is
 untouched; this is the Azure swap-in.
 
@@ -20,7 +20,7 @@ from pathforward.agents.foundry import FoundryLLMClient        # noqa: E402
 from pathforward.agents.generator import Generator             # noqa: E402
 from pathforward.agents.loop import run_assessment_loop        # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker     # noqa: E402
-from pathforward.agents.verifier import Verifier               # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate               # noqa: E402
 from pathforward.config import load_settings                   # noqa: E402
 from pathforward.credential.mint import mint                   # noqa: E402
 from pathforward.iq import derivation as dv                    # noqa: E402
@@ -51,7 +51,7 @@ def main() -> int:
     rc = 1
     try:
         result = run_assessment_loop(driving, skill, allowed, Generator(client),
-                                     Verifier(LocalNumericChecker()))
+                                     EvidenceGate(LocalNumericChecker()))
         print(f"\nloop status: {result.status.upper()}  attempts: {result.attempts}")
         for t in result.transcript:
             it, v = t["item"], t["verdict"]

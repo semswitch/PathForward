@@ -1,4 +1,4 @@
-"""The signature: a code-driven Generator->Verifier loop.
+"""The signature: a code-driven Generator->Evidence Gate loop.
 
 propose -> verify -> (reject => regenerate) capped at N attempts -> fail-closed ABSTAIN.
 
@@ -16,13 +16,13 @@ from ..iq.models import Edge, Skill
 from ..obs import tracing
 from .generator import Generator
 from .types import LoopResult
-from .verifier import Verifier
+from .evidence_gate import EvidenceGate
 
 MAX_ATTEMPTS = 3
 
 
 def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ...],
-                        generator: Generator, verifier: Verifier,
+                        generator: Generator, verifier: EvidenceGate,
                         max_attempts: int = MAX_ATTEMPTS) -> LoopResult:
     transcript: list[dict] = []
     previous_response_id = None

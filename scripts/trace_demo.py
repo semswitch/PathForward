@@ -21,7 +21,7 @@ from pathforward.agents.client import FakeLLMClient        # noqa: E402
 from pathforward.agents.generator import Generator         # noqa: E402
 from pathforward.agents.loop import run_assessment_loop     # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker  # noqa: E402
-from pathforward.agents.verifier import Verifier            # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate            # noqa: E402
 from pathforward.config import load_settings                # noqa: E402
 from pathforward.credential.mint import mint                # noqa: E402
 from pathforward.iq import derivation as dv                 # noqa: E402
@@ -63,7 +63,7 @@ def main() -> int:
     try:
         with tracing.span("assessment.session", **{"pf.worker": worker.id, "pf.skill": skill.id}):
             result = run_assessment_loop(driving, skill, allowed, Generator(client),
-                                         Verifier(LocalNumericChecker()))
+                                         EvidenceGate(LocalNumericChecker()))
             if result.status == "verified":
                 cred = mint(worker, role, driving.id, skill.id, result)
                 print(f"\nminted: cited_edge_id={cred.credential_subject['cited_edge_id']} "

@@ -1,9 +1,9 @@
-"""Live multi-agent smoke: the full Curator -> Generator/Verifier loop -> Planner reasoning loop
+"""Live multi-agent smoke: the full Curator -> Generator/Evidence Gate loop -> Planner reasoning loop
 on live Azure for the hero worker EMP-001.
 
   - Curator + Planner run on TOOL-LESS Foundry reasoning agents (ReasoningFoundryClient).
   - Generator runs on the search-grounded FoundryLLMClient (gpt-5.5 + Azure AI Search).
-  - Verifier stays deterministic (LocalNumericChecker).
+  - Evidence Gate stays deterministic (LocalNumericChecker).
 
 Proves the multi-agent orchestrator works end to end on live Azure with the trust boundary intact:
   - the Curator's chosen skill is an ADMISSIBLE (derived, assessable) gap — the model cannot invent one,
@@ -32,7 +32,7 @@ from pathforward.agents.generator import Generator                    # noqa: E4
 from pathforward.agents.numeric import LocalNumericChecker            # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent            # noqa: E402
 from pathforward.agents.planner import Planner                        # noqa: E402
-from pathforward.agents.verifier import Verifier                      # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate                      # noqa: E402
 from pathforward.config import load_settings                          # noqa: E402
 from pathforward.credential.mint import mint                          # noqa: E402
 from pathforward.iq import derivation as dv                           # noqa: E402
@@ -69,7 +69,7 @@ def main() -> int:
         result = run_multiagent(
             worker, onto, edges,
             Curator(curator_client), Generator(generator_client),
-            Verifier(LocalNumericChecker()), Planner(planner_client, LocalNumericChecker()),
+            EvidenceGate(LocalNumericChecker()), Planner(planner_client, LocalNumericChecker()),
         )
         d, loop, plan = result.curator, result.loop, result.plan
 
@@ -84,7 +84,7 @@ def main() -> int:
               f"('{onto.skills[d.chosen_skill_id].name if d.chosen_skill_id else '-'}')  "
               f"admissible? {chosen_ok}")
 
-        # --- Generator/Verifier loop (live grounded) ---
+        # --- Generator/Evidence Gate loop (live grounded) ---
         print("\n[LOOP]")
         print(f"  status: {loop.status.upper()}  attempts: {loop.attempts}")
         for t in loop.transcript:

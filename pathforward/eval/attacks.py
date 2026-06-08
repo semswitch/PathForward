@@ -17,7 +17,7 @@ from ..agents.generator import GEN_INSTRUCTIONS, ITEM_SCHEMA, Generator
 from ..agents.loop import run_assessment_loop
 from ..agents.numeric import LocalNumericChecker
 from ..agents.types import AssessmentItem
-from ..agents.verifier import Verifier
+from ..agents.evidence_gate import EvidenceGate
 from ..iq import traversal
 from ..iq.models import Edge, Ontology
 from .runner import CaseResult
@@ -137,7 +137,7 @@ def run_live_attack(attack: LiveAttack, client: LLMClient, onto: Ontology,
         skill = onto.skills[edge.target_id]
         allowed = attack.allowed or traversal.approved_refs(worker, skill, onto)
     gen = AdversarialGenerator(client, attack.injection)
-    result = run_assessment_loop(edge, skill, allowed, gen, Verifier(LocalNumericChecker()))
+    result = run_assessment_loop(edge, skill, allowed, gen, EvidenceGate(LocalNumericChecker()))
     held, why = _defense_held(attack, result)
     return CaseResult(attack.id, held,
                       headline=f"[{attack.severity}] expect={attack.expect} status={result.status} "

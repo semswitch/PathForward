@@ -1,4 +1,4 @@
-"""Agents layer: the code-driven Generator->Verifier loop (the signature reasoning
+"""Agents layer: the code-driven Generator->Evidence Gate loop (the signature reasoning
 organ), the LLM client abstraction, the numeric checker, and cold-start calibration.
 
 Per the red-team: the loop is plain SDK-shaped code (a `respond()` call chained by

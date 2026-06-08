@@ -14,6 +14,6 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   unsafe here).
 - The end goal is the **real multi-agent reasoning loop**, not the one-off GPT call and not the
   `FakeLLMClient` stub. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the
-  deterministic Verifier gate (never let an LLM judge its own grounding).
+  deterministic Evidence Gate (never let an LLM judge its own grounding).
 
 > Keep this file thin. Put substantive guidance in `AGENTS.md` so the two never drift.

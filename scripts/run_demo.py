@@ -1,11 +1,11 @@
 """Offline end-to-end demo — proves the multi-agent reasoning spine with no Azure.
 
 Runs the full PathForward flow for the hero worker EMP-001 against the FakeLLMClient:
-  Glass-Box traversal -> Curator (gap prioritization, reasoned) -> Generator/Verifier loop
+  Glass-Box traversal -> Curator (gap prioritization, reasoned) -> Generator/Evidence Gate loop
   (reject->regenerate) -> cold-start calibration -> citation-backed credential mint
   -> Planner (capacity + accessibility learning plan), with the causal-spine assertion enforced.
 
-Three reasoning agents (Curator, Generator, Planner) are orchestrated in code; the Verifier gate
+Three reasoning agents (Curator, Generator, Planner) are orchestrated in code; the Evidence Gate gate
 and the mint's causal-spine check remain deterministic. This is the textual storyboard for the
 demo video. Run:
   python scripts/run_demo.py
@@ -25,7 +25,7 @@ from pathforward.agents.generator import Generator                       # noqa:
 from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
 from pathforward.agents.planner import Planner                           # noqa: E402
-from pathforward.agents.verifier import Verifier                         # noqa: E402
+from pathforward.agents.evidence_gate import EvidenceGate                         # noqa: E402
 from pathforward.credential.mint import mint                             # noqa: E402
 from pathforward.iq import derivation as dv                              # noqa: E402
 from pathforward.iq import traversal                                     # noqa: E402
@@ -63,10 +63,10 @@ def main() -> None:
           f"{[onto.skills[s].name for s in gap]}")
     print(f"  Readiness (derived): {gb['meta']['readiness'] * 100:.0f}%")
 
-    # --- the three-agent reasoning loop: Curator -> Generator/Verifier -> Planner ---------------
+    # --- the three-agent reasoning loop: Curator -> Generator/Evidence Gate -> Planner ---------------
     cur = Curator(FakeLLMClient())
     gen = Generator(FakeLLMClient())
-    ver = Verifier(LocalNumericChecker())
+    ver = EvidenceGate(LocalNumericChecker())
     planner = Planner(FakeLLMClient(), LocalNumericChecker())
     result = run_multiagent(worker, onto, edges, cur, gen, ver, planner)
     decision, loop_result, plan = result.curator, result.loop, result.plan
@@ -140,7 +140,7 @@ def main() -> None:
     rule("HERO METRICS  - on screen in the first 30s")
     verified_items = [t for t in loop_result.transcript if t["verdict"].passed]
     cited = [t for t in verified_items if t["item"].cited_ref_ids]
-    print(f"  reasoning agents in the loop: 3 (Curator, Generator, Planner) + deterministic Verifier")
+    print(f"  reasoning agents in the loop: 3 (Curator, Generator, Planner) + deterministic Evidence Gate")
     print(f"  grounded-citation rate: {len(cited)}/{len(verified_items)} verified items cited")
     print(f"  attempts to a verified item: {loop_result.attempts} "
           f"({loop_result.attempts - 1} rejected on grounding/quality)")

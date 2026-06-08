@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.types import AssessmentItem, LoopResult, Verdict
-from pathforward.agents.verifier import Verifier
+from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.credential.mint import mint
 from pathforward.credential.schema import CredentialIntegrityError
 from pathforward.eval.cases import build_eval_cases
@@ -36,7 +36,7 @@ def _item(stem="A worker must close an API Development gap. Which property fits?
 
 class RedTeamGateTest(unittest.TestCase):
     def setUp(self):
-        self.v = Verifier(LocalNumericChecker())
+        self.v = EvidenceGate(LocalNumericChecker())
         self.onto = build_seed()
         self.worker = self.onto.workers["EMP-001"]
         self.role = self.onto.roles[self.worker.target_role_id]

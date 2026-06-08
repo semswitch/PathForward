@@ -14,13 +14,13 @@ citation-backed credential — refusing to certify anything it cannot ground and
 
 ---
 
-## The signature: a code-driven Generator → Verifier loop
+## The signature: a grounded Generator → Evidence Gate loop (agents reason, code notarizes)
 
 ```
 CertGap edge (derived)  ──drives──▶  Generator proposes a grounded item
                                           │
                                           ▼
-                                     Verifier  (5-criterion + evidence-answerability gate;
+                                  Evidence Gate  (deterministic 5-criterion notary;
                                                 every numeric claim independently checked)
                                           │
                           reject ◀────────┴────────▶ pass
@@ -65,7 +65,7 @@ Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `ma
 | Path | What |
 |---|---|
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
-| `pathforward/agents/` | LLM client (fake + Foundry stub), Generator, Verifier, the **loop**, numeric checker, calibration |
+| `pathforward/agents/` | LLM client (fake + Foundry), Generator, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof + the causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
 | `scripts/` | data generation, mirror build, the offline demo |
