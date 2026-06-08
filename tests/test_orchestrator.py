@@ -9,6 +9,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.client import FakeLLMClient
+from pathforward.agents.critic import Critic
 from pathforward.agents.curator import Curator
 from pathforward.agents.generator import Generator
 from pathforward.agents.numeric import LocalNumericChecker
@@ -25,7 +26,8 @@ from pathforward.iq.seed import build_seed, HERO_WORKER_ID
 def _agents():
     """One client per agent (the loop chains generator turns; others are single-shot)."""
     return (Curator(FakeLLMClient()), Generator(FakeLLMClient()),
-            EvidenceGate(LocalNumericChecker()), Planner(FakeLLMClient(), LocalNumericChecker()))
+            EvidenceGate(LocalNumericChecker()), Planner(FakeLLMClient(), LocalNumericChecker()),
+            Critic(FakeLLMClient()))
 
 
 class TestOrchestrator(unittest.TestCase):
@@ -36,13 +38,17 @@ class TestOrchestrator(unittest.TestCase):
     def test_end_to_end_emp001_verified_and_minted(self):
         worker = self.onto.workers[HERO_WORKER_ID]
         role = self.onto.roles[worker.target_role_id]
-        cur, gen, ver, plan = _agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, ver, plan)
+        cur, gen, gate, plan, critic = _agents()
+        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
 
         # Curator chose S01 (demo invariant); loop verified the item.
         self.assertEqual(res.curator.chosen_skill_id, "S01")
         self.assertEqual(res.loop.status, "verified")
         self.assertTrue(res.plan.phases)
+        # The Critic agent ran and its advisory review is recorded in the transcript.
+        passed = [t for t in res.loop.transcript if t["verdict"].passed][-1]
+        self.assertIsNotNone(passed["critic"])
+        self.assertEqual(passed["critic"].recommendation, "pass")
 
         # The causal spine survives the orchestrator: the credential cites the Curator-chosen edge.
         cred = mint(worker, role, res.curator.chosen_edge_id, res.curator.chosen_skill_id, res.loop)
@@ -51,10 +57,12 @@ class TestOrchestrator(unittest.TestCase):
 
     def test_to_doc_round_trips_through_json(self):
         worker = self.onto.workers[HERO_WORKER_ID]
-        cur, gen, ver, plan = _agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, ver, plan)
+        cur, gen, gate, plan, critic = _agents()
+        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
         doc = res.to_doc()
         self.assertEqual(set(doc), {"curator", "loop", "plan"})
+        # the critic review serializes inside the loop transcript
+        self.assertEqual(doc["loop"]["transcript"][-1]["critic"]["recommendation"], "pass")
         json.dumps(doc)   # must be JSON-serializable end to end
 
     def test_no_assessable_gap_fails_closed_and_does_not_mint(self):
@@ -65,8 +73,8 @@ class TestOrchestrator(unittest.TestCase):
         self.onto.workers[worker.id] = worker
         role = self.onto.roles["R-DEVOPS"]
         edges = dv.build_all_edges(self.onto)
-        cur, gen, ver, plan = _agents()
-        res = run_multiagent(worker, self.onto, edges, cur, gen, ver, plan)
+        cur, gen, gate, plan, critic = _agents()
+        res = run_multiagent(worker, self.onto, edges, cur, gen, gate, plan, critic=critic)
 
         self.assertEqual(res.curator.chosen_skill_id, "")
         self.assertEqual(res.loop.status, "abstained")

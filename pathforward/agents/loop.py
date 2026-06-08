@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from ..iq.models import Edge, Skill
 from ..obs import tracing
+from .critic import Critic
 from .generator import Generator
 from .types import LoopResult
 from .evidence_gate import EvidenceGate
@@ -22,8 +23,9 @@ MAX_ATTEMPTS = 3
 
 
 def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ...],
-                        generator: Generator, verifier: EvidenceGate,
-                        max_attempts: int = MAX_ATTEMPTS) -> LoopResult:
+                        generator: Generator, evidence_gate: EvidenceGate,
+                        max_attempts: int = MAX_ATTEMPTS,
+                        critic: Critic | None = None) -> LoopResult:
     transcript: list[dict] = []
     previous_response_id = None
     corpus = set(allowed_ref_ids)
@@ -42,14 +44,22 @@ def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ..
             # could cite a real corpus id it never fetched — this intersection strikes it.
             # Retrieval can only ADD to the deterministic floor, never fabricate grounding.
             effective_allowed = tuple(r for r in item.retrieved_ref_ids if r in corpus)
+            # Critic AGENT (advisory): reasons over quality dimensions the gate cannot compute, on
+            # the SAME grounding basis (effective_allowed). It only RECOMMENDS — the gate decides.
+            review = None
+            if critic is not None:
+                with tracing.span(f"critic.attempt.{attempt}") as crit_span:
+                    review = critic.review(item, effective_allowed, skill, edge)
+                    crit_span.set(**{"pf.critic_recommendation": review.recommendation,
+                                     "pf.critic_concerns": len(review.concerns)})
             with tracing.span(f"verify.attempt.{attempt}",
                               **{"pf.effective_allowed": len(effective_allowed)}) as ver_span:
-                verdict = verifier.verify(item, effective_allowed)
+                verdict = evidence_gate.verify(item, effective_allowed)
                 ver_span.set(**{"pf.passed": verdict.passed})
                 if not verdict.passed:
-                    ver_span.event("verifier.struck", **{
+                    ver_span.event("gate.struck", **{
                         "pf.failed": ",".join(f["criterion"] for f in verdict.failed_reasons)})
-            transcript.append({"attempt": attempt, "item": item, "verdict": verdict})
+            transcript.append({"attempt": attempt, "item": item, "critic": review, "verdict": verdict})
             if verdict.passed:
                 root.set(**{"pf.status": "verified", "pf.attempts": attempt + 1})
                 return LoopResult(

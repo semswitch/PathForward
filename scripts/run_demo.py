@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
 from pathforward.agents.client import FakeLLMClient                       # noqa: E402
+from pathforward.agents.critic import Critic                              # noqa: E402
 from pathforward.agents.curator import Curator                            # noqa: E402
 from pathforward.agents.generator import Generator                       # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
@@ -63,12 +64,13 @@ def main() -> None:
           f"{[onto.skills[s].name for s in gap]}")
     print(f"  Readiness (derived): {gb['meta']['readiness'] * 100:.0f}%")
 
-    # --- the three-agent reasoning loop: Curator -> Generator/Evidence Gate -> Planner ---------------
+    # --- the reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner ----------
     cur = Curator(FakeLLMClient())
     gen = Generator(FakeLLMClient())
-    ver = EvidenceGate(LocalNumericChecker())
+    critic = Critic(FakeLLMClient())
+    gate = EvidenceGate(LocalNumericChecker())
     planner = Planner(FakeLLMClient(), LocalNumericChecker())
-    result = run_multiagent(worker, onto, edges, cur, gen, ver, planner)
+    result = run_multiagent(worker, onto, edges, cur, gen, gate, planner, critic=critic)
     decision, loop_result, plan = result.curator, result.loop, result.plan
 
     rule("3. CURATOR AGENT  - which gap to certify first (reasoned, then gated)")
@@ -81,23 +83,34 @@ def main() -> None:
     print(f"  Chosen target: {chosen_skill.name} ({decision.chosen_skill_id})")
     print(f"  Driving edge:  {decision.chosen_edge_id}")
 
-    rule("4. ASSESSMENT LOOP  - blueprint driven by the Curator-chosen CertGap edge")
+    rule("4. ASSESSMENT LOOP  - Generator -> Critic (agent) -> Evidence Gate (code)")
     skill = chosen_skill
     allowed = traversal.approved_refs(worker, skill, onto)
     print(f"  Driving edge: {decision.chosen_edge_id}  ->  tests skill '{skill.name}'")
     print(f"  Approved grounding refs: {list(allowed)}")
     for t in loop_result.transcript:
         v = t["verdict"]
-        status = "PASS" if v.passed else "REJECT"
-        print(f"\n  attempt {t['attempt']}: {status}")
+        gate_status = "PASS" if v.passed else "REJECT"
+        cr = t.get("critic")
+        print(f"\n  attempt {t['attempt']}:")
         print(f"    stem: {t['item'].stem[:72]}...")
         print(f"    retrieved (tool trace): {list(t['item'].retrieved_ref_ids) or '(none)'}")
         print(f"    citations: {list(t['item'].cited_ref_ids) or '(none)'}")
+        if cr:
+            concerns = ", ".join(f"{c.criterion_name}({c.severity})" for c in cr.concerns) or "none"
+            print(f"    Critic agent (advisory) : {cr.recommendation.upper():6}  concerns: {concerns}")
+        print(f"    Evidence Gate (decides) : {gate_status}")
         if not v.passed:
             for fr in v.failed_reasons:
-                print(f"    x {fr['criterion']}: {fr['reason']}")
+                print(f"      x {fr['criterion']}: {fr['reason']}")
         else:
-            print(f"    criteria: {v.criteria}")
+            print(f"      criteria: {v.criteria}")
+    # The maker-checker beat: on the PASSING item the Critic still raised a quality concern the
+    # deterministic gate cannot compute — agents reason, code notarizes.
+    passed = [t for t in loop_result.transcript if t["verdict"].passed]
+    if passed and passed[-1].get("critic") and passed[-1]["critic"].concerns:
+        print("\n  ^ note: the Critic agent flagged a quality dimension (ambiguity) the deterministic")
+        print("    gate cannot compute, on an item the gate still PASSED -- advisory, never overriding.")
     print(f"\n  loop status: {loop_result.status.upper()}  (attempts: {loop_result.attempts})")
 
     rule("5. COLD-START CALIBRATION  - honest psychometrics")

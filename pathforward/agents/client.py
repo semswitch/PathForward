@@ -65,6 +65,9 @@ class FakeLLMClient:
         if PLANNER_TAG in instructions:
             parsed = self._plan(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+        if CRITIC_TAG in instructions:
+            parsed = self._critique(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
 
@@ -107,6 +110,26 @@ class FakeLLMClient:
         for s in candidates:
             rationale[s] = f"gap skill {s}: prioritized by adjacency and certification coverage"
         return {"ranking": ranking, "rationale": rationale}
+
+    @staticmethod
+    def _critique(p: dict) -> dict:
+        """Deterministic Critic stand-in. On a grounded item (the one the gate PASSES) it still
+        raises a low-severity ambiguity concern — the on-camera proof the Critic reasons about a
+        quality dimension the deterministic gate cannot compute. On an ungrounded draft it advises
+        reject. Either way it only RECOMMENDS; the gate still decides."""
+        cited = list(p.get("cited_ref_ids", []))
+        if not cited:
+            return {
+                "recommendation": "reject",
+                "concerns": [{"criterion_name": "answerable_from_evidence", "severity": "high"},
+                             {"criterion_name": "citation_relevance", "severity": "high"}],
+                "advisory_notes": "No cited evidence — not answerable from sources (advisory only).",
+            }
+        return {
+            "recommendation": "pass",
+            "concerns": [{"criterion_name": "ambiguity", "severity": "low"}],
+            "advisory_notes": "Grounded and answerable; minor option-phrasing ambiguity (advisory).",
+        }
 
     @staticmethod
     def _plan(p: dict) -> dict:

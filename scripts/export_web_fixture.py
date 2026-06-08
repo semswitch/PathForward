@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from pathforward.agents.calibration import cold_start_calibrate           # noqa: E402
 from pathforward.agents.client import FakeLLMClient                        # noqa: E402
+from pathforward.agents.critic import Critic                               # noqa: E402
 from pathforward.agents.curator import Curator                             # noqa: E402
 from pathforward.agents.generator import Generator                        # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker                # noqa: E402
@@ -39,11 +40,12 @@ def build_fixture() -> dict:
 
     gb = traversal.build_glassbox(worker, onto, edges)
 
-    # The three-agent reasoning loop: Curator -> Generator/Evidence Gate -> Planner.
+    # The reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner.
     result = run_multiagent(worker, onto, edges,
                             Curator(FakeLLMClient()), Generator(FakeLLMClient()),
                             EvidenceGate(LocalNumericChecker()),
-                            Planner(FakeLLMClient(), LocalNumericChecker()))
+                            Planner(FakeLLMClient(), LocalNumericChecker()),
+                            critic=Critic(FakeLLMClient()))
     decision, loop_result, plan = result.curator, result.loop, result.plan
     skill = onto.skills[decision.chosen_skill_id]
     cal = cold_start_calibrate(_learner_responses(onto)).get(f"item-{skill.id}", {})

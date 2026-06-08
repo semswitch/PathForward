@@ -56,6 +56,33 @@ class Verdict:
 
 
 @dataclass
+class CriticConcern:
+    criterion_name: str          # ambiguity | fairness | answerable_from_evidence | citation_relevance
+    severity: str                # high | medium | low
+
+    def to_doc(self) -> dict:
+        return {"criterion_name": self.criterion_name, "severity": self.severity}
+
+
+@dataclass
+class CriticReview:
+    """Advisory output of the Critic AGENT — it RECOMMENDS, it does not decide. Nothing here is read
+    by the Evidence Gate's `verify()` or by `mint()`; the gate is the sole authority. The Critic is
+    scoped to quality dimensions the deterministic gate cannot compute (ambiguity / fairness /
+    answerable-from-evidence / citation-relevance)."""
+    recommendation: str          # 'pass' | 'repair' | 'reject'
+    concerns: tuple = ()         # tuple[CriticConcern, ...]
+    advisory_notes: str = ""     # trace/display only; never fed back to the Generator verbatim
+
+    def to_doc(self) -> dict:
+        return {
+            "recommendation": self.recommendation,
+            "concerns": [c.to_doc() for c in self.concerns],
+            "advisory_notes": self.advisory_notes,
+        }
+
+
+@dataclass
 class LoopResult:
     status: str                     # 'verified' | 'abstained' (fail-closed)
     driving_edge_id: str
@@ -63,7 +90,7 @@ class LoopResult:
     attempts: int
     item: Optional[AssessmentItem]
     verdict: Optional[Verdict]
-    transcript: list                # [{attempt, item, verdict}]
+    transcript: list                # [{attempt, item, critic, verdict}] (critic may be None)
     citations: tuple[str, ...]      # assembled & OWNED by the orchestrator (citations-survive)
 
     def to_doc(self) -> dict:
@@ -75,7 +102,9 @@ class LoopResult:
             "item": self.item.to_doc() if self.item else None,
             "verdict": self.verdict.to_doc() if self.verdict else None,
             "transcript": [
-                {"attempt": t["attempt"], "item": t["item"].to_doc(), "verdict": t["verdict"].to_doc()}
+                {"attempt": t["attempt"], "item": t["item"].to_doc(),
+                 "critic": t["critic"].to_doc() if t.get("critic") else None,
+                 "verdict": t["verdict"].to_doc()}
                 for t in self.transcript
             ],
             "citations": list(self.citations),
