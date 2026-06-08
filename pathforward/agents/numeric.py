@@ -1,9 +1,15 @@
 """Numeric checker — the Evidence Gate routes every numeric/threshold claim here.
 
-Offline: a safe AST arithmetic evaluator (no `eval`, no names, no calls). On Azure
-this is replaced by the GA Code Interpreter tool (batch all checks into one billed
-session). The Evidence Gate never trusts the model for arithmetic — code answers what
-code can answer.
+`LocalNumericChecker` (a safe AST arithmetic evaluator: no `eval`, no names, no calls) is the
+**sole** numeric oracle the Evidence Gate trusts, offline AND live. The gate never trusts a model
+for arithmetic — code answers what code can answer.
+
+NOTE (re-scope, ADR 008): the Foundry Code Interpreter tool is deliberately NOT a swap-in here.
+Code Interpreter has the model *write and run* the Python, which is non-deterministic, so it can
+never be the credential gate's oracle. It lives instead as a distinct, NON-GATING advisory analyst
+(`agents/analyst.py` -> `CodeInterpreterAnalyst`) with a different method shape, so it cannot be
+passed where the gate expects a `NumericChecker`. The old `CodeInterpreterChecker` stub (which
+wrongly conformed to `NumericChecker`) was retired for that reason.
 """
 from __future__ import annotations
 
@@ -66,15 +72,6 @@ class LocalNumericChecker:
         tree = ast.parse(text.strip(), mode="eval")
         return _eval(tree)
 
-
-class CodeInterpreterChecker:
-    """Azure stub — wire to the GA Code Interpreter tool on Day 4.
-
-    Batch all of a verification round's numeric checks into a single session
-    (Code Interpreter is billed per session; no outbound network; fixed packages).
-    """
-
-    def check(self, expression: str) -> NumericResult:  # pragma: no cover - Azure-only
-        raise NotImplementedError(
-            "Wire to the Foundry Code Interpreter tool on Day 4 (see 03-Build-Plan.md §3.3)."
-        )
+# The former `CodeInterpreterChecker` stub was retired (ADR 008): Code Interpreter is non-deterministic
+# (the model writes the code) and must never be the gate oracle. It now lives as a NON-GATING analyst
+# with a distinct interface — see `agents/analyst.py` (`CodeInterpreterAnalyst` / `LocalAnalyst`).

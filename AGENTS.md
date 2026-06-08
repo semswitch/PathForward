@@ -61,8 +61,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 - The default demo (`scripts/run_demo.py`) and the web fixture run on **`FakeLLMClient`**
   (deterministic stub). The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
   `scripts/eval_groundedness.py`, and `scripts/redteam_live.py` (16/16 grounded, 0% ASR).
-- Numeric checks use `LocalNumericChecker`; `CodeInterpreterChecker` is a stub
-  (`NotImplementedError`). Voice Live, MCP mint, and the live Fabric data agent are config-only.
+- Numeric checks use `LocalNumericChecker` — the **sole** gate oracle, offline AND live. Code
+  Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
+  `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
+  Voice Live, MCP mint, and the live Fabric data agent are config-only.
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
@@ -74,7 +76,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   Fabric data agent over OneLake (`FabricTool`, OBO) when F2 capacity is un-paused (ADR 007).
 - Wire the **live `FoundryLLMClient`** into the demo and the web UI (not just smoke tests), and
   re-export the web fixture from a live run.
-- Wire `CodeInterpreterChecker` (Foundry Code Interpreter) for numeric checks.
+- Use Code Interpreter ONLY as a non-gating analyst (`CodeInterpreterAnalyst`) for second-opinion
+  recompute + calibration explainability — never as the gate oracle (it is non-deterministic: the
+  model writes the code). `LocalNumericChecker` stays the sole oracle. **(Seam landed 2026-06-08, ADR 008.)**
 - Keep the deterministic **Evidence Gate** (`pathforward/agents/evidence_gate.py`) as the trust boundary — it must NOT become an LLM
   judging its own work.
 
@@ -82,10 +86,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 - `FakeLLMClient` / `LocalNumericChecker` exist for offline development, deterministic demos, and
   tests. **They are not the product.**
-- The swap-in seams are `LLMClient` (`pathforward/agents/client.py`) and `NumericChecker`
-  (`pathforward/agents/numeric.py`). Real implementations: `FoundryLLMClient`,
-  `CodeInterpreterChecker`. **Keep these interfaces identical** so the reasoning logic is
-  unchanged when swapping. Do not bake fake-only assumptions into the loop.
+- The swap-in seams are `LLMClient` (`pathforward/agents/client.py`), `NumericChecker`
+  (`pathforward/agents/numeric.py`, real impl `LocalNumericChecker` — the gate oracle stays code,
+  there is intentionally no model-backed `NumericChecker`), and the non-gating `Analyst`
+  (`pathforward/agents/analyst.py`, real impl `CodeInterpreterAnalyst`). Real `LLMClient`:
+  `FoundryLLMClient` / `ReasoningFoundryClient`. **Keep these interfaces identical** so the reasoning
+  logic is unchanged when swapping. Do not bake fake-only assumptions into the loop.
 
 ## Invariants you must not break
 

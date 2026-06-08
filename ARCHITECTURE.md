@@ -96,7 +96,10 @@ unchanged:
 - **Curator / Planner** → `ReasoningFoundryClient` (tool-less `PromptAgentDefinition` + `strict=False`
   json_schema; they reason over structured ontology data, not retrieval). Validated live by
   `scripts/smoke_multiagent_live.py`.
-- **Numeric** → `CodeInterpreterChecker` (Code Interpreter tool) — still a stub.
+- **Numeric** → `LocalNumericChecker` stays the **sole** gate oracle, offline AND live (the gate's
+  arithmetic must be deterministic code). Code Interpreter is wired separately as a **non-gating**
+  advisory analyst (`agents/analyst.py`: `CodeInterpreterAnalyst`) for second-opinion + calibration
+  explainability — never the oracle (the model writes the code → non-deterministic). See ADR 008.
 
 Plus wiring agentic retrieval and the Fabric ontology. The interfaces are identical, so swapping the
 fake for live does not change the reasoning logic or the deterministic gates.

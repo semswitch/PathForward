@@ -59,6 +59,14 @@ class EvidenceGate:
     here — the gate is the sole authority over whether an item passes."""
 
     def __init__(self, numeric_checker: NumericChecker, semantic_hook: Optional[LLMClient] = None):
+        # Fail at CONSTRUCTION if the oracle isn't a NumericChecker — so the "the gate's oracle is
+        # code" guarantee is structural, not merely fail-on-first-numeric-claim. In particular this
+        # rejects a non-gating Analyst (agents/analyst.py): it has no `check()` and would otherwise be
+        # silently accepted here and never error on an item that carries no numeric_claim.
+        if not isinstance(numeric_checker, NumericChecker):
+            raise TypeError("EvidenceGate requires a NumericChecker (code oracle); got "
+                            f"{type(numeric_checker).__name__}. The gate's numeric oracle must be "
+                            "deterministic code — never a model-backed analyst.")
         self.numeric_checker = numeric_checker
         # NON-GATING, reserved hook for a future semantic-answerability judge. The gate's verdict
         # does NOT read this — it exists only to preserve the seam (deleting it would silently

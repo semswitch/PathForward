@@ -77,8 +77,10 @@ Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `ma
 
 ✅ Offline reasoning core complete and tested (21/21).  ⏳ Azure layer (Foundry agents, agentic
 retrieval, Fabric ontology, Voice Live, MCP mint, evals) wires in per the
-[planning package](../Microsoft-Agents-League/03-Build-Plan.md). The `FoundryLLMClient`,
-`CodeInterpreterChecker`, and config endpoints are stubs marked with their wire-in day.
+[planning package](../Microsoft-Agents-League/03-Build-Plan.md). The live `FoundryLLMClient` /
+`ReasoningFoundryClient` and the non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory,
+never the numeric oracle; see ADR 008) are wired behind their seams; remaining config endpoints are
+stubs marked with their wire-in day.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

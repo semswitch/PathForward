@@ -19,6 +19,7 @@ from collections import OrderedDict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.adaptive import AdaptiveController                # noqa: E402
+from pathforward.agents.analyst import LocalAnalyst                        # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
 from pathforward.agents.client import FakeLLMClient                       # noqa: E402
 from pathforward.agents.critic import Critic                              # noqa: E402
@@ -128,6 +129,25 @@ def main() -> None:
     cal = stats.get(item_id, {})
     print(f"  {item_id}: difficulty={cal.get('difficulty')}  "
           f"discrimination={cal.get('discrimination')}  ({cal.get('label')})")
+
+    # Code Interpreter analyst (offline: LocalAnalyst; live: CodeInterpreterAnalyst) -- ADVISORY and
+    # NON-GATING. Two roles: an independent numeric second opinion, and calibration explainability.
+    analyst = LocalAnalyst()
+    print(f"\n  Code Interpreter analyst (advisory, NON-GATING; the gate's oracle stays LocalNumericChecker):")
+    _passed = [t for t in loop_result.transcript if t["verdict"].passed]
+    if _passed:                                          # guard the abstain path (no verified item)
+        verified_item = _passed[-1]["item"]
+        so = analyst.second_opinion(verified_item.numeric_claim or "")
+        verdict_label = "AGREES" if so.agrees else ("n/a" if so.agrees is None else "DISAGREES")
+        print(f"    numeric second opinion on '{verified_item.numeric_claim}': {verdict_label} "
+              f"-> {so.summary}")
+    else:
+        print("    (loop abstained -> no verified item, so no numeric claim to second-opinion)")
+    analyst_cal = analyst.calibration_report({k: v for k, v in stats.items() if k.startswith("item-")})
+    print(f"    calibration ({analyst_cal.summary}):")
+    for line in analyst_cal.figures[0].splitlines()[:6]:
+        print(f"      {line}")
+    print("    ^ the model writes-and-runs this Python live (non-deterministic) -> never the gate.")
 
     rule("6. CREDENTIAL MINT  - citation-backed, causal-spine asserted")
     cred = mint(worker, role, decision.chosen_edge_id, skill.id, loop_result, cal)
