@@ -85,7 +85,39 @@ the **Curator** (`curator.py`) ranks the CertGap skills but the choice is restri
 *assessable* gap set; the **Planner** (`planner.py`) proposes a pace/plan but the hours (cert blueprint),
 the weekly phasing (worker capacity), the arithmetic (`NumericChecker`), and the accessibility
 adaptations (fixed vocabulary) are all code-owned. The Planner is advisory — outside the credential
-trust chain. (`Engagement` / `Manager Insights` remain unbuilt.)
+trust chain. (The read-only **Program Insights** agent is built — ADR 007; `Engagement`/voice is unbuilt.)
+
+## The same chain as an Agent Framework Workflow (flag-gated, ADOPT-LATER — ADR 009)
+
+The reasoning chain is **also** expressed as a Microsoft Agent Framework Workflow graph, behind the
+`PF_WORKFLOW` flag, so the trust boundary is a deterministic **code node** (which the Foundry
+portal/YAML Workflows product cannot express — no first-class code node, logic is Power Fx — so that
+product is **avoided for the trust path**). `pathforward/agents/workflow.py` holds a
+framework-agnostic graph spec; `workflow_foundry.py` projects it onto `agent_framework` (Python **GA
+1.0.0**, 2026-04-02), imported lazily (the SDK is not provisioned here; the offline suite stays green).
+
+```
+  Curator (agent) ──assessable gap──▶ assess  [TRUST: run_assessment_loop + Evidence Gate]
+        │                                  │ verified                │ abstained (fail-closed)
+        │ no gap ─▶ ABSTAIN                ▼                          ▼
+        │                          Human approval (HITL)           ABSTAIN
+        │                          ctx.request_info()
+        │                              │ approve        │ refuse
+        │                              ▼                ▼
+        │                          Credential mint    ABSTAIN
+        │                          [TRUST] (re-derives readiness, re-checks the spine)
+        │                              ▼
+        │                          Credential issued
+        └─ advisory ─▶ Planner ─▶ Program Insights ─▶ advisory output   (never reaches the mint)
+```
+
+The trust claim is a **developer-proven graph-shape property** (NOT a framework guarantee — `build()`
+validates types/connectivity, not our invariant): a graph-shape test proves no path reaches `mint`
+without traversing the deterministic `assess` node (the cut-vertex), no agent writes the credential,
+and the gate oracle is `LocalNumericChecker`. The assessment loop is **one** deterministic executor
+that delegates to the existing `run_assessment_loop`, so `status="verified"` is still written in
+exactly one place (`loop.py`) — the Workflow never becomes a second trust authority. `run_multiagent`
+stays the always-green in-process spine.
 
 ## Offline ↔ Azure boundary
 

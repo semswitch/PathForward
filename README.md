@@ -55,7 +55,7 @@ The offline core is **standard-library only**. From the repo root:
 python scripts/generate_data.py     # synthetic ontology + learner responses -> data/generated/
 python scripts/build_mirror.py      # materialize the Search-mirror docs (+ build-time guard)
 python scripts/run_demo.py          # full reasoning spine, end-to-end, for hero worker EMP-001
-python -m unittest discover -s tests -t .   # 21 tests (derivation, loop, mirror, scorer, credential)
+python -m unittest discover -s tests -t .   # offline suite (derivation, loop, gate, credential, workflow no-bypass)
 ```
 
 Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `make test` · `make demo`.
@@ -65,7 +65,7 @@ Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `ma
 | Path | What |
 |---|---|
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
-| `pathforward/agents/` | LLM client (fake + Foundry), Generator, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration |
+| `pathforward/agents/` | LLM client (fake + Foundry), Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and the **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof + the causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
 | `scripts/` | data generation, mirror build, the offline demo |
@@ -73,14 +73,17 @@ Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `ma
 | `web/` | Carbon UI skeleton (Glass-Box graph · Assessment Arena · Trust Console) |
 | `data/corpus/` | synthetic grounding documents |
 
-## Status (Day 0)
+## Status
 
-✅ Offline reasoning core complete and tested (21/21).  ⏳ Azure layer (Foundry agents, agentic
+✅ Offline reasoning core complete and tested (full offline suite green —
+`python -m unittest discover -s tests -t .`).  ⏳ Azure layer (Foundry agents, agentic
 retrieval, Fabric ontology, Voice Live, MCP mint, evals) wires in per the
 [planning package](../Microsoft-Agents-League/03-Build-Plan.md). The live `FoundryLLMClient` /
 `ReasoningFoundryClient` and the non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory,
 never the numeric oracle; see ADR 008) are wired behind their seams; remaining config endpoints are
-stubs marked with their wire-in day.
+stubs marked with their wire-in day. The chain is also projected as a flag-gated **Microsoft Agent
+Framework Workflow** (`agent_framework` GA 1.0.0), with a no-bypass graph-shape test as the trust
+proof and `run_multiagent` as the always-green in-process spine (see ADR 009).
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

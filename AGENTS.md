@@ -65,6 +65,14 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
   `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
   Voice Live, MCP mint, and the live Fabric data agent are config-only.
+- The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
+  `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
+  trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
+  bearing `assess` loop) is a **graph-shape test**, proven offline (`tests/test_workflow_graph.py`).
+  The live adapter `agents/workflow_foundry.py` projects that spec onto `agent_framework`
+  (GA 1.0.0, 2026-04-02) and is **imported lazily** — the SDK is not provisioned here, so the offline
+  suite stays green. `run_multiagent` remains the always-green in-process spine; the portal/YAML
+  Workflows product is deliberately AVOIDED for the trust path (no first-class code node).
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
@@ -92,6 +100,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (`pathforward/agents/analyst.py`, real impl `CodeInterpreterAnalyst`). Real `LLMClient`:
   `FoundryLLMClient` / `ReasoningFoundryClient`. **Keep these interfaces identical** so the reasoning
   logic is unchanged when swapping. Do not bake fake-only assumptions into the loop.
+- The **Agent Framework Workflow** seam is `pathforward/agents/workflow.py` (the framework-agnostic
+  spec + the no-bypass `trust_audit`, always offline-safe) and `workflow_foundry.py` (the live
+  `agent_framework` projection, imported lazily only). The trust boundary in the Workflow is the
+  deterministic `assess` executor (reuses `run_assessment_loop` — the SOLE `status="verified"` writer)
+  and the `mint` executor (reuses `credential.mint.mint`). **Never** let the Workflow track write
+  `status="verified"` itself or become a second trust authority; it must stay a projection.
 
 ## Invariants you must not break
 
