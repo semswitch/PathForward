@@ -79,10 +79,11 @@ class Scorecard:
 
 
 def run_eval_case(case: EvalCase, generator: Generator, verifier: EvidenceGate,
-                  onto: Ontology) -> CaseResult:
+                  onto: Ontology, critic=None) -> CaseResult:
     """Run the real loop on a legit case and score grounded + spine-intact in code."""
     corpus = set(case.approved_refs)
-    result = run_assessment_loop(case.edge, case.skill, case.approved_refs, generator, verifier)
+    result = run_assessment_loop(case.edge, case.skill, case.approved_refs, generator, verifier,
+                                 critic=critic)
     item = result.item
     retrieved = set(item.retrieved_ref_ids) if item else set()
     effective = corpus & retrieved

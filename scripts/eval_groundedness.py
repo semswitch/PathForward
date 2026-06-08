@@ -22,7 +22,8 @@ import sys
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
-from pathforward.agents.foundry import FoundryLLMClient        # noqa: E402
+from pathforward.agents.critic import Critic                   # noqa: E402
+from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
 from pathforward.agents.generator import Generator             # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker     # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate               # noqa: E402
@@ -66,11 +67,15 @@ def main() -> int:
     client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                               index_name=s.search_index)
     gen, ver = Generator(client), EvidenceGate(LocalNumericChecker())
-    print(f"running {len(cases)} groundedness cases...")
+    # Live Critic agent — run the full post-P2 flow so groundedness/spine are measured with the
+    # Critic + reflection wired (the Critic is advisory; the gate still decides grounding).
+    critic = Critic(ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
+                                           agent_name="pathforward-critic", model=s.model_deployment))
+    print(f"running {len(cases)} groundedness cases (with live Critic)...")
     results = []
     try:
         for c in cases:
-            r = run_eval_case(c, gen, ver, onto)
+            r = run_eval_case(c, gen, ver, onto, critic=critic)
             # corroborating second opinion on verified items
             if judge and judge.available and r.detail.get("status") == "verified":
                 ctx = "\n\n".join(content.get(ref, "") for ref in r.detail.get("cited", []))
@@ -85,6 +90,7 @@ def main() -> int:
             results.append(r)
     finally:
         client.close()
+        critic.client.close()
 
     card = Scorecard("PathForward — Groundedness & Spine Integrity (live)",
                      "grounded + spine-intact", results)

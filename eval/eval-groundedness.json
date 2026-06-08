@@ -8,11 +8,11 @@
     {
       "case_id": "eval::EMP-001::S01",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=16 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 16,
+        "retrieved_n": 8,
         "cited": [
           "certgap::EMP-001::S01",
           "certifies::AZ-204::S01",
@@ -23,65 +23,62 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "A worker targeting the Cloud Engineer role is missing API Development, and that role requires API Development. Which option most directly addresses the missing required skill by certifying it?",
-        "item_answer": "AZ-204 Developing Solutions for Azure",
+        "item_stem": "EMP-001 is targeting the Cloud Engineer role and has a missing competency in API Development. Which listed item best addresses that gap by certifying API Development?",
+        "item_answer": "AZ-204: Developing Solutions for Azure",
         "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-001::S02",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=13 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=5 spine=True | foundry=4.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 13,
+        "retrieved_n": 5,
         "cited": [
           "certgap::EMP-001::S02",
           "certifies::AZ-204::S02",
-          "corpus::AZ-204",
           "requires::R-CLOUD::S02"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-001 is targeting a Cloud Engineer role, and Azure Functions is a missing skill gap for that role. Which evidence-backed next step best addresses this gap?",
-        "item_answer": "Pursue AZ-204 Developing Solutions for Azure, because it certifies Azure Functions.",
-        "foundry_groundedness": 5.0
+        "item_stem": "EMP-001 is targeting the Cloud Engineer role. For the specific missing skill that the role requires and that AZ-204 certifies, which skill should the worker prioritize?",
+        "item_answer": "Azure Functions",
+        "foundry_groundedness": 4.0
       }
     },
     {
       "case_id": "eval::EMP-001::S08",
-      "passed": true,
-      "headline": "verified=True grounded=True retrieved=12 spine=True | foundry=5.0/5",
-      "detail": {
-        "status": "verified",
-        "attempts": 1,
-        "retrieved_n": 12,
-        "cited": [
-          "certgap::EMP-001::S08",
-          "certifies::AZ-400::S08",
-          "corpus::AZ-400",
-          "requires::R-CLOUD::S08"
-        ],
-        "grounded": true,
-        "spine_item": true,
-        "spine_credential": true,
-        "numeric_failed": false,
-        "item_stem": "EMP-001 is targeting the Cloud Engineer role and has a documented gap in the role-required skill S08. Which certification is documented as certifying that missing skill?",
-        "item_answer": "AZ-400 DevOps Engineer Expert",
-        "foundry_groundedness": 5.0
-      }
-    },
-    {
-      "case_id": "eval::EMP-002::S07",
       "passed": true,
       "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
         "retrieved_n": 9,
+        "cited": [
+          "certgap::EMP-001::S08",
+          "requires::R-CLOUD::S08"
+        ],
+        "grounded": true,
+        "spine_item": true,
+        "spine_credential": true,
+        "numeric_failed": false,
+        "item_stem": "EMP-001 is targeting the Cloud Engineer role and has a certification gap for the missing skill Infrastructure as Code; the Cloud Engineer role requires that skill.\u30105:0\u2020source\u3011\u30105:1\u2020source\u3011 Which option best aligns with this gap?",
+        "item_answer": "Prioritize developing Infrastructure as Code competency because it is the identified missing skill for the target role.",
+        "foundry_groundedness": 5.0
+      }
+    },
+    {
+      "case_id": "eval::EMP-002::S07",
+      "passed": true,
+      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=5.0/5",
+      "detail": {
+        "status": "verified",
+        "attempts": 1,
+        "retrieved_n": 8,
         "cited": [
           "certgap::EMP-002::S07",
           "certifies::AZ-400::S07",
@@ -92,22 +89,24 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "A worker targeting the DevOps Engineer role needs to close the S07 certification gap using the DevOps Engineer Expert certification path. Which competency should the worker focus on?",
-        "item_answer": "GitHub Actions",
+        "item_stem": "EMP-002 is targeting a DevOps Engineer reskilling path and needs to close the S07 gap. Which statement best explains why S07 should be included in the worker\u2019s AZ-400 preparation plan?",
+        "item_answer": "GitHub Actions is required for the DevOps Engineer role, EMP-002 is missing it, and AZ-400 certifies it.",
         "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-002::S08",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=11 spine=True | foundry=4.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 9,
+        "retrieved_n": 11,
         "cited": [
           "certgap::EMP-002::S08",
+          "certifies::AZ-305::S08",
           "certifies::AZ-400::S08",
+          "corpus::AZ-305",
           "corpus::AZ-400",
           "requires::R-DEVOPS::S08"
         ],
@@ -115,43 +114,45 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "A worker targeting the DevOps Engineer role has a documented gap in the skill 'Infrastructure as Code.' Which choice is the best evidence-based learning target to address that gap?",
-        "item_answer": "DevOps Engineer Expert certification, because it certifies Infrastructure as Code",
-        "foundry_groundedness": 5.0
+        "item_stem": "EMP-002 has a documented gap in S08 for the DevOps Engineer role, and the role requires S08. Which certification best addresses that gap while aligning with DevOps-oriented competencies such as CI/CD Pipelines, GitHub Actions, and Monitoring?",
+        "item_answer": "AZ-400 DevOps Engineer Expert",
+        "foundry_groundedness": 4.0
       }
     },
     {
       "case_id": "eval::EMP-003::S02",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=12 spine=True | foundry=2.0/5",
+      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 12,
+        "retrieved_n": 10,
         "cited": [
           "certgap::EMP-003::S02",
           "certifies::AZ-204::S02",
+          "corpus::AZ-204",
           "requires::R-CLOUD::S02"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-003 is targeting the Cloud Engineer role. Records show that required competency S02 is a documented certification gap for this worker, and AZ-204 certifies S02. Which competency should EMP-003 prioritize?",
+        "item_stem": "EMP-003 is reskilling toward the Cloud Engineer role and needs to close the required skill gap identified for that role. Which AZ-204 competency area most directly addresses that gap?",
         "item_answer": "Azure Functions",
-        "foundry_groundedness": 2.0
+        "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-003::S08",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=4.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 9,
+        "retrieved_n": 8,
         "cited": [
           "certgap::EMP-003::S08",
+          "certifies::AZ-305::S08",
           "certifies::AZ-400::S08",
           "requires::R-CLOUD::S08"
         ],
@@ -159,9 +160,9 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-003 is reskilling toward a Cloud Engineer role. Which missing competency should be prioritized for the S08 certification gap, given the role requirement and the worker\u2019s gap record?",
-        "item_answer": "Infrastructure as Code",
-        "foundry_groundedness": 5.0
+        "item_stem": "A worker is being planned for reskilling toward a Cloud Engineer role, and the planning record flags skill S08. Which conclusion should the skills plan use?",
+        "item_answer": "Treat Infrastructure as Code as a missing required skill for the Cloud Engineer target role.",
+        "foundry_groundedness": 4.0
       }
     },
     {
@@ -175,26 +176,28 @@
         "cited": [
           "certgap::EMP-004::S16",
           "certifies::DP-203::S16",
+          "certifies::PL-300::S16",
           "corpus::DP-203",
+          "corpus::PL-300",
           "requires::R-DATA::S16"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-004 is targeting the Data Engineer role and is missing the required skill S16, Data Pipelines. Which certification-focused choice best addresses that specific gap for Azure data engineering?",
-        "item_answer": "Prepare for DP-203, Data Engineering on Azure, because it certifies Data Pipelines competency.",
+        "item_stem": "A worker\u2019s gap record identifies skill S16 as missing for the Data Engineer role. Which response correctly maps S16 to the needed competency and an appropriate certification path that can evidence it?",
+        "item_answer": "Data Pipelines, evidenced by DP-203 Data Engineering on Azure or PL-300 Power BI Data Analyst",
         "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-004::S17",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 8,
+        "retrieved_n": 9,
         "cited": [
           "certgap::EMP-004::S17",
           "certifies::DP-203::S17",
@@ -205,19 +208,19 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-004 is reskilling toward a Data Engineer role and needs to address the identified Spark gap. Which action best aligns with the approved certification evidence?",
-        "item_answer": "Use the Data Engineering on Azure (DP-203) certification path to demonstrate Spark competency.",
+        "item_stem": "EMP-004 is targeting the Data Engineer role and has an S17 certification gap. Which DP-203-certified skill should their learning plan address for this gap?",
+        "item_answer": "Spark",
         "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-004::S18",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 10,
+        "retrieved_n": 9,
         "cited": [
           "certgap::EMP-004::S18",
           "certifies::DP-203::S18",
@@ -228,7 +231,7 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "For worker EMP-004\u2019s documented reskilling gap, which DP-203-certified competency aligns with the Data Engineer requirement the worker is missing?",
+        "item_stem": "Worker EMP-004 is targeting the Data Engineer role and has a documented certification gap for skill S18. DP-203, Data Engineering on Azure, certifies S18. Which skill should EMP-004 focus on to close this gap?",
         "item_answer": "Data Lake",
         "foundry_groundedness": 5.0
       }
@@ -236,11 +239,11 @@
     {
       "case_id": "eval::EMP-005::S27",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=7 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 8,
+        "retrieved_n": 7,
         "cited": [
           "certgap::EMP-005::S27",
           "certifies::SC-200::S27",
@@ -251,36 +254,38 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-005 is targeting the Security Analyst role and has a documented gap in the skill named SIEM. Which option best addresses that gap according to the approved corpus?",
-        "item_answer": "Prioritize SC-200 Security Operations Analyst, because it certifies SIEM.",
+        "item_stem": "A worker is reskilling toward a Security Analyst role and has a certification gap in SIEM. Which certification would most directly address that SIEM gap?",
+        "item_answer": "SC-200 Security Operations Analyst",
         "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-005::S28",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=7 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=4.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 7,
+        "retrieved_n": 8,
         "cited": [
           "certgap::EMP-005::S28",
+          "certifies::SC-200::S28",
+          "corpus::SC-200",
           "requires::R-SEC::S28"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "For EMP-005's target role, the competency model identifies a required skill that the worker is missing. Which skill should the worker prioritize to close that gap?",
-        "item_answer": "Incident Response",
-        "foundry_groundedness": 5.0
+        "item_stem": "A worker targeting the Security Analyst role lacks required skill S28. Which study focus should they prioritize to close this specific gap?",
+        "item_answer": "Security Operations Analyst certification content that certifies Incident Response",
+        "foundry_groundedness": 4.0
       }
     },
     {
       "case_id": "eval::EMP-006::S21",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=12 spine=True | foundry=4.0/5",
+      "headline": "verified=True grounded=True retrieved=12 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
@@ -295,37 +300,38 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-006 is preparing for the AI Engineer role and has a documented gap in the target skill area. Which action best addresses that gap?",
-        "item_answer": "Pursue AI-102, because it certifies Machine Learning for Azure AI Engineer preparation.",
-        "foundry_groundedness": 4.0
+        "item_stem": "A worker targeting an AI Engineer role has a documented competency gap in Machine Learning. Which action best addresses that gap?",
+        "item_answer": "Earn the Azure AI Engineer AI-102 certification, because it certifies Machine Learning competency.",
+        "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-006::S23",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=2.0/5",
+      "headline": "verified=True grounded=True retrieved=8 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 10,
+        "retrieved_n": 8,
         "cited": [
           "certgap::EMP-006::S23",
           "certifies::AI-102::S23",
+          "corpus::AI-102",
           "requires::R-AI::S23"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-006 is reskilling toward the AI Engineer role and is planning AI-102 study. Which skill should be prioritized to close the documented gap that the role requires and AI-102 certifies?",
-        "item_answer": "Model Deployment",
-        "foundry_groundedness": 2.0
+        "item_stem": "A worker targeting an AI Engineer role has a gap in Model Deployment, and the role requires that skill. Which certification is aligned with certifying this skill for the worker\u2019s reskilling path?",
+        "item_answer": "Azure AI Engineer (AI-102)",
+        "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-006::S24",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=2.0/5",
+      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=5.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
@@ -333,25 +339,26 @@
         "cited": [
           "certgap::EMP-006::S24",
           "certifies::AI-102::S24",
+          "corpus::AI-102",
           "requires::R-AI::S24"
         ],
         "grounded": true,
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "For EMP-006\u2019s reskilling plan toward an AI Engineer role, which evidence chain best supports prioritizing a Responsible AI competency item?",
-        "item_answer": "The AI Engineer role requires Responsible AI, EMP-006 has a Responsible AI certification gap, and AI-102 certifies Responsible AI.",
-        "foundry_groundedness": 2.0
+        "item_stem": "For worker EMP-006's reskilling plan toward the AI Engineer role, which AI-102-certified skill should be prioritized to close the documented gap?",
+        "item_answer": "Responsible AI",
+        "foundry_groundedness": 5.0
       }
     },
     {
       "case_id": "eval::EMP-006::S25",
       "passed": true,
-      "headline": "verified=True grounded=True retrieved=9 spine=True | foundry=5.0/5",
+      "headline": "verified=True grounded=True retrieved=10 spine=True | foundry=2.0/5",
       "detail": {
         "status": "verified",
         "attempts": 1,
-        "retrieved_n": 9,
+        "retrieved_n": 10,
         "cited": [
           "certgap::EMP-006::S25",
           "certifies::AI-102::S25",
@@ -361,9 +368,9 @@
         "spine_item": true,
         "spine_credential": true,
         "numeric_failed": false,
-        "item_stem": "EMP-006 is targeting an AI Engineer role and has a documented certification gap for one required skill; the AI-102 Azure AI Engineer certification also certifies that same skill. Which option identifies the skill EMP-006 should prioritize?",
+        "item_stem": "EMP-006 is targeting an AI Engineer role. Which competency should they prioritize to close the documented S25 gap that is required for the role and certified by AI-102?",
         "item_answer": "Vector Search",
-        "foundry_groundedness": 5.0
+        "foundry_groundedness": 2.0
       }
     }
   ]

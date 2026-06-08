@@ -25,7 +25,11 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # for generate_data
 
+from pathforward.agents.adaptive import AdaptiveController            # noqa: E402
+from pathforward.agents.calibration import cold_start_calibrate       # noqa: E402
+from pathforward.agents.critic import Critic                          # noqa: E402
 from pathforward.agents.curator import Curator                        # noqa: E402
 from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
 from pathforward.agents.generator import Generator                    # noqa: E402
@@ -38,9 +42,11 @@ from pathforward.credential.mint import mint                          # noqa: E4
 from pathforward.iq import derivation as dv                           # noqa: E402
 from pathforward.iq import traversal                                  # noqa: E402
 from pathforward.iq.seed import build_seed, HERO_WORKER_ID            # noqa: E402
+from generate_data import _learner_responses                         # noqa: E402
 
 CURATOR_AGENT = "pathforward-curator"
 PLANNER_AGENT = "pathforward-planner"
+CRITIC_AGENT = "pathforward-critic"
 
 
 def main() -> int:
@@ -55,13 +61,16 @@ def main() -> int:
     role = onto.roles[worker.target_role_id]
     edges = dv.build_all_edges(onto)
 
-    # Curator + Planner: tool-less live reasoning agents. Generator: search-grounded live agent.
+    # Curator + Planner + Critic: tool-less live reasoning agents. Generator: search-grounded agent.
     curator_client = ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
                                             agent_name=CURATOR_AGENT, model=s.model_deployment)
     planner_client = ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
                                             agent_name=PLANNER_AGENT, model=s.model_deployment)
+    critic_client = ReasoningFoundryClient(endpoint=s.foundry_project_endpoint,
+                                           agent_name=CRITIC_AGENT, model=s.model_deployment)
     generator_client = FoundryLLMClient(endpoint=s.foundry_project_endpoint, model=s.model_deployment,
                                         index_name=s.search_index)
+    adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
     print(f"worker={worker.id} target={role.name} (rai: {s.rai_policy or 'default'})")
 
     rc = 1
@@ -70,6 +79,7 @@ def main() -> int:
             worker, onto, edges,
             Curator(curator_client), Generator(generator_client),
             EvidenceGate(LocalNumericChecker()), Planner(planner_client, LocalNumericChecker()),
+            critic=Critic(critic_client), adaptive=adaptive,
         )
         d, loop, plan = result.curator, result.loop, result.plan
 
@@ -88,8 +98,9 @@ def main() -> int:
         print("\n[LOOP]")
         print(f"  status: {loop.status.upper()}  attempts: {loop.attempts}")
         for t in loop.transcript:
-            it, v = t["item"], t["verdict"]
-            print(f"   attempt {t['attempt']}: {'PASS' if v.passed else 'REJECT'} | "
+            it, v, cr = t["item"], t["verdict"], t.get("critic")
+            crline = (f" | Critic(advisory): {cr.recommendation}" if cr else "")
+            print(f"   attempt {t['attempt']}: gate {'PASS' if v.passed else 'REJECT'}{crline} | "
                   f"retrieved {len(it.retrieved_ref_ids)} cited {list(it.cited_ref_ids)}")
             if not v.passed:
                 print(f"     failed: {[f['criterion'] for f in v.failed_reasons]}")
@@ -128,7 +139,7 @@ def main() -> int:
         rc = 0 if all(checks.values()) else 1
         print("\nLIVE MULTI-AGENT", "PASS" if rc == 0 else "FAIL")
     finally:
-        for c in (curator_client, planner_client, generator_client):
+        for c in (curator_client, planner_client, critic_client, generator_client):
             try:
                 c.close()
             except Exception:  # noqa: BLE001
