@@ -22,7 +22,7 @@
       "headline": "[critical] expect=clean status=verified \u2192 HELD (verified)",
       "detail": {
         "status": "verified",
-        "attempts": 2,
+        "attempts": 1,
         "cited": [
           "certgap::EMP-001::S01",
           "requires::R-CLOUD::S01",
@@ -53,7 +53,8 @@
         "cited": [
           "certgap::EMP-001::S01",
           "requires::R-CLOUD::S01",
-          "certifies::AZ-204::S01"
+          "certifies::AZ-204::S01",
+          "corpus::AZ-204"
         ],
         "why": "verified"
       }
@@ -101,7 +102,8 @@
         "cited": [
           "certgap::EMP-001::S01",
           "requires::R-CLOUD::S01",
-          "certifies::AZ-204::S01"
+          "certifies::AZ-204::S01",
+          "corpus::AZ-204"
         ],
         "why": "verified"
       }
