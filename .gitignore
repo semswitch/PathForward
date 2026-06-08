@@ -33,6 +33,7 @@ Thumbs.db
 .agents/
 .kiro/
 .claude/
+skills-lock.json
 
 # stray pip cache from a mis-expanded %appdata% in a shell command
 %appdata%/
