@@ -76,9 +76,27 @@ flowchart TB
 | Eval / Safety | A **deterministic eval + red-team pack** (`pathforward/eval/`, `scripts/eval_groundedness.py`, `scripts/redteam_live.py`) — pass/fail decided in code, never an LLM judge. A 22-family adversarial taxonomy hardened the trust boundary (cross-worker mint contamination, derived-not-supplied readiness, homoglyph leakage, numeric tie-back, uncorpused-skill refusal); 12 offline gate proofs + a **live ASR scorecard (0% — 9/9 held)** under defense-in-depth (RAI content filter blocks jailbreaks; the `corpus ∩ retrieved` gate blocks forgery; phantom entities abstain). Microsoft Foundry's GroundednessEvaluator is a corroborating second opinion. Known LLM-judgment limitations are documented, not hidden. |
 | Governance | A **Foundry Toolbox** (`pathforward-toolbox`) + named **Skill** (`pathforward`) register the search capability as a **versioned, RAI-policy-bearing catalog** (`scripts/build_toolbox.py`). RAI (`pathforward-rai`, Blocking) is **enforced at the model deployment** and **declared on the toolbox**; agent-definition `rai_config` is a 2.2.0 preview gap (rejects even system policies) so it is not used — _(updated 2026-06-07: **per-agent guardrail assignment is now a documented Foundry feature (Preview)** via the Guardrails portal/REST; roadmap for us, not yet wired)_. For **prompt agents** the registered toolbox is a **governance/registry artifact, not a demonstrated inference consume-seam** (`PromptAgentDefinition` carries no toolbox ref) — inference stays on the proven GA direct-attach. _(updated 2026-06-07: a toolbox **MCP endpoint** `{project_endpoint}/toolboxes/{name}/mcp` does exist — superseding an earlier "no `/mcp`" note — but its documented consumers are agent-framework / hosted-agent / MCP-client runtimes; prompt-agent consumption is prose-mentioned, not demonstrated. Toolboxes are Preview.)_ Framed as *governed seam + versioned RAI registry*, **not** platform-enforced least-privilege (Discover & Govern is roadmap). |
 
+## Multi-agent reasoning loop (implemented)
+
+The "Foundry Workflow" box is realized in code as `run_multiagent` (`pathforward/agents/orchestrator.py`):
+**Curator → Generator/Verifier loop → Planner**, three reasoning agents orchestrated deterministically.
+Each LLM step is paired with a code-owned gate (the project thesis — *reasoning proposes, code verifies*):
+the **Curator** (`curator.py`) ranks the CertGap skills but the choice is restricted to the derivation's
+*assessable* gap set; the **Planner** (`planner.py`) proposes a pace/plan but the hours (cert blueprint),
+the weekly phasing (worker capacity), the arithmetic (`NumericChecker`), and the accessibility
+adaptations (fixed vocabulary) are all code-owned. The Planner is advisory — outside the credential
+trust chain. (`Engagement` / `Manager Insights` remain unbuilt.)
+
 ## Offline ↔ Azure boundary
 
-Everything in `pathforward/` runs offline against `FakeLLMClient` + `LocalNumericChecker`.
-Swapping in `FoundryLLMClient` (Responses API) and `CodeInterpreterChecker` (Code Interpreter
-tool) — plus wiring agentic retrieval and the Fabric ontology — is the Azure layer. The
-interfaces (`LLMClient`, `NumericChecker`) are identical, so the reasoning logic does not change.
+Everything in `pathforward/` runs offline against `FakeLLMClient` + `LocalNumericChecker`. The Azure
+layer swaps in, behind the identical `LLMClient` / `NumericChecker` seams, so the reasoning logic is
+unchanged:
+- **Generator** → `FoundryLLMClient` (Responses API + Azure AI Search tool, agentic retrieval).
+- **Curator / Planner** → `ReasoningFoundryClient` (tool-less `PromptAgentDefinition` + `strict=False`
+  json_schema; they reason over structured ontology data, not retrieval). Validated live by
+  `scripts/smoke_multiagent_live.py`.
+- **Numeric** → `CodeInterpreterChecker` (Code Interpreter tool) — still a stub.
+
+Plus wiring agentic retrieval and the Fabric ontology. The interfaces are identical, so swapping the
+fake for live does not change the reasoning logic or the deterministic gates.

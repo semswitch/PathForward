@@ -159,3 +159,106 @@ class FoundryLLMClient:
             except Exception:  # noqa: BLE001
                 pass
             self._agent = None
+
+
+@dataclass
+class ReasoningFoundryClient:
+    """Drop-in LLMClient for a TOOL-LESS Foundry reasoning agent (the Curator / Planner).
+
+    Unlike FoundryLLMClient (which attaches Azure AI Search and decodes a retrieval trace), a
+    reasoning agent reasons over the structured data handed to it in `input` — it neither retrieves
+    nor cites a corpus, so `retrieved_ref_ids` is always (). Each instance lazily creates and caches
+    ONE prompt-agent version under `agent_name` (with the caller's json_schema response format) on
+    first respond(); call close() to delete it. Keyless via DefaultAzureCredential. This is the
+    live swap-in for the offline FakeLLMClient on the Curator/Planner seam — the deterministic gates
+    in curator.py / planner.py remain the trust boundary regardless of what the model returns.
+
+    Foundry facts verified via the Microsoft Learn MCP (2026-06-07):
+      - `PromptAgentDefinition.tools` is optional (only model + kind are required) -> a tool-less
+        prompt agent is valid.
+        (learn.microsoft.com/python/api/azure-ai-projects/azure.ai.projects.models.promptagentdefinition)
+      - Structured JSON output (PromptAgentDefinitionTextOptions) works without tools.
+      - `TextResponseFormatJsonSchema.strict` defaults to False; the FULL JSON Schema is allowed when
+        strict=False (the strict subset — additionalProperties:false, all-required, no typed maps —
+        is required only when strict=True). We use strict=False so the reasoning schemas (e.g. the
+        Curator's freeform `rationale` map) are accepted.
+        (learn.microsoft.com/azure/ai-foundry/openai/how-to/structured-outputs)
+    """
+    endpoint: str
+    agent_name: str
+    model: str = "reasoning"
+    _project: object = field(default=None, repr=False)
+    _openai: object = field(default=None, repr=False)
+    _agent: object = field(default=None, repr=False)
+
+    def _ensure(self, instructions: str, schema: Optional[dict]) -> None:
+        if self._agent is not None:
+            return
+        from azure.ai.projects import AIProjectClient
+        from azure.ai.projects.models import (
+            PromptAgentDefinition, PromptAgentDefinitionTextOptions, TextResponseFormatJsonSchema,
+        )
+        from azure.identity import DefaultAzureCredential
+
+        self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
+        self._openai = self._project.get_openai_client()
+        text = None
+        if schema:
+            # strict=False: allow the full reasoning schema (the gates, not the schema, are the
+            # trust boundary). See the class docstring for the Learn-MCP-verified rationale.
+            text = PromptAgentDefinitionTextOptions(format=TextResponseFormatJsonSchema(
+                type="json_schema", name="reasoning_output", schema=schema, strict=False))
+        # Tool-less by construction: no `tools` attached. RAI is enforced at the model deployment
+        # (raiPolicyName), as with the generator agent.
+        self._agent = self._project.agents.create_version(
+            agent_name=self.agent_name,
+            definition=PromptAgentDefinition(model=self.model, instructions=instructions, text=text),
+            description=f"PathForward tool-less reasoning agent ({self.agent_name}).",
+        )
+
+    def _create_with_backoff(self, input: str):
+        """Call the agent (no tool_choice — it has no tools), backing off on the 429 rate limit."""
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            try:
+                return self._openai.responses.create(
+                    input=input,
+                    extra_body={"agent_reference": {"name": self._agent.name, "type": "agent_reference"}},
+                )
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))   # 8,16,24,... clears the 60s quota window
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
+    def respond(self, instructions: str, input: str, *,
+                previous_response_id: Optional[str] = None,
+                schema: Optional[dict] = None) -> LLMResponse:
+        self._ensure(instructions, schema)
+        try:
+            resp = self._create_with_backoff(input)
+        except Exception as exc:  # noqa: BLE001
+            if _is_content_filter(exc):
+                # RAI blocked the prompt — surface an empty parse so the gate falls back safely.
+                return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
+                                   retrieved_ref_ids=())
+            raise
+        try:
+            parsed = json.loads(resp.output_text or "{}")
+        except Exception:  # noqa: BLE001
+            parsed = {}
+        return LLMResponse(getattr(resp, "id", ""), resp.output_text or "", parsed,
+                           previous_response_id, retrieved_ref_ids=())   # reasoning != retrieval
+
+    def close(self) -> None:
+        if self._agent is not None and self._project is not None:
+            try:
+                self._project.agents.delete_version(agent_name=self._agent.name,
+                                                    agent_version=self._agent.version)
+            except Exception:  # noqa: BLE001
+                pass
+            self._agent = None
