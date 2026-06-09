@@ -10,11 +10,11 @@
 flowchart TB
     user([Worker / Manager]) --> orch
 
-    subgraph WF["Foundry Workflow (sequential + human-in-the-loop)"]
+    subgraph WF["Foundry/Agent control surface (Orchestrator live; Workflow flag-gated)"]
         orch[Orchestrator]
         curator[Curator agent]
         planner[Planner agent\ncapacity + accessibility]
-        engage[Engagement agent\nvoice-first optional]
+        engage[Engagement agent\nvoice-first future]
         insights[Manager Insights agent]
     end
 
@@ -44,8 +44,8 @@ flowchart TB
     subgraph TOOLS["Tools"]
         num[LocalNumericChecker\ncode numeric oracle]
         code[Code Interpreter\nadvisory analysis]
-        mint[[MCP mint\nrequire_approval: always]]
-        voice[Voice Live 2026-04-10\nOral Viva]
+        mint[[Mint trust executor\nMCP/HITL future]]
+        voice[Voice Live 2026-04-10\nfuture Oral Viva]
     end
 
     ver -- numeric claims --> num
@@ -104,7 +104,7 @@ directly. This slice is offline-proven by `tests/test_conductor.py` and live-smo
 through the existing code spine). The Orchestrator can also consume the MCP-loaded `/pathforward`
 Foundry Skill from `pathforward-toolbox` (`scripts/smoke_toolbox_skill_live.py`). Orchestrator-specific
 safety was re-measured with `scripts/eval_orchestrator_live.py` (16/16 grounded + spine-intact, 0.0%
-ASR on 16 attacks). Demo trace polish is still pending.
+ASR on 16 attacks). Full-flow proof tracing is implemented in `scripts/trace_full_flow.py`.
 
 ## The same chain as an Agent Framework Workflow (flag-gated, ADOPT-LATER — ADR 009)
 
