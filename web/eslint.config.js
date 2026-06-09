@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import { fixupPluginRules } from "@eslint/compat";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -20,7 +21,9 @@ export default tseslint.config(
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
       // Fluent UI v9 accessibility rules (apt for an accessibility-focused product).
-      "@microsoft/fluentui-jsx-a11y": fluentA11y,
+      // fixupPluginRules bridges 3.0.0-alpha.3's ESLint-8-only API calls (e.g.
+      // context.getAncestors() inside the tooltip check) onto ESLint 9.
+      "@microsoft/fluentui-jsx-a11y": fixupPluginRules(fluentA11y),
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
