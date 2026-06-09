@@ -3,6 +3,11 @@
 > Read this before doing anything in this repo. It defines the intent, the ground rules, and
 > the verification protocol for any AI agent (Kiro, Claude, Copilot, etc.) working on
 > PathForward. **This file is the single source of truth; `CLAUDE.md` points here.**
+>
+> **Hard architecture contract:** before planning or implementing architecture work, read
+> `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`. That contract supersedes
+> older plans, roadmap notes, ADR interpretations, and summaries where they conflict. Do not bypass
+> it without explicit user authorization or a documented critical infrastructure blocker.
 
 ## What PathForward is (the North Star)
 
@@ -58,6 +63,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
   `ReasoningFoundryClient`). The Evidence Gate (deterministic notary, formerly "Verifier"),
   the reflection/adaptive controllers, and the orchestrator are **deterministic code**, not agents.
+  This is a real multi-agent live path, but it is still code-orchestrated; it is not the final
+  full architecture shape described in the hard contract.
 - The default storyboard demo (`scripts/run_demo.py`) and fixture export (`scripts/export_web_fixture.py`)
   still run on **`FakeLLMClient`** for deterministic local rehearsal, but both now support `--live`
   to use live Foundry/Fabric clients and stamp fixture provenance. The **live gpt-5.5 path** is proven
@@ -80,17 +87,29 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   The live adapter `agents/workflow_foundry.py` projects that spec onto `agent_framework`
   (GA 1.0.0, 2026-04-02) and is **imported lazily** — the SDK is not provisioned here, so the offline
   suite stays green. `run_multiagent` remains the always-green in-process spine; the portal/YAML
-  Workflows product is deliberately AVOIDED for the trust path (no first-class code node).
+  Workflows product is deliberately AVOIDED for the trust path (no first-class code node). The
+  Workflow track is graph-proven, not live-mainline proven, until `PF_WORKFLOW=1` runs successfully
+  with the SDK/Azure path and evidence is captured.
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
   Generator→Evidence Gate; add real reasoning agents (a **Critic** before the gate, a **Curator** for
   adjacency/gap reasoning, a **Planner** for capacity + accessibility, a read-only **Program Insights**
-  agent for cohort/why-this-path), orchestrated in code. Plural agents that genuinely reason — not a
-  single one-off GPT call. **(Done as of 2026-06-08 — all five exist; see `current-state-assessment.md`.)**
+  agent for cohort/why-this-path), and continue toward the stricter architecture contract: a
+  Foundry-centered workflow/control surface where the agentic route is live-proven, not merely a fixed
+  Python sequence. Plural agents that genuinely reason are implemented, but the full contract is not
+  done until the missing workflow/conductor/tooling surfaces in
+  `.agents/plans/000-non-negotiable-agentic-architecture-contract.md` are addressed or explicitly
+  deferred by the user.
 - **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
+- **Agentic control / workflow:** live-prove the Agent Framework Workflow path or implement a bounded
+  Conductor/Orchestrator agent whose plan is code-validated before execution. Do not treat the
+  current fixed `run_multiagent` sequence as the final architecture ceiling.
+- **Foundry tools and skills:** the existing Toolbox/Skill artifacts are governance evidence only
+  unless runtime consumption is proven through a supported Foundry/Agent Framework/MCP/Hosted Agent
+  surface. Do not claim they are load-bearing without evidence.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
@@ -101,6 +120,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   judging its own work.
 
 ## Stubs are temporary — preserve the seams
+
+- The hard architecture contract is `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`.
+  If older plans, ADRs, or summaries imply the architecture is complete merely because five
+  code-orchestrated agents exist, the contract wins.
 
 - `FakeLLMClient` exists for offline development, deterministic demos, and tests. It is **not the
   production agent path**. `LocalNumericChecker` is different: it is the production gate oracle both

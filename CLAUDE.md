@@ -4,6 +4,12 @@ This repository uses **[`AGENTS.md`](./AGENTS.md)** as the single source of trut
 guidance. **Read `AGENTS.md` first** — it defines the project intent, the prime directives, the
 trust hierarchy, the verification protocol, the current-vs-target state, and the invariants.
 
+Then read **`.agents/plans/000-non-negotiable-agentic-architecture-contract.md`** before any
+architecture, workflow, agent, Foundry-tooling, demo-proof, or scope decision. That contract
+supersedes older plans, ADR interpretations, and summaries where they conflict. No workaround is
+permitted unless the user explicitly authorizes it or a documented critical infrastructure blocker
+prevents the required shape.
+
 Claude-specific reminders (the substance lives in `AGENTS.md`):
 
 - **Ground platform facts with the Microsoft Learn MCP** (`microsoft_docs_search` /
@@ -13,7 +19,9 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   its §10 lists repo claims that have already drifted from live docs (proof that assumptions are
   unsafe here).
 - The end goal is the **real multi-agent reasoning loop**, not the one-off GPT call and not the
-  `FakeLLMClient` stub. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the
-  deterministic Evidence Gate (never let an LLM judge its own grounding).
+  `FakeLLMClient` stub. The current five-agent path is live-capable but still code-orchestrated; do
+  not call the full architecture complete while Workflow/Conductor/toolbox-skill/MCP/Voice surfaces
+  remain unproven or unbuilt under the hard contract. Preserve the `LLMClient` / `NumericChecker`
+  swap-in seams and the deterministic Evidence Gate (never let an LLM judge its own grounding).
 
 > Keep this file thin. Put substantive guidance in `AGENTS.md` so the two never drift.
