@@ -107,10 +107,9 @@ Skill is sourced from `skills/pathforward/SKILL.md`, registered into `pathforwar
 through toolbox MCP resources, and consumed by the live Orchestrator path through
 `scripts/smoke_toolbox_skill_live.py`. ✅ Skill-loaded Orchestrator safety has its own live scorecards:
 `scripts/eval_orchestrator_live.py --no-judge` produced 16/16 grounded + spine-intact and 0.0% ASR
-(16/16 defenses held, including Orchestrator route attacks). Specialist Skill files for Curator,
-Assessment, Planner, and Insights are implemented and injected in the offline/full-flow runtime; the
-next live task is to rebuild the Foundry toolbox and prove all five Skill resources are read through
-MCP before calling those specialist Skills live-proven. ✅ `scripts/trace_full_flow.py` now
+(16/16 defenses held, including Orchestrator route attacks). ✅ Specialist Skill files for Curator,
+Assessment, Planner, and Insights are registered in the Foundry toolbox and read through MCP by
+`scripts/smoke_toolbox_skill_live.py`. ✅ `scripts/trace_full_flow.py` now
 shows the proof trace for Skill load, Orchestrator routing, Curator, Generator, Critic,
 adaptive/reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and fail-closed ABSTAIN;
 it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ Offline suite is green

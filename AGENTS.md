@@ -86,14 +86,13 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   toolbox-level RAI by default; model/deployment RAI remains separate. Direct-attached
   Generator/Fabric tools still exist as fallback/test seams and should not be described as the final
   primary architecture once the Skill/Toolbox path is expanded.
-- **Specialist Skill files are implemented and runtime-injected offline, but not yet live-registered.**
+- **Specialist Skill files are implemented, live-registered, and MCP-readback-proven.**
   `skills/pathforward-curate`, `skills/pathforward-assess`, `skills/pathforward-plan`, and
   `skills/pathforward-insights` follow the same `agentskills.io` `SKILL.md` shape and are wired into
   their corresponding agents when loaded by `scripts/trace_full_flow.py` and
-  `scripts/smoke_toolbox_skill_live.py`. Unit tests prove the instructions are load-bearing in agent
-  calls. The next live proof must rebuild `pathforward-toolbox`, read all five Skill resources
-  through MCP, and re-run the skill-loaded smoke/eval before claiming the specialist Skills are
-  visible and proven in Foundry.
+  `scripts/smoke_toolbox_skill_live.py`. On 2026-06-09, `scripts/build_toolbox.py --recreate`
+  registered all five Skills in `pathforward-toolbox`, and `scripts/smoke_toolbox_skill_live.py`
+  proved `resources/list` / `resources/read` for every Skill plus the skill-loaded Orchestrator route.
 - The default storyboard demo (`scripts/run_demo.py`) and fixture export (`scripts/export_web_fixture.py`)
   still run on **`FakeLLMClient`** for deterministic local rehearsal, but both now support `--live`
   to use live Foundry/Fabric clients and stamp fixture provenance. The **live gpt-5.5 path** is proven
@@ -147,11 +146,11 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   Orchestrator-specific safety re-measure is complete for the skill-loaded route; do not reuse those
   numbers for future Workflow/approval/Voice surfaces without a fresh run.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
-  Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are wired for
-  runtime injection, but do not claim the entire tool surface is migrated until the specialist Skills
-  are live-registered/read from Foundry and Generator/Search, Fabric, approval/mint, and other tools
-  use supported Foundry Skill/Toolbox/MCP/Agent Framework/Hosted Agent surfaces rather than
-  direct-attached tools as the primary product path.
+  Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are
+  live-registered/read from Foundry and wired for runtime injection. Do not claim the entire tool
+  surface is migrated until Generator/Search, Fabric, approval/mint, and other tools use supported
+  Foundry Skill/Toolbox/MCP/Agent Framework/Hosted Agent surfaces rather than direct-attached tools
+  as the primary product path.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
