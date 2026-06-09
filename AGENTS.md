@@ -58,14 +58,17 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 ## Current state → Target state
 
 **Current (verified 2026-06-09):**
-- **Hosted Agent top-level Orchestrator scaffold is implemented locally** (`agent.yaml`,
+- **Hosted Agent top-level Orchestrator is deployed and live-proven** (`agent.yaml`,
   `Dockerfile`, `hosted/pathforward_orchestrator/main.py`, `pathforward/hosted_orchestrator.py`).
   Microsoft docs verified on 2026-06-09: Hosted Agents are versioned containerized agents with
   built-in observability and Toolbox MCP access through the hosted container runtime. PathForward now
   has a `responses`-protocol Hosted Agent wrapper that packages the existing `/pathforward`
   Orchestrator route, loads Skills, runs the real multi-agent loop, emits a governed mint approval
   request, and only mints when explicit runtime approval is provided. This is **local/offline-proven**
-  by `tests/test_hosted_orchestrator.py`; it is **not yet live-deployed or Foundry-eval-proven**.
+  by `tests/test_hosted_orchestrator.py` and **live-proven** by Hosted Agent version 11 on
+  2026-06-09: the Foundry `responses` endpoint completed `Run /pathforward for EMP-001` with
+  Foundry Toolbox Skill evidence, Azure AI Search retrieval, Fabric-live Program Insights, and
+  governed mint approval requested. Hosted-route eval scorecards remain pending.
 - **Five code-orchestrated reasoning agents** — Curator, Generator, Critic, Planner, and the
   read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
@@ -110,8 +113,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 - Numeric checks use `LocalNumericChecker` — the **sole** gate oracle, offline AND live. Code
   Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
   `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
-  The **live Fabric data-agent tier is now proven** through `scripts/smoke_fabric_live.py`
-  (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). A local governed mint
+  The **live Fabric data-agent tier is now proven** through both `scripts/smoke_fabric_live.py`
+  (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool) and Hosted Agent version 11
+  (direct published Fabric data-agent endpoint, isolated service-principal token, `source="fabric-live"`).
+  A local governed mint
   approval wrapper exists (`pathforward/credential/approval.py`): it emits a reviewable
   `require_approval="always"` request, fails closed on denial or replay/tamper, then delegates to
   `mint()` so readiness/spine checks still run. Voice Live and externally hosted MCP mint remain
@@ -145,9 +150,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   contract is not done until the missing Orchestrator Skill/tooling surfaces in
   `.agents/plans/000-non-negotiable-agentic-architecture-contract.md` are addressed or explicitly
   deferred by the user.
-- **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
-  (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
-  when making evidence claims.
+- **Program Insights live tier:** keep both live Fabric data-agent read paths repeatable and
+  documented: OBO/user via `FABRIC_CONNECTION_NAME` + `MicrosoftFabricPreviewTool`, and
+  Hosted/background via `FABRIC_DATA_AGENT_OPENAI_BASE` + `PATHFORWARD_FABRIC_SP_*` secret-backed
+  Foundry connection placeholders. Do not collapse live Fabric claims back into the derivation floor.
 - **Agentic control:** the top-level product surface is now the versioned **Foundry Hosted Agent**
   `pathforward-orchestrator`, not a prompt-agent smoke script. Keep hardening the bounded
   Conductor/Orchestrator route inside that hosted surface. The older Orchestrator-specific safety
@@ -158,7 +164,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   live-registered/read from Foundry and wired for runtime injection. The current tool-surface
   contract is tracked in `pathforward/tool_surface.py`: Generator/Search uses the documented direct
   Foundry prompt-agent Azure AI Search tool because the Evidence Gate needs the retrieval trace;
-  Fabric Insights uses the documented direct Fabric prompt-agent tool because it is advisory and
+  Fabric Insights uses the documented Foundry Fabric prompt-agent tool for OBO/user runs and the
+  published Fabric data-agent endpoint for Hosted/background runs because it is advisory and
   reconciled against code-owned aggregates. Do not re-open those as migration work without explicit
   user authorization. The real open tool surface is Orchestrator-route approval/mint.
 - **Approval/mint:** preserve `pathforward/credential/approval.py` as the runtime approval gate for
@@ -166,7 +173,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   through `credential.mint.mint()`; a natural-language model response must never directly approve or
   issue a credential. Live Hosted Agent deployment/evals must include both approval-denied and
   approval-approved cases.
-- Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
+- Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient` /
+  `FabricDataAgentClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
 - Use Code Interpreter ONLY as a non-gating analyst (`CodeInterpreterAnalyst`) for second-opinion

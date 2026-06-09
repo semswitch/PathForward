@@ -62,6 +62,13 @@ class HostedRequest:
     mode: str = "auto"  # auto | live | offline
 
 
+class _FabricProgramInsightsAgent(ProgramInsightsAgent):
+    """Hosted adapter: make the standard orchestration seam call the Fabric-live method."""
+
+    def analyze(self, worker, role, onto):
+        return self.analyze_via_fabric(worker, role, onto)
+
+
 def _local_skill_bodies() -> dict[str, str]:
     bodies: dict[str, str] = {}
     for name in _SKILL_NAMES:
@@ -89,6 +96,22 @@ def _load_live_skill_bodies(settings: Settings) -> tuple[dict[str, str], dict[st
     return bodies, {"source": "foundry-toolbox-mcp", "toolbox": toolbox, **evidence}
 
 
+def diagnose_live_toolbox(settings: Settings) -> dict[str, Any]:
+    """Inspect the hosted runtime's Foundry Toolbox MCP access path."""
+    from .toolbox_mcp import diagnose_toolbox_resources
+
+    if not settings.foundry_project_endpoint:
+        raise RuntimeError("toolbox diagnostics require FOUNDRY_PROJECT_ENDPOINT")
+    toolbox = os.getenv("PATHFORWARD_TOOLBOX_NAME", _TOOLBOX_NAME)
+    return {
+        "agent": "pathforward-orchestrator",
+        "surface": "foundry-hosted-agent",
+        "diagnostic": "foundry-toolbox-mcp",
+        "toolbox": toolbox,
+        **diagnose_toolbox_resources(settings.foundry_project_endpoint, toolbox),
+    }
+
+
 def _build_clients(settings: Settings, mode: str, skill_bodies: dict[str, str]):
     if mode == "offline":
         fake = FakeLLMClient()
@@ -101,7 +124,12 @@ def _build_clients(settings: Settings, mode: str, skill_bodies: dict[str, str]):
             "insights": fake,
         }, ()
 
-    from .agents.foundry import FabricInsightsClient, FoundryLLMClient, ReasoningFoundryClient
+    from .agents.foundry import (
+        FabricDataAgentClient,
+        FabricInsightsClient,
+        FoundryLLMClient,
+        ReasoningFoundryClient,
+    )
 
     clients: dict[str, Any] = {
         "orchestrator": ReasoningFoundryClient(settings.foundry_project_endpoint,
@@ -122,17 +150,35 @@ def _build_clients(settings: Settings, mode: str, skill_bodies: dict[str, str]):
                                           settings.model_deployment),
     }
     if os.getenv("PATHFORWARD_INSIGHTS_TIER", "").strip().lower() == "fabric-live":
-        if not settings.fabric_connection_name:
-            raise RuntimeError("PATHFORWARD_INSIGHTS_TIER=fabric-live requires FABRIC_CONNECTION_NAME")
-        clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
-                                                   settings.fabric_connection_name,
-                                                   agent_name="pathforward-hosted-insights-fabric",
-                                                   model=settings.model_deployment)
+        if settings.fabric_data_agent_openai_base:
+            clients["insights"] = FabricDataAgentClient(
+                settings.fabric_data_agent_openai_base,
+                os.getenv("PATHFORWARD_FABRIC_SP_TENANT_ID", ""),
+                os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_ID", ""),
+                os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
+            )
+        else:
+            if not settings.fabric_connection_name:
+                raise RuntimeError(
+                    "PATHFORWARD_INSIGHTS_TIER=fabric-live requires either "
+                    "FABRIC_DATA_AGENT_OPENAI_BASE or FABRIC_CONNECTION_NAME"
+                )
+            clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
+                                                       settings.fabric_connection_name,
+                                                       agent_name="pathforward-hosted-insights-fabric",
+                                                       model=settings.model_deployment,
+                                                       use_cli_credential=False)
     else:
         clients["insights"] = ReasoningFoundryClient(settings.foundry_project_endpoint,
                                                      "pathforward-hosted-insights",
                                                      settings.model_deployment)
     return clients, tuple(c for c in clients.values() if hasattr(c, "close"))
+
+
+def _build_insights_agent(client, skill_instructions: str) -> ProgramInsightsAgent:
+    if os.getenv("PATHFORWARD_INSIGHTS_TIER", "").strip().lower() == "fabric-live":
+        return _FabricProgramInsightsAgent(client, skill_instructions=skill_instructions)
+    return ProgramInsightsAgent(client, skill_instructions=skill_instructions)
 
 
 def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
@@ -169,8 +215,10 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                     skill_instructions=skill_bodies["pathforward-plan"]),
             critic=Critic(clients["critic"], skill_instructions=skill_bodies["pathforward-assess"]),
             adaptive=adaptive,
-            insights=ProgramInsightsAgent(clients["insights"],
-                                          skill_instructions=skill_bodies["pathforward-insights"]),
+            insights=_build_insights_agent(
+                clients["insights"],
+                skill_instructions=skill_bodies["pathforward-insights"],
+            ),
         )
 
         approval = None

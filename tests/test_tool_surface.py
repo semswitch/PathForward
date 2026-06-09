@@ -13,7 +13,7 @@ class TestToolSurfaceContract(unittest.TestCase):
         decisions = decisions_by_capability()
         self.assertEqual(
             decisions["hosted-orchestrator"].status,
-            "mainline-local-proven-live-pending",
+            "mainline-live-proven",
         )
         self.assertEqual(decisions["orchestrator-and-specialist-skills"].status,
                          "mainline-supporting-surface")
@@ -27,13 +27,14 @@ class TestToolSurfaceContract(unittest.TestCase):
         self.assertIn("corpus", generator.rationale)
         self.assertEqual(fabric.status, "accepted-mainline-seam")
         self.assertIn("MicrosoftFabricPreviewTool", fabric.surface)
+        self.assertIn("direct published Fabric", fabric.surface)
         self.assertIn("off the credential mint path", fabric.rationale)
 
     def test_approval_is_the_remaining_mainline_surface_not_workflow(self):
         decisions = decisions_by_capability()
         approval = decisions["credential-approval"]
         workflow = decisions["agent-framework-workflow"]
-        self.assertEqual(approval.status, "hosted-local-proven-live-pending")
+        self.assertEqual(approval.status, "hosted-live-approval-request-proven")
         self.assertIn("Hosted Agent", approval.surface)
         self.assertEqual(workflow.status, "locked-out-not-used")
         self.assertIn("Locked-out", workflow.surface)

@@ -18,11 +18,15 @@ protocols:
   - protocol: responses
     version: 1.0.0
 resources:
-  cpu: "1"
-  memory: 2Gi
+  cpu: "2"
+  memory: 4Gi
 environment_variables:
+  - name: AZURE_AI_PROJECT_ENDPOINT
+    value: ${AZURE_AI_PROJECT_ENDPOINT}
   - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
     value: reasoning
+  - name: AZURE_SEARCH_ENDPOINT
+    value: ${AZURE_SEARCH_ENDPOINT}
   - name: AZURE_SEARCH_INDEX
     value: pathforward-iq
   - name: PATHFORWARD_HOSTED_MODE
@@ -33,3 +37,17 @@ environment_variables:
     value: fabric-live
   - name: FABRIC_CONNECTION_NAME
     value: ${FABRIC_CONNECTION_NAME}
+  - name: FABRIC_DATA_AGENT_OPENAI_BASE
+    value: ${{connections.pathforward-hosted-secrets.target}}
+  - name: PATHFORWARD_FABRIC_SP_TENANT_ID
+    value: ${{connections.pathforward-hosted-secrets.credentials.azure_tenant_id}}
+  - name: PATHFORWARD_FABRIC_SP_CLIENT_ID
+    value: ${{connections.pathforward-hosted-secrets.credentials.azure_client_id}}
+  - name: PATHFORWARD_FABRIC_SP_CLIENT_SECRET
+    value: ${{connections.pathforward-hosted-secrets.credentials.azure_client_secret}}
+  - name: REQUESTS_CA_BUNDLE
+    value: /etc/ssl/certs/ca-certificates.crt
+  - name: SSL_CERT_FILE
+    value: /etc/ssl/certs/ca-certificates.crt
+  - name: CURL_CA_BUNDLE
+    value: /etc/ssl/certs/ca-certificates.crt

@@ -2,6 +2,7 @@
 
 These run with NO azure SDK installed (the live client imports azure lazily). They prove:
   - `FabricInsightsClient` is offline-safe (constructable without azure; lazy create).
+  - `FabricDataAgentClient` is offline-safe (constructable without azure/openai; lazy create).
   - `analyze_via_fabric` returns a fabric-live ProgramInsights that still carries the code-owned
     `cohort.py` aggregates as the reconciliation anchor.
   - the insights module stays OFF the trust path (imports neither the gate nor mint).
@@ -45,6 +46,21 @@ class FabricInsightsOfflineTest(unittest.TestCase):
         c = foundry.FabricInsightsClient(endpoint="https://x", connection_name="pf-fabric")
         self.assertIsNone(c._agent)        # nothing created until respond()
         self.assertTrue(c.force_tool)      # the Fabric tool is forced by default
+
+    def test_direct_fabric_data_agent_client_is_offline_safe_and_lazy(self):
+        from pathforward.agents import foundry
+
+        self.assertTrue(hasattr(foundry, "FabricDataAgentClient"))
+        c = foundry.FabricDataAgentClient(
+            base_url="https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/",
+            tenant_id="tenant",
+            client_id="client",
+            client_secret="secret",
+        )
+        self.assertIsNone(c._openai)
+        self.assertIsNone(c._assistant)
+        self.assertEqual(c.scope, "https://analysis.windows.net/powerbi/api/.default")
+        self.assertEqual(c.api_version, "2024-05-01-preview")
 
     def test_analyze_via_fabric_sets_source_and_keeps_code_anchor(self):
         onto = build_seed()

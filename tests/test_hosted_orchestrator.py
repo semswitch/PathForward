@@ -72,6 +72,85 @@ class HostedOrchestratorTests(unittest.TestCase):
             else:
                 os.environ["FABRIC_CONNECTION_NAME"] = old_connection
 
+    def test_config_accepts_hosted_fabric_data_agent_base(self):
+        old_base = os.environ.get("FABRIC_DATA_AGENT_OPENAI_BASE")
+        try:
+            os.environ["FABRIC_DATA_AGENT_OPENAI_BASE"] = (
+                "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/"
+            )
+            from pathforward.config import load_settings
+            settings = load_settings("__missing__.env")
+            self.assertEqual(settings.fabric_data_agent_openai_base,
+                             "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/")
+        finally:
+            if old_base is None:
+                os.environ.pop("FABRIC_DATA_AGENT_OPENAI_BASE", None)
+            else:
+                os.environ["FABRIC_DATA_AGENT_OPENAI_BASE"] = old_base
+
+    def test_live_hosted_prefers_direct_fabric_data_agent_client_when_configured(self):
+        old = {name: os.environ.get(name) for name in (
+            "PATHFORWARD_INSIGHTS_TIER",
+            "PATHFORWARD_FABRIC_SP_TENANT_ID",
+            "PATHFORWARD_FABRIC_SP_CLIENT_ID",
+            "PATHFORWARD_FABRIC_SP_CLIENT_SECRET",
+        )}
+        try:
+            os.environ["PATHFORWARD_INSIGHTS_TIER"] = "fabric-live"
+            os.environ["PATHFORWARD_FABRIC_SP_TENANT_ID"] = "tenant"
+            os.environ["PATHFORWARD_FABRIC_SP_CLIENT_ID"] = "client"
+            os.environ["PATHFORWARD_FABRIC_SP_CLIENT_SECRET"] = "secret"
+            from pathforward.config import Settings
+            from pathforward.hosted_orchestrator import _build_clients
+
+            settings = Settings(
+                foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/p",
+                search_endpoint="https://search.example",
+                fabric_connection_name="pathforward-fabric-user",
+                fabric_data_agent_openai_base=(
+                    "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/"
+                ),
+            )
+            clients, closeables = _build_clients(settings, "live", {})
+
+            self.assertEqual(clients["insights"].__class__.__name__, "FabricDataAgentClient")
+            self.assertEqual(clients["insights"].base_url,
+                             "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/")
+            for client in closeables:
+                client.close()
+        finally:
+            for name, value in old.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
+    def test_fabric_live_hosted_insights_agent_uses_fabric_method(self):
+        old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
+        try:
+            os.environ["PATHFORWARD_INSIGHTS_TIER"] = "fabric-live"
+            from pathforward.hosted_orchestrator import _build_insights_agent
+            from pathforward.agents.client import LLMResponse
+            from pathforward.iq.seed import HERO_WORKER_ID, build_seed
+
+            class StubFabricClient:
+                def respond(self, instructions, input, *, previous_response_id=None, schema=None):
+                    return LLMResponse("resp_stub", "fabric answer", {}, None)
+
+            onto = build_seed()
+            worker = onto.workers[HERO_WORKER_ID]
+            role = onto.roles[worker.target_role_id]
+            agent = _build_insights_agent(StubFabricClient(), "")
+            insights = agent.analyze(worker, role, onto)
+
+            self.assertEqual(insights.source, "fabric-live")
+            self.assertEqual(insights.narrative, "fabric answer")
+        finally:
+            if old is None:
+                os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
+            else:
+                os.environ["PATHFORWARD_INSIGHTS_TIER"] = old
+
 
 if __name__ == "__main__":
     unittest.main()

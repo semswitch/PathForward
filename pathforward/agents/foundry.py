@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -378,3 +379,174 @@ class FabricInsightsClient:
             except Exception:  # noqa: BLE001
                 pass
             self._agent = None
+
+
+@dataclass
+class FabricDataAgentClient:
+    """Drop-in LLMClient for the published Fabric data-agent REST/OpenAI endpoint.
+
+    This is the hosted/background route for Program Insights. The Foundry
+    `MicrosoftFabricPreviewTool` path above is an OBO/user path; a Foundry Hosted Agent invoked as a
+    background container does not have a user token to pass through. Fabric's published data-agent
+    endpoint supports service-principal tokens, so this client uses `ClientSecretCredential` and the
+    OpenAI-compatible assistant surface directly.
+
+    The output is still advisory and read-only: it only supplies the Program Insights narrative, while
+    `cohort.py` remains the reconciliation anchor and the credential mint path never depends on this
+    response.
+    """
+    base_url: str
+    tenant_id: str
+    client_id: str
+    client_secret: str = field(repr=False)
+    scope: str = "https://analysis.windows.net/powerbi/api/.default"
+    api_version: str = "2024-05-01-preview"
+    _credential: object = field(default=None, repr=False)
+    _openai: object = field(default=None, repr=False)
+    _assistant: object = field(default=None, repr=False)
+
+    def _token(self) -> str:
+        self._ensure()
+        return self._credential.get_token(self.scope).token  # type: ignore[union-attr]
+
+    def _ensure(self) -> None:
+        if self._openai is not None:
+            return
+        if not self.base_url:
+            raise RuntimeError("FabricDataAgentClient requires FABRIC_DATA_AGENT_OPENAI_BASE")
+        if not (self.tenant_id and self.client_id and self.client_secret):
+            raise RuntimeError(
+                "FabricDataAgentClient requires tenant_id, client_id, and client_secret "
+                "(hosted env: PATHFORWARD_FABRIC_SP_TENANT_ID, "
+                "PATHFORWARD_FABRIC_SP_CLIENT_ID, PATHFORWARD_FABRIC_SP_CLIENT_SECRET)"
+            )
+        from azure.identity import ClientSecretCredential
+        from openai import OpenAI
+
+        self._credential = ClientSecretCredential(
+            tenant_id=self.tenant_id,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+        )
+        self._openai = OpenAI(
+            api_key=self._token,
+            base_url=self.base_url,
+            default_query={"api-version": self.api_version},
+            default_headers={"Accept": "application/json"},
+        )
+
+    def _assistant_id(self):
+        if self._assistant is None:
+            self._ensure()
+            # Fabric data-agent assistants require a model field, but the published data agent owns
+            # the actual model routing. Microsoft samples use the literal "not used".
+            self._assistant = self._openai.beta.assistants.create(  # type: ignore[union-attr]
+                model="not used"
+            )
+        return self._assistant.id
+
+    def _create_thread_run(self, input: str):
+        self._ensure()
+        thread = self._openai.beta.threads.create(  # type: ignore[union-attr]
+            extra_headers={"ActivityId": str(uuid.uuid4())}
+        )
+        self._openai.beta.threads.messages.create(  # type: ignore[union-attr]
+            thread_id=thread.id,
+            role="user",
+            content=input,
+        )
+        run = self._openai.beta.threads.runs.create(  # type: ignore[union-attr]
+            thread_id=thread.id,
+            assistant_id=self._assistant_id(),
+            extra_headers={"ActivityId": str(uuid.uuid4())},
+        )
+        return thread.id, run.id
+
+    def _delete_thread(self, thread_id: str) -> None:
+        self._ensure()
+        try:
+            self._openai.beta.threads.delete(thread_id=thread_id)  # type: ignore[union-attr]
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _poll_run(self, thread_id: str, run_id: str):
+        self._ensure()
+        last = None
+        for _ in range(90):
+            last = self._openai.beta.threads.runs.retrieve(  # type: ignore[union-attr]
+                thread_id=thread_id,
+                run_id=run_id,
+            )
+            status = getattr(last, "status", "")
+            if status in {"completed", "failed", "cancelled", "expired"}:
+                return last
+            time.sleep(2)
+        return last
+
+    @staticmethod
+    def _message_text(message) -> str:
+        parts: list[str] = []
+        for item in getattr(message, "content", []) or []:
+            text = getattr(item, "text", None)
+            if text is not None:
+                value = getattr(text, "value", None)
+                if value:
+                    parts.append(str(value))
+                    continue
+            value = getattr(item, "value", None)
+            if value:
+                parts.append(str(value))
+        return "\n".join(parts).strip()
+
+    def _latest_assistant_text(self, thread_id: str) -> str:
+        self._ensure()
+        messages = self._openai.beta.threads.messages.list(  # type: ignore[union-attr]
+            thread_id=thread_id,
+            order="desc",
+            limit=20,
+        )
+        for msg in getattr(messages, "data", []) or []:
+            if getattr(msg, "role", "") == "assistant":
+                text = self._message_text(msg)
+                if text:
+                    return text
+        return ""
+
+    def respond(self, instructions: str, input: str, *,
+                previous_response_id: Optional[str] = None,
+                schema: Optional[dict] = None) -> LLMResponse:
+        prompt = f"{instructions.strip()}\n\nUser request:\n{input}".strip()
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            thread_id = ""
+            try:
+                thread_id, run_id = self._create_thread_run(prompt)
+                run = self._poll_run(thread_id, run_id)
+                status = getattr(run, "status", "")
+                if status != "completed":
+                    detail = getattr(run, "last_error", None) or getattr(run, "incomplete_details", None)
+                    raise RuntimeError(f"Fabric data-agent run ended with status {status}: {detail}")
+                output = self._latest_assistant_text(thread_id)
+                parsed = {"narrative": output} if output else {}
+                return LLMResponse(run_id, output, parsed, previous_response_id,
+                                   retrieved_ref_ids=())
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))
+                    continue
+                raise
+            finally:
+                if thread_id:
+                    self._delete_thread(thread_id)
+        raise last  # type: ignore[misc]
+
+    def close(self) -> None:
+        if self._assistant is not None and self._openai is not None:
+            try:
+                self._openai.beta.assistants.delete(self._assistant.id)
+            except Exception:  # noqa: BLE001
+                pass
+            self._assistant = None

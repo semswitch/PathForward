@@ -64,6 +64,7 @@ class Settings:
     fabric_workspace_id: str = ""
     fabric_artifact_id: str = ""
     fabric_connection_name: str = ""                  # Foundry 'Microsoft Fabric' connection name (the data agent)
+    fabric_data_agent_openai_base: str = ""           # Published Fabric data-agent OpenAI-compatible API base
     voice_resource_endpoint: str = ""
     mcp_mint_url: str = ""
 
@@ -92,6 +93,7 @@ def load_settings(dotenv_path: str = ".env") -> Settings:
         fabric_workspace_id=_env_value("FABRIC_WORKSPACE_ID", ""),
         fabric_artifact_id=_env_value("FABRIC_ARTIFACT_ID", ""),
         fabric_connection_name=_env_value("FABRIC_CONNECTION_NAME", ""),
+        fabric_data_agent_openai_base=_env_value("FABRIC_DATA_AGENT_OPENAI_BASE", ""),
         voice_resource_endpoint=_env_value("VOICE_LIVE_ENDPOINT", ""),
         mcp_mint_url=_env_value("MCP_MINT_URL", ""),
     )

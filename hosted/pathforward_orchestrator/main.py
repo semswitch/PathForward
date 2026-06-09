@@ -15,9 +15,11 @@ from dotenv import load_dotenv
 
 from pathforward.hosted_orchestrator import (
     HostedRequest,
+    diagnose_live_toolbox,
     run_hosted_orchestrator,
     summarize_hosted_response,
 )
+from pathforward.config import load_settings
 
 load_dotenv(override=False)
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -65,6 +67,11 @@ def _extract_text_from_create_response(request: Any, get_input_expanded) -> str:
 
 
 def _run_text_request(text: str) -> str:
+    if "diagnose toolbox" in text.lower():
+        doc = diagnose_live_toolbox(load_settings())
+        return "PathForward hosted Toolbox diagnostic completed.\n\n```json\n" + (
+            json.dumps(doc, indent=2) + "\n```"
+        )
     doc = run_hosted_orchestrator(_parse_request_text(text))
     return summarize_hosted_response(doc) + "\n\n```json\n" + json.dumps(doc, indent=2) + "\n```"
 

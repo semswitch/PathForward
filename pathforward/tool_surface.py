@@ -25,17 +25,19 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ToolSurfaceDecision(
         capability="hosted-orchestrator",
         surface="Foundry Hosted Agent (`agent.yaml` + Dockerfile + responses protocol)",
-        status="mainline-local-proven-live-pending",
+        status="mainline-live-proven",
         rationale=(
             "The user locked Hosted Agents as the top-level Orchestrator path. The hosted surface "
             "packages the existing PathForward route into a versionable Foundry Hosted Agent while "
-            "preserving the deterministic Evidence Gate and mint spine."
+            "preserving the deterministic Evidence Gate and mint spine. Hosted Agent version 11 "
+            "completed the full live `/pathforward` route through the Foundry responses endpoint."
         ),
         proof=(
             "agent.yaml",
             "Dockerfile",
             "hosted/pathforward_orchestrator/main.py",
             "pathforward/hosted_orchestrator.py",
+            "Hosted Agent pathforward-orchestrator:11",
             "tests/test_hosted_orchestrator.py",
         ),
     ),
@@ -72,31 +74,38 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="fabric-program-insights",
-        surface="Direct Foundry PromptAgentDefinition MicrosoftFabricPreviewTool",
+        surface=("Foundry MicrosoftFabricPreviewTool for OBO/user runs; direct published Fabric "
+                 "data-agent endpoint for Hosted/background runs"),
         status="accepted-mainline-seam",
         rationale=(
-            "Fabric Program Insights is advisory and off the credential mint path. The live tier uses "
-            "the documented prompt-agent Fabric tool with OBO identity, while `iq/cohort.py` remains "
-            "the reconciliation anchor."
+            "Fabric Program Insights is advisory and off the credential mint path. User/OBO smoke "
+            "runs use the documented prompt-agent Fabric tool; Hosted/background runs use the "
+            "published Fabric data-agent endpoint with an isolated service-principal token because "
+            "the OBO preview tool cannot run under a background hosted container identity. "
+            "`iq/cohort.py` remains the reconciliation anchor in both routes."
         ),
         proof=(
             "pathforward/agents/foundry.py:FabricInsightsClient",
+            "pathforward/agents/foundry.py:FabricDataAgentClient",
             "scripts/smoke_fabric_live.py",
+            "Hosted Agent pathforward-orchestrator:11",
             "tests/test_fabric_insights.py",
         ),
     ),
     ToolSurfaceDecision(
         capability="credential-approval",
-        surface="Hosted Agent governed approval wrapper; live Foundry approval/eval pending",
-        status="hosted-local-proven-live-pending",
+        surface="Hosted Agent governed approval wrapper",
+        status="hosted-live-approval-request-proven",
         rationale=(
             "`credential.approval` correctly fails closed before mint. The Hosted Orchestrator now "
-            "creates a mint approval request and mints only with explicit runtime approval; live "
-            "Foundry deployment/invocation/eval proof is still pending."
+            "creates a mint approval request and mints only with explicit runtime approval. Hosted "
+            "Agent version 11 proved the live approval-request path; hosted evals and an explicit "
+            "approval-approved live run remain separate proof work."
         ),
         proof=(
             "pathforward/credential/approval.py",
             "pathforward/hosted_orchestrator.py",
+            "Hosted Agent pathforward-orchestrator:11",
             "scripts/smoke_mint_approval.py",
             "tests/test_hosted_orchestrator.py",
             "tests/test_mint_approval.py",

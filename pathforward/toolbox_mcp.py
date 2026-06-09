@@ -7,12 +7,14 @@ smokes need.
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 TOKEN_SCOPE = "https://ai.azure.com/.default"
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,6 +72,8 @@ class ToolboxMcpClient:
             self.session_id = sid
         parsed = self._parse_response(resp)
         if "error" in parsed:
+            _LOG.error("Toolbox MCP method failed: method=%s params=%s session_id=%s error=%s",
+                       method, params, self.session_id, parsed["error"])
             raise RuntimeError(f"MCP {method} error: {parsed['error']}")
         return McpResponse(result=parsed.get("result") or {}, session_id=self.session_id)
 
@@ -112,6 +116,8 @@ def read_skills_from_toolbox(endpoint: str, toolbox_name: str,
     tools = mcp.call("tools/list").result.get("tools") or []
     resources = mcp.call("resources/list").result.get("resources") or []
     resource_uris = [r.get("uri") for r in resources if isinstance(r, dict)]
+    _LOG.info("Toolbox MCP listed resources: toolbox=%s resources=%s",
+              toolbox_name, resource_uris)
 
     bodies: dict[str, str] = {}
     skill_uris: dict[str, str] = {}
@@ -122,6 +128,7 @@ def read_skills_from_toolbox(endpoint: str, toolbox_name: str,
                           if uri == expected or uri == f"{expected}/SKILL.md"), "")
         if not skill_uri:
             raise RuntimeError(f"no {expected} resource listed by toolbox MCP resources")
+        _LOG.info("Toolbox MCP reading skill resource: skill=%s uri=%s", skill_name, skill_uri)
         body = _body_from_read(mcp.call("resources/read", {"uri": skill_uri}).result, skill_uri)
         bodies[skill_name] = body
         skill_uris[skill_name] = skill_uri
@@ -146,3 +153,33 @@ def read_skill_from_toolbox(endpoint: str, toolbox_name: str, skill_name: str) -
     """Return `(skill_body, evidence)` for `skill://{skill_name}/SKILL.md` from the toolbox MCP endpoint."""
     bodies, evidence = read_skills_from_toolbox(endpoint, toolbox_name, (skill_name,))
     return bodies[skill_name], evidence
+
+
+def diagnose_toolbox_resources(endpoint: str, toolbox_name: str) -> dict[str, Any]:
+    """Return a live Toolbox MCP diagnostic without using local skill fallbacks."""
+    mcp = ToolboxMcpClient(endpoint, toolbox_name)
+    init = mcp.initialize()
+    tools = mcp.call("tools/list").result.get("tools") or []
+    resources = mcp.call("resources/list").result.get("resources") or []
+
+    reads: list[dict[str, Any]] = []
+    for resource in resources:
+        uri = resource.get("uri") if isinstance(resource, dict) else None
+        if not uri:
+            continue
+        entry: dict[str, Any] = {"uri": uri, "ok": False, "chars": 0, "error": ""}
+        try:
+            body = _body_from_read(mcp.call("resources/read", {"uri": uri}).result, uri)
+            entry["ok"] = True
+            entry["chars"] = len(body)
+        except Exception as exc:  # noqa: BLE001 - diagnostic keeps every resource result.
+            entry["error"] = str(exc)
+        reads.append(entry)
+
+    return {
+        "protocol": init.get("protocolVersion"),
+        "tools": [t.get("name") or t.get("type") or "(unnamed)"
+                  for t in tools if isinstance(t, dict)],
+        "resources": [r.get("uri") for r in resources if isinstance(r, dict)],
+        "reads": reads,
+    }
