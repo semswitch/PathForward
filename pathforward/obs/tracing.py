@@ -4,8 +4,10 @@ OFF by default: `span()` is a no-op until `configure_tracing(...)` is called, so
 core and all offline tests are unaffected (same optional-layer pattern as Fake vs Foundry client).
 When configured, spans export to the Console and/or Azure Monitor (App Insights / Foundry Tracing tab).
 
-The module keeps its OWN TracerProvider (it does not touch the global one), so it composes cleanly and
-is easy to reconfigure in tests via an in-memory exporter.
+The module normally keeps its OWN TracerProvider, so it composes cleanly and is easy to reconfigure in
+tests via an in-memory exporter. Azure Monitor export is the exception: that exporter reads the global
+provider resource during export, so `configure_tracing(..., azure_connection_string=...)` installs this
+provider globally when no real global provider has been installed yet.
 """
 from __future__ import annotations
 
@@ -41,7 +43,10 @@ def configure_tracing(*, console: bool = False, azure_connection_string: Optiona
         provider.add_span_processor(SimpleSpanProcessor(exporter))
     if azure_connection_string:
         try:
+            from opentelemetry import trace as otel_trace
             from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
+            if otel_trace.get_tracer_provider().__class__.__name__ == "ProxyTracerProvider":
+                otel_trace.set_tracer_provider(provider)
             provider.add_span_processor(BatchSpanProcessor(
                 AzureMonitorTraceExporter(connection_string=azure_connection_string)))
         except Exception as exc:  # noqa: BLE001 - degrade: Azure export unavailable, others still work
