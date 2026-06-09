@@ -1,0 +1,93 @@
+import { makeStyles, tokens } from "@fluentui/react-components";
+
+export const useStyles = makeStyles({
+  rail: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalXS,
+    rowGap: tokens.spacingVerticalS,
+    marginBottom: tokens.spacingVerticalL,
+  },
+  arrow: {
+    color: tokens.colorNeutralForeground4,
+    userSelect: "none",
+  },
+  chip: {
+    display: "flex",
+    alignItems: "center",
+    columnGap: tokens.spacingHorizontalXS,
+    paddingTop: tokens.spacingVerticalXS,
+    paddingBottom: tokens.spacingVerticalXS,
+    paddingLeft: tokens.spacingHorizontalS,
+    paddingRight: tokens.spacingHorizontalS,
+    borderTopWidth: tokens.strokeWidthThin,
+    borderBottomWidth: tokens.strokeWidthThin,
+    borderLeftWidth: tokens.strokeWidthThin,
+    borderRightWidth: tokens.strokeWidthThin,
+    borderTopStyle: "solid",
+    borderBottomStyle: "solid",
+    borderLeftStyle: "solid",
+    borderRightStyle: "solid",
+    '@media (prefers-reduced-motion: no-preference)': {
+      transitionProperty: "background-color, border-color, box-shadow",
+      transitionDuration: tokens.durationNormal,
+      transitionTimingFunction: tokens.curveEasyEase,
+    },
+  },
+  // LLM reasoning agents: rounded, brand-tinted — they propose, never decide.
+  llm: {
+    borderTopLeftRadius: tokens.borderRadiusCircular,
+    borderTopRightRadius: tokens.borderRadiusCircular,
+    borderBottomLeftRadius: tokens.borderRadiusCircular,
+    borderBottomRightRadius: tokens.borderRadiusCircular,
+    backgroundColor: tokens.colorNeutralBackground3,
+    borderTopColor: tokens.colorBrandStroke2,
+    borderBottomColor: tokens.colorBrandStroke2,
+    borderLeftColor: tokens.colorBrandStroke2,
+    borderRightColor: tokens.colorBrandStroke2,
+    color: tokens.colorBrandForeground2,
+  },
+  llmActive: {
+    backgroundColor: tokens.colorBrandBackground2,
+    borderTopColor: tokens.colorBrandStroke1,
+    borderBottomColor: tokens.colorBrandStroke1,
+    borderLeftColor: tokens.colorBrandStroke1,
+    borderRightColor: tokens.colorBrandStroke1,
+    '@media (prefers-reduced-motion: no-preference)': {
+      animationName: {
+        from: { boxShadow: `0 0 0 0 ${tokens.colorBrandStroke1}` },
+        to: { boxShadow: "0 0 0 6px transparent" },
+      },
+      animationDuration: tokens.durationUltraSlow,
+      animationTimingFunction: tokens.curveEasyEase,
+      animationIterationCount: "infinite",
+    },
+  },
+  // Deterministic code (Evidence Gate, Mint): sharp-edged, monochrome — the notary.
+  code: {
+    borderTopLeftRadius: "0",
+    borderTopRightRadius: "0",
+    borderBottomLeftRadius: "0",
+    borderBottomRightRadius: "0",
+    backgroundColor: tokens.colorNeutralBackground2,
+    borderTopColor: tokens.colorNeutralStroke1,
+    borderBottomColor: tokens.colorNeutralStroke1,
+    borderLeftColor: tokens.colorNeutralStroke1,
+    borderRightColor: tokens.colorNeutralStroke1,
+    color: tokens.colorNeutralForeground2,
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+  },
+  codeActive: {
+    backgroundColor: tokens.colorNeutralForeground2,
+    color: tokens.colorNeutralBackground1,
+    borderTopColor: tokens.colorNeutralForeground1,
+    borderBottomColor: tokens.colorNeutralForeground1,
+    borderLeftColor: tokens.colorNeutralForeground1,
+    borderRightColor: tokens.colorNeutralForeground1,
+  },
+  dimmed: {
+    opacity: 0.55,
+  },
+});
