@@ -125,11 +125,13 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
   bearing `assess` loop) is a **graph-shape test**, proven offline (`tests/test_workflow_graph.py`).
   The live adapter `agents/workflow_foundry.py` projects that spec onto `agent_framework`
-  (GA 1.0.0, 2026-04-02) and is **imported lazily** — the SDK is not provisioned here, so the offline
-  suite stays green. `run_multiagent` remains the always-green in-process spine; the portal/YAML
-  Workflows product is deliberately AVOIDED for the trust path (no first-class code node). The
-  Workflow track is graph-proven, not live-mainline proven, until `PF_WORKFLOW=1` runs successfully
-  with the SDK/Azure path and evidence is captured.
+  (GA 1.0.0+, SDK `1.8.0` installed here as of 2026-06-09) and is **imported lazily** so the offline
+  suite stays green with or without the optional SDK. `run_multiagent` remains the always-green
+  in-process spine; the portal/YAML Workflows product is deliberately AVOIDED for the trust path
+  (no first-class code node). `PF_WORKFLOW=1` was live-exercised on 2026-06-09 with Agent Framework
+  HITL: the workflow emitted the approval request, resumed with approval, routed mint through
+  `credential.approval.mint_with_approval(...)`, and issued a credential through the existing spine.
+  This proves the Workflow projection path, not the mainline product path.
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
@@ -186,8 +188,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   spec + the no-bypass `trust_audit`, always offline-safe) and `workflow_foundry.py` (the live
   `agent_framework` projection, imported lazily only). The trust boundary in the Workflow is the
   deterministic `assess` executor (reuses `run_assessment_loop` — the SOLE `status="verified"` writer)
-  and the `mint` executor (reuses `credential.mint.mint`). **Never** let the Workflow track write
-  `status="verified"` itself or become a second trust authority; it must stay a projection.
+  and the `mint` executor (must route through `credential.approval.mint_with_approval(...)`, which
+  delegates to `credential.mint.mint`). **Never** let the Workflow track write `status="verified"`
+  itself, call raw mint without approval, or become a second trust authority; it must stay a
+  projection.
 
 ## Invariants you must not break
 

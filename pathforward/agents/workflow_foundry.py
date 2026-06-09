@@ -12,7 +12,8 @@ Design (see ADR 009 + `workflow.py`):
   - The trust boundary is two DETERMINISTIC executors. `_AssessExecutor` delegates to the existing
     `run_assessment_loop` — so `status="verified"` is still written in exactly one place (`loop.py`)
     and the `corpus ∩ retrieved` anti-bluff intersection is NOT duplicated. `_MintExecutor`
-    delegates to the existing `credential.mint.mint` (re-derives readiness, re-checks the spine).
+    delegates through the approval wrapper to the existing `credential.mint.mint` (re-derives
+    readiness, re-checks the spine).
   - The reasoning steps (`curate`/`plan`/`insights`) are executors that delegate to OUR agents
     through the `LLMClient` seam — this keeps the code-owned gates in `curator.py`/`planner.py` as
     the trust boundary (rather than re-expressing them as native Agent Framework agents, which would
@@ -57,7 +58,13 @@ from agent_framework import (  # type: ignore[import-not-found]  (verified GA sy
 )
 from typing_extensions import Never
 
-from ..credential.mint import mint
+from ..credential.approval import (
+    MintApprovalDecision,
+    MintApprovalError,
+    MintApprovalRequest as CredentialMintApprovalRequest,
+    mint_with_approval,
+    request_mint_approval,
+)
 from ..credential.schema import ProofCredential
 from ..iq import traversal
 from ..iq.models import Edge, Ontology, Role, Worker
@@ -94,6 +101,7 @@ class WorkflowState:
     plan: Optional[LearningPlan] = None
     insights: Optional[ProgramInsights] = None
     approved: Optional[bool] = None
+    approval_decision: Optional[MintApprovalDecision] = None
     credential: Optional[ProofCredential] = None
 
 
@@ -104,12 +112,13 @@ def make_initial_state(worker: Worker, onto: Ontology, edges: list[Edge],
 
 
 @dataclass
-class MintApprovalRequest:
+class WorkflowMintApprovalRequest:
     """HITL payload emitted by the approval node via `ctx.request_info(...)`. Carries the state so
     the `@response_handler` can resume the credential path after a human decides."""
     worker_id: str
     skill_id: str
     driving_edge_id: str
+    approval_request: CredentialMintApprovalRequest
     state: WorkflowState
 
 
@@ -123,7 +132,7 @@ class _CuratorStep(Executor):
         self._curator = curator
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState]) -> None:
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState, Never]) -> None:
         state.decision = self._curator.curate(state.worker, state.role, state.onto)
         await ctx.send_message(state)
 
@@ -134,7 +143,7 @@ class _PlannerStep(Executor):
         self._planner = planner
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState]) -> None:
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState, Never]) -> None:
         ranking = state.decision.ranking if state.decision else ()
         state.plan = self._planner.plan(state.worker, ranking, state.onto)
         await ctx.send_message(state)
@@ -146,7 +155,7 @@ class _InsightsStep(Executor):
         self._insights = insights
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState]) -> None:
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState, Never]) -> None:
         state.insights = self._insights.analyze(state.worker, state.role, state.onto)
         await ctx.send_message(state)
 
@@ -173,7 +182,7 @@ class _AssessExecutor(Executor):
         self._adaptive = adaptive
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState]) -> None:
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState, Never]) -> None:
         decision = state.decision
         if decision is None or not decision.chosen_skill_id:
             # Stricter fail-closed: no assessable gap -> abstained (never a verified result here).
@@ -196,18 +205,23 @@ class _AssessExecutor(Executor):
 
 
 class _MintExecutor(Executor):
-    """The deterministic credential mint. Delegates to the existing `credential.mint.mint`, which
-    re-derives readiness from the ontology and re-checks the causal spine; fail-closed on a
-    non-verified loop result. Emits the credential to the `issued` sink."""
+    """The deterministic credential mint. Delegates through `mint_with_approval(...)` to the existing
+    `credential.mint.mint`, so the HITL approval gate and the final readiness/spine checks both run;
+    fail-closed on missing/denied/mismatched approval or a non-verified loop result. Emits the
+    credential to the `issued` sink."""
 
     def __init__(self, id: str = wf.N_MINT):
         super().__init__(id=id)
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[ProofCredential]) -> None:
-        # mint() itself raises CredentialIntegrityError unless the loop verified + spine matches.
-        state.credential = mint(state.worker, state.role, state.driving_edge_id, state.skill_id,
-                                state.loop_result, state.calibration)
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[ProofCredential, Never]) -> None:
+        # mint_with_approval() raises unless approval matches, then calls mint(), which raises unless
+        # the loop verified + spine matches. Approval never replaces the mint integrity checks.
+        if state.approval_decision is None:
+            raise MintApprovalError("refusing to mint: workflow approval decision is missing")
+        state.credential = mint_with_approval(
+            state.worker, state.role, state.driving_edge_id, state.skill_id,
+            state.loop_result, state.approval_decision, state.calibration)
         await ctx.send_message(state.credential)
 
 
@@ -220,16 +234,24 @@ class _ApprovalStep(Executor):
         super().__init__(id=id)
 
     @handler
-    async def run(self, state: WorkflowState, ctx: WorkflowContext[WorkflowState]) -> None:
-        request = MintApprovalRequest(worker_id=state.worker.id, skill_id=state.skill_id,
-                                      driving_edge_id=state.driving_edge_id, state=state)
+    async def run(self, state: WorkflowState, ctx: WorkflowContext[Never, Never]) -> None:
+        approval_request = request_mint_approval(state.worker, state.role, state.driving_edge_id,
+                                                 state.skill_id, state.loop_result)
+        request = WorkflowMintApprovalRequest(worker_id=state.worker.id, skill_id=state.skill_id,
+                                              driving_edge_id=state.driving_edge_id,
+                                              approval_request=approval_request, state=state)
         await ctx.request_info(request_data=request, response_type=bool)
 
-    @response_handler
-    async def on_decision(self, request: MintApprovalRequest, approved: bool,
-                          ctx: WorkflowContext[WorkflowState]) -> None:
+    @response_handler(request=WorkflowMintApprovalRequest, response=bool, output=WorkflowState)
+    async def on_decision(self, request, approved, ctx) -> None:
         state = request.state
         state.approved = bool(approved)
+        state.approval_decision = MintApprovalDecision(
+            request.approval_request.request_id,
+            approved=bool(approved),
+            approver="agent-framework-hitl",
+            rationale="Workflow HITL response",
+        )
         await ctx.send_message(state)
 
 
@@ -291,17 +313,17 @@ _CONDITIONS: dict[str, Callable[[Any], bool]] = {
 # Build the live Workflow from the spec (a faithful projection of the tested topology)
 # --------------------------------------------------------------------------------------------------
 
-def _build(start_exec: Executor, edges: list[tuple], max_iterations: int, final_output_from: list):
+def _build(start_exec: Executor, edges: list[tuple], max_iterations: int, output_from: list):
     """Construct + build the Workflow, defensive to the GA-vs-stale builder drift (constructor
-    `start_executor=` / `final_output_from=` are GA — PR #3693 moved the fluent setters into the
-    constructor; `.set_start_executor(...)` is the legacy/stale-doc shape). `final_output_from`
+    `start_executor=` is required and `output_from=` designates terminal output emitters in the
+    installed Agent Framework SDK. `output_from`
     designates the terminal sinks so `WorkflowRunResult.get_outputs()` surfaces their `yield_output`
-    (per the GA Executors doc, undesignated yields are discarded). TO-VERIFY against the pinned build."""
+    (per the Executors doc, undesignated yields are discarded)."""
     try:
         builder = WorkflowBuilder(start_executor=start_exec, max_iterations=max_iterations,
-                                  final_output_from=final_output_from)
-    except TypeError:  # older/stale build: fall back to the fluent start setter (no final_output_from)
-        builder = WorkflowBuilder(max_iterations=max_iterations).set_start_executor(start_exec)
+                                  output_from=output_from)
+    except TypeError:  # Compatibility with older/stale builds that omit output selection.
+        builder = WorkflowBuilder(start_executor=start_exec, max_iterations=max_iterations)
     for src, tgt, cond in edges:
         builder = builder.add_edge(src, tgt, condition=cond) if cond else builder.add_edge(src, tgt)
     return builder.build()
@@ -360,8 +382,8 @@ def build_foundry_workflow(graph: Optional["wf.WorkflowGraph"] = None, *,
         edge_specs.append((execs[e.source], execs[e.target], _CONDITIONS.get(e.condition)))
 
     # Designate the terminal sinks so get_outputs() surfaces their yield_output (LC-1 / ADR 009).
-    final_output_from = [execs[wf.N_ISSUED], execs[wf.N_ABSTAIN], execs[wf.N_ADVISORY_DONE]]
-    return _build(execs[graph.start], edge_specs, max_iterations, final_output_from)
+    output_from = [execs[wf.N_ISSUED], execs[wf.N_ABSTAIN], execs[wf.N_ADVISORY_DONE]]
+    return _build(execs[graph.start], edge_specs, max_iterations, output_from)
 
 
 def _missing(name: str) -> Executor:

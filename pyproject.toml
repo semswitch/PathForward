@@ -16,6 +16,10 @@ azure = [
   "azure-ai-evaluation>=1.0.0",
   "httpx>=0.27",
 ]
+workflow = [
+  "agent-framework>=1.0.0",
+  "agent-framework-foundry>=1.0.0",
+]
 dev = ["pytest>=8.0"]
 
 [build-system]

@@ -119,11 +119,12 @@ it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ O
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is
-also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0),
-with a no-bypass graph-shape test as the trust proof and `run_multiagent` as the canonical
-in-process spine; live Workflow execution still requires `PF_WORKFLOW=1` + SDK/Azure smoke proof.
-Externally hosted MCP/HITL mint remains a follow-up; the current approval proof is local/runtime
-enforcement, not a hosted MCP server.
+also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0+;
+tested here with SDK 1.8.0), with a no-bypass graph-shape test as the trust proof and
+`run_multiagent` as the canonical in-process spine. `PF_WORKFLOW=1` is now smoke-proven: the live
+Workflow path emits a HITL approval request, resumes on approval, calls the governed approval wrapper,
+and then issues through the existing mint spine. Externally hosted MCP mint remains a follow-up; the
+current hosted proof is Agent Framework HITL, not an MCP mint server.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

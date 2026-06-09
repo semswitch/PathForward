@@ -113,7 +113,8 @@ The reasoning chain is **also** expressed as a Microsoft Agent Framework Workflo
 portal/YAML Workflows product cannot express — no first-class code node, logic is Power Fx — so that
 product is **avoided for the trust path**). `pathforward/agents/workflow.py` holds a
 framework-agnostic graph spec; `workflow_foundry.py` projects it onto `agent_framework` (Python **GA
-1.0.0**, 2026-04-02), imported lazily (the SDK is not provisioned here; the offline suite stays green).
+1.0.0+**, 2026-04-02; smoke-tested here with SDK **1.8.0**), imported lazily so the offline suite
+stays green whether or not the optional SDK is installed.
 
 ```
   Curator (agent) ──assessable gap──▶ assess  [TRUST: run_assessment_loop + Evidence Gate]
@@ -124,7 +125,7 @@ framework-agnostic graph spec; `workflow_foundry.py` projects it onto `agent_fra
         │                              │ approve        │ refuse
         │                              ▼                ▼
         │                          Credential mint    ABSTAIN
-        │                          [TRUST] (re-derives readiness, re-checks the spine)
+        │                          [TRUST] (approval wrapper + mint readiness/spine checks)
         │                              ▼
         │                          Credential issued
         └─ advisory ─▶ Planner ─▶ Program Insights ─▶ advisory output   (never reaches the mint)
@@ -136,7 +137,10 @@ without traversing the deterministic `assess` node (the cut-vertex), no agent wr
 and the gate oracle is `LocalNumericChecker`. The assessment loop is **one** deterministic executor
 that delegates to the existing `run_assessment_loop`, so `status="verified"` is still written in
 exactly one place (`loop.py`) — the Workflow never becomes a second trust authority. `run_multiagent`
-stays the always-green in-process spine.
+stays the always-green in-process spine. The `PF_WORKFLOW=1` smoke now exercises the Agent Framework
+HITL path: it emits an approval request, resumes with approval, routes through
+`credential.approval.mint_with_approval(...)`, and issues through the existing mint code. This proves
+the Workflow projection path; it does not make the Workflow the mainline product path.
 
 ## Offline ↔ Azure boundary
 

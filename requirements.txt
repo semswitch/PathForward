@@ -20,3 +20,7 @@ azure-monitor-opentelemetry-exporter>=1.0.0b40   # Azure Monitor / App Insights 
 
 # dev / optional
 pytest>=8.0                       # (the suite also runs under stdlib unittest)
+
+# live Agent Framework Workflow / HITL projection (optional; offline core does not import it)
+agent-framework>=1.0.0
+agent-framework-foundry>=1.0.0
