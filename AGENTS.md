@@ -83,9 +83,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   toolbox tools, listed/read the skill resource, injected the MCP-loaded skill into the Foundry
   Orchestrator, verified through the Evidence Gate, and minted through the code spine. Toolbox-level
   RAI policy `pathforward-rai` was rejected by the consume endpoint, so `build_toolbox.py` omits
-  toolbox-level RAI by default; model/deployment RAI remains separate. Direct-attached
-  Generator/Fabric tools still exist as fallback/test seams and should not be described as the final
-  primary architecture once the Skill/Toolbox path is expanded.
+  toolbox-level RAI by default; model/deployment RAI remains separate. `pathforward/tool_surface.py`
+  records Generator/Search and Fabric as deliberate direct Foundry prompt-agent tool seams, not
+  migration targets.
 - **Specialist Skill files are implemented, live-registered, and MCP-readback-proven.**
   `skills/pathforward-curate`, `skills/pathforward-assess`, `skills/pathforward-plan`, and
   `skills/pathforward-insights` follow the same `agentskills.io` `SKILL.md` shape and are wired into
@@ -154,10 +154,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   run.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
   Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are
-  live-registered/read from Foundry and wired for runtime injection. Do not claim the entire tool
-  surface is migrated until Generator/Search, Fabric, approval/mint, and other tools use supported
-  Foundry Skill/Toolbox/MCP/Hosted Agent surfaces rather than direct-attached tools as the primary
-  product path.
+  live-registered/read from Foundry and wired for runtime injection. The current tool-surface
+  contract is tracked in `pathforward/tool_surface.py`: Generator/Search uses the documented direct
+  Foundry prompt-agent Azure AI Search tool because the Evidence Gate needs the retrieval trace;
+  Fabric Insights uses the documented direct Fabric prompt-agent tool because it is advisory and
+  reconciled against code-owned aggregates. Do not re-open those as migration work without explicit
+  user authorization. The real open tool surface is Orchestrator-route approval/mint.
 - **Approval/mint:** preserve `pathforward/credential/approval.py` as the runtime approval gate for
   mint. Microsoft docs state MCP/Toolbox `require_approval` is runtime-enforced, not endpoint-
   enforced; any future Orchestrator-route MCP/Hosted approval surface must route through this wrapper

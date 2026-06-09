@@ -1,9 +1,10 @@
 """Provision the governed seam: a Foundry Skill + Toolbox.
 
 Registers the repo-local agentskills.io source files under `skills/*/SKILL.md` as versioned Foundry
-Skills, then attaches them to `pathforward-toolbox` alongside the governed Azure AI Search tool. The
-toolbox MCP endpoint is the intended load-bearing skill/tool seam for the Orchestrator and
-specialist-agent paths; direct-attached tools remain fallback/test seams.
+Skills, then attaches them to `pathforward-toolbox` alongside the governed Azure AI Search catalog
+entry. The toolbox MCP endpoint is the load-bearing Skill seam for the Orchestrator and
+specialist-agent prompts. Generator/Search and Fabric remain deliberate direct Foundry prompt-agent
+tool seams (see `pathforward/tool_surface.py`), not accidental architecture drift.
 
 Source-verified against azure-ai-projects 2.2.0 (see .agents/decisions/003-foundry-toolbox-
 governance.md): beta.skills.create / beta.toolboxes.create_version, with the preview header

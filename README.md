@@ -89,6 +89,7 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 | `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and an optional/reference **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof, governed approval wrapper, and causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
+| `pathforward/tool_surface.py` | the checked mainline tool-surface contract for `/pathforward`: Toolbox-loaded Skills, direct Foundry Search/Fabric prompt-agent seams, open approval surface, optional Workflow |
 | `scripts/` | data generation, mirror build, the offline demo |
 | `skills/pathforward*/SKILL.md` | the `agentskills.io` sources for the Foundry `/pathforward` Orchestrator skill and specialist Curator/Assessment/Planner/Insights skills |
 | `tests/` | the guarantees (derived-edge correctness, loop termination, citations-survive, parity, credential integrity) |
