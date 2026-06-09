@@ -58,11 +58,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
   `ReasoningFoundryClient`). The Evidence Gate (deterministic notary, formerly "Verifier"),
   the reflection/adaptive controllers, and the orchestrator are **deterministic code**, not agents.
-- The default storyboard demo (`scripts/run_demo.py`) and the web fixture still run on
-  **`FakeLLMClient`** for deterministic local rehearsal. That is a demo/export convenience, not the
-  production scope. The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
-  `scripts/smoke_multiagent_live.py`, `scripts/eval_groundedness.py`, and `scripts/redteam_live.py`
-  (16/16 grounded + spine-intact, 12/12 red-team held, 0% ASR with Critic + reflection ON).
+- The default storyboard demo (`scripts/run_demo.py`) and fixture export (`scripts/export_web_fixture.py`)
+  still run on **`FakeLLMClient`** for deterministic local rehearsal, but both now support `--live`
+  to use live Foundry/Fabric clients and stamp fixture provenance. The **live gpt-5.5 path** is proven
+  via `scripts/smoke_loop_live.py`, `scripts/smoke_multiagent_live.py`,
+  `scripts/eval_groundedness.py`, and `scripts/redteam_live.py` (16/16 grounded + spine-intact,
+  12/12 red-team held, 0% ASR with Critic + reflection ON).
 - Numeric checks use `LocalNumericChecker` — the **sole** gate oracle, offline AND live. Code
   Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
   `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
@@ -87,8 +88,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 - **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
-- Wire the **live `FoundryLLMClient` / `ReasoningFoundryClient` / FabricInsightsClient** into the
-  demo and the web UI evidence path where appropriate, and re-export the web fixture from a live run.
+- Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
+  web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
+  --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
 - Use Code Interpreter ONLY as a non-gating analyst (`CodeInterpreterAnalyst`) for second-opinion
   recompute + calibration explainability — never as the gate oracle (it is non-deterministic: the
   model writes the code). `LocalNumericChecker` stays the sole oracle. **(Seam landed 2026-06-08, ADR 008.)**

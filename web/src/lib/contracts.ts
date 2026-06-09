@@ -161,6 +161,17 @@ export interface ProgramInsights {
 }
 
 export interface Fixture {
+  provenance: {
+    mode: string;
+    generator: string;
+    curator: string;
+    critic: string;
+    planner: string;
+    insights: string;
+    fabric: string;
+    fixture_export: string;
+    credential_trust_boundary: string;
+  };
   worker: {
     id: string;
     name: string;

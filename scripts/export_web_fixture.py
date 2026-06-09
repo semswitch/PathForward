@@ -1,12 +1,15 @@
 """Export a JSON fixture of the EMP-001 demo run for the web UI to render.
 
 Writes data/generated/demo_fixture.json and web/src/lib/fixture.json so the Carbon
-components have real Glass-Box / Arena / Trust-Console data before Azure is wired.
+components have Glass-Box / Arena / Trust-Console data. Offline rehearsal is the default;
+`--live` exports from the live Foundry/Fabric path.
 
 Run:  python scripts/export_web_fixture.py
+      python scripts/export_web_fixture.py --live
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -16,25 +19,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from pathforward.agents.adaptive import AdaptiveController                 # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate           # noqa: E402
-from pathforward.agents.client import FakeLLMClient                        # noqa: E402
-from pathforward.agents.critic import Critic                               # noqa: E402
-from pathforward.agents.curator import Curator                             # noqa: E402
-from pathforward.agents.generator import Generator                        # noqa: E402
-from pathforward.agents.insights import ProgramInsightsAgent              # noqa: E402
-from pathforward.agents.numeric import LocalNumericChecker                # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent                # noqa: E402
-from pathforward.agents.planner import Planner                            # noqa: E402
-from pathforward.agents.evidence_gate import EvidenceGate                          # noqa: E402
+from pathforward.config import load_settings                              # noqa: E402
 from pathforward.credential.mint import mint                              # noqa: E402
 from pathforward.iq import derivation as dv                               # noqa: E402
 from pathforward.iq import traversal                                      # noqa: E402
 from pathforward.iq.seed import build_seed, HERO_WORKER_ID                # noqa: E402
+from demo_runtime import build_demo_agents                                # noqa: E402
 from generate_data import _learner_responses                             # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def build_fixture() -> dict:
+def build_fixture(*, live: bool = False, prefer_fabric: bool = True) -> dict:
     onto = build_seed()
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
@@ -45,12 +42,14 @@ def build_fixture() -> dict:
     # The reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner.
     stats = cold_start_calibrate(_learner_responses(onto))
     adaptive = AdaptiveController(calibration=stats)
-    result = run_multiagent(worker, onto, edges,
-                            Curator(FakeLLMClient()), Generator(FakeLLMClient()),
-                            EvidenceGate(LocalNumericChecker()),
-                            Planner(FakeLLMClient(), LocalNumericChecker()),
-                            critic=Critic(FakeLLMClient()), adaptive=adaptive,
-                            insights=ProgramInsightsAgent(FakeLLMClient()))
+    settings = load_settings(os.path.join(ROOT, ".env"))
+    agents = build_demo_agents(live=live, settings=settings, prefer_fabric=prefer_fabric)
+    try:
+        result = run_multiagent(worker, onto, edges,
+                                agents.curator, agents.generator, agents.gate, agents.planner,
+                                critic=agents.critic, adaptive=adaptive, insights=agents.insights)
+    finally:
+        agents.close()
     decision, loop_result, plan = result.curator, result.loop, result.plan
     skill = onto.skills[decision.chosen_skill_id]
     cal = stats.get(f"item-{skill.id}", {})
@@ -58,6 +57,11 @@ def build_fixture() -> dict:
 
     verified = [t for t in loop_result.transcript if t["verdict"].passed]
     return {
+        "provenance": {
+            **agents.provenance,
+            "fixture_export": "live" if live else "offline",
+            "credential_trust_boundary": "EvidenceGate+LocalNumericChecker+mint",
+        },
         "worker": {
             "id": worker.id, "name": worker.name,
             "current_role_title": worker.current_role_title,
@@ -87,7 +91,13 @@ def build_fixture() -> dict:
 
 
 def main() -> None:
-    fixture = build_fixture()
+    ap = argparse.ArgumentParser(description="Export the PathForward web fixture.")
+    ap.add_argument("--live", action="store_true",
+                    help="export from live Foundry/Fabric clients instead of FakeLLMClient")
+    ap.add_argument("--no-fabric", action="store_true",
+                    help="in --live mode, keep Program Insights on the derivation-floor narrator")
+    args = ap.parse_args()
+    fixture = build_fixture(live=args.live, prefer_fabric=not args.no_fabric)
     targets = [
         os.path.join(ROOT, "data", "generated", "demo_fixture.json"),
         os.path.join(ROOT, "web", "src", "lib", "fixture.json"),

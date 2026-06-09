@@ -1,17 +1,17 @@
-"""Offline end-to-end demo — proves the multi-agent reasoning spine with no Azure.
+"""End-to-end demo — offline rehearsal by default, live Foundry/Fabric with --live.
 
-Runs the full PathForward flow for the hero worker EMP-001 against the FakeLLMClient:
+Runs the full PathForward flow for the hero worker EMP-001:
   Glass-Box traversal -> Curator (gap prioritization, reasoned) -> Generator/Evidence Gate loop
   (reject->regenerate) -> cold-start calibration -> citation-backed credential mint
   -> Planner (capacity + accessibility learning plan), with the causal-spine assertion enforced.
 
-Three reasoning agents (Curator, Generator, Planner) are orchestrated in code; the Evidence Gate gate
-and the mint's causal-spine check remain deterministic. This is the textual storyboard for the
-demo video. Run:
+The Evidence Gate and the mint's causal-spine check remain deterministic in every mode. Run:
   python scripts/run_demo.py
+  python scripts/run_demo.py --live
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 from collections import OrderedDict
@@ -19,24 +19,17 @@ from collections import OrderedDict
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.adaptive import AdaptiveController                # noqa: E402
-from pathforward.agents.analyst import LocalAnalyst                        # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
-from pathforward.agents.client import FakeLLMClient                       # noqa: E402
-from pathforward.agents.critic import Critic                              # noqa: E402
-from pathforward.agents.curator import Curator                            # noqa: E402
-from pathforward.agents.generator import Generator                       # noqa: E402
-from pathforward.agents.insights import ProgramInsightsAgent             # noqa: E402
-from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
-from pathforward.agents.planner import Planner                           # noqa: E402
 from pathforward.agents import workflow as wf                            # noqa: E402
-from pathforward.agents.evidence_gate import EvidenceGate                         # noqa: E402
+from pathforward.config import load_settings                             # noqa: E402
 from pathforward.credential.mint import mint                             # noqa: E402
 from pathforward.iq import derivation as dv                              # noqa: E402
 from pathforward.iq import traversal                                     # noqa: E402
 from pathforward.iq.seed import build_seed, HERO_WORKER_ID               # noqa: E402
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts"))
+from demo_runtime import build_demo_agents  # noqa: E402
 from generate_data import _learner_responses  # noqa: E402
 
 
@@ -45,12 +38,24 @@ def rule(title: str) -> None:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Run the PathForward textual demo.")
+    ap.add_argument("--live", action="store_true",
+                    help="use live Foundry/Fabric prompt-agent clients instead of FakeLLMClient")
+    ap.add_argument("--no-fabric", action="store_true",
+                    help="in --live mode, keep Program Insights on the derivation-floor narrator")
+    args = ap.parse_args()
+    settings = load_settings(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                          ".env"))
+
     onto = build_seed()
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
     edges = dv.build_all_edges(onto)
 
+    agents = build_demo_agents(live=args.live, settings=settings, prefer_fabric=not args.no_fabric)
+
     rule(f"1. WORKER  {worker.id}  - the human hook")
+    print(f"  Run mode: {agents.provenance['mode']}  |  insights: {agents.provenance['insights']}")
     print(f"  {worker.name}: {worker.current_role_title}")
     print(f"  Reskilling target: {role.name} ({role.id})")
     print(f"  Weekly capacity: {worker.weekly_capacity_hours}h   "
@@ -71,14 +76,12 @@ def main() -> None:
     # --- the reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner ----------
     stats = cold_start_calibrate(_learner_responses(onto))      # cold-start item calibration
     adaptive = AdaptiveController(calibration=stats)            # pure-code difficulty selection
-    cur = Curator(FakeLLMClient())
-    gen = Generator(FakeLLMClient())
-    critic = Critic(FakeLLMClient())
-    gate = EvidenceGate(LocalNumericChecker())
-    planner = Planner(FakeLLMClient(), LocalNumericChecker())
-    insights = ProgramInsightsAgent(FakeLLMClient())          # read-only cohort/program reasoning
-    result = run_multiagent(worker, onto, edges, cur, gen, gate, planner,
-                            critic=critic, adaptive=adaptive, insights=insights)
+    try:
+        result = run_multiagent(worker, onto, edges,
+                                agents.curator, agents.generator, agents.gate, agents.planner,
+                                critic=agents.critic, adaptive=adaptive, insights=agents.insights)
+    finally:
+        agents.close()
     decision, loop_result, plan = result.curator, result.loop, result.plan
 
     rule("3. CURATOR AGENT  - which gap to certify first (reasoned, then gated)")
@@ -133,15 +136,18 @@ def main() -> None:
 
     # Code Interpreter analyst (offline: LocalAnalyst; live: CodeInterpreterAnalyst) -- ADVISORY and
     # NON-GATING. Two roles: an independent numeric second opinion, and calibration explainability.
-    analyst = LocalAnalyst()
+    analyst = agents.analyst
     print(f"\n  Code Interpreter analyst (advisory, NON-GATING; the gate's oracle stays LocalNumericChecker):")
     _passed = [t for t in loop_result.transcript if t["verdict"].passed]
     if _passed:                                          # guard the abstain path (no verified item)
         verified_item = _passed[-1]["item"]
-        so = analyst.second_opinion(verified_item.numeric_claim or "")
-        verdict_label = "AGREES" if so.agrees else ("n/a" if so.agrees is None else "DISAGREES")
-        print(f"    numeric second opinion on '{verified_item.numeric_claim}': {verdict_label} "
-              f"-> {so.summary}")
+        if verified_item.numeric_claim:
+            so = analyst.second_opinion(verified_item.numeric_claim)
+            verdict_label = "AGREES" if so.agrees else ("n/a" if so.agrees is None else "DISAGREES")
+            print(f"    numeric second opinion on '{verified_item.numeric_claim}': {verdict_label} "
+                  f"-> {so.summary}")
+        else:
+            print("    verified item has no numeric claim -> no second-opinion needed")
     else:
         print("    (loop abstained -> no verified item, so no numeric claim to second-opinion)")
     analyst_cal = analyst.calibration_report({k: v for k, v in stats.items() if k.startswith("item-")})
@@ -184,7 +190,9 @@ def main() -> None:
     ins = result.insights
     if ins is not None:
         wc, rc, prog = ins.worker_comparison, ins.role_cohort, ins.program
-        print(f"  Source tier: {ins.source}  (derivation floor; Fabric-ready live tier is a swap-in seam)")
+        source_note = ("live Fabric data-agent tier" if ins.source == "fabric-live"
+                       else "derivation floor")
+        print(f"  Source tier: {ins.source}  ({source_note}; advisory/off-mint)")
         print(f"  This worker vs cohort: rank {wc['rank']}/{wc['n_cohort']} targeting {rc['role_name']}  "
               f"(readiness {wc['worker_readiness']} vs cohort mean {wc['cohort_mean_readiness']})")
         top = rc["bottleneck_skills"][0] if rc["bottleneck_skills"] else None
@@ -210,7 +218,7 @@ def main() -> None:
     print("\n  nodes:")
     for n in graph.nodes:
         print(f"    [{trust_label[n.trust]}] {kind_label[n.kind]} {n.id}")
-    print("\n  no-bypass trust audit (developer-proven graph-shape property; plan §9 / ADR 009):")
+    print("\n  no-bypass trust audit (developer-proven graph-shape property; plan section 9 / ADR 009):")
     for p in wf.trust_audit(graph):
         print(f"    {'PASS' if p.holds else 'FAIL'}  {p.key}")
     print(f"    -> all hold: {wf.trust_holds(graph)}  "
@@ -224,6 +232,7 @@ def main() -> None:
     cited = [t for t in verified_items if t["item"].cited_ref_ids]
     print(f"  reasoning agents: 5 (Curator, Generator, Critic, Planner, Program Insights) "
           f"+ deterministic Evidence Gate")
+    print(f"  fixture/demo provenance: {agents.provenance}")
     print(f"  grounded-citation rate: {len(cited)}/{len(verified_items)} verified items cited")
     print(f"  attempts to a verified item: {loop_result.attempts} "
           f"({loop_result.attempts - 1} rejected on grounding/quality)")

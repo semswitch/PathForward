@@ -70,6 +70,8 @@ Live proof scripts run from the project virtualenv when Azure/Fabric are configu
 .venv\Scripts\python.exe scripts\smoke_multiagent_live.py
 $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
+.venv\Scripts\python.exe scripts\run_demo.py --live
+.venv\Scripts\python.exe scripts\export_web_fixture.py --live
 ```
 
 ## Layout
@@ -90,7 +92,9 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 ✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
 run through `scripts/smoke_multiagent_live.py`; the deterministic Evidence Gate and mint remain the
 trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_live.py` using the
-Microsoft Fabric data-agent tool. ✅ Offline suite is green (`python -m unittest discover -s tests -t .`).
+Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a live mode
+(`scripts/run_demo.py --live`, `scripts/export_web_fixture.py --live`) with explicit provenance.
+✅ Offline suite is green (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is
 also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0),
