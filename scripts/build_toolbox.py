@@ -1,22 +1,23 @@
-"""Phase 2 ("Toolbox Ceiling") — provision the governed seam: a Foundry Skill + Toolbox.
+"""Provision the governed seam: a Foundry Skill + Toolbox.
 
-Wraps the SAME GA Azure AI Search capability (index 'pathforward-iq' via the keyless
-'pathforward-search' connection) that the proven inference path in pathforward/agents/foundry.py
-uses — but registers it as a versioned, governed Foundry Toolbox alongside a first-class
-'pathforward' Skill. This is the production-governance layer: a central registry, immutable
-versions, an optional RAI policy, and a single MCP seam for future tools.
+Registers the repo-local agentskills.io source file `skills/pathforward/SKILL.md` as the versioned
+Foundry Skill named `pathforward`, then attaches it to `pathforward-toolbox` alongside the governed
+Azure AI Search tool. The toolbox MCP endpoint is the intended load-bearing skill/tool seam for the
+Orchestrator path; direct-attached tools remain fallback/test seams.
 
 Source-verified against azure-ai-projects 2.2.0 (see .agents/decisions/003-foundry-toolbox-
 governance.md): beta.skills.create / beta.toolboxes.create_version, with the preview header
 (Foundry-Features: {Skills,Toolboxes}=V1Preview) auto-injected by the SDK.
 
     python scripts/build_toolbox.py --dry-run                 # construct objects offline, NO Azure
-    python scripts/build_toolbox.py                           # live: create skill + toolbox v1 (no RAI)
-    python scripts/build_toolbox.py --rai-policy pathforward-rai   # also attach an EXISTING RAI policy
+    python scripts/build_toolbox.py                           # live: create skill + toolbox v1 (no toolbox RAI)
+    python scripts/build_toolbox.py --rai-policy pathforward-rai   # explicitly attach an EXISTING toolbox RAI policy
     python scripts/build_toolbox.py --recreate               # delete skill+toolbox first, rebuild clean
 
-The RAI policy named by --rai-policy must ALREADY exist in the project; create_version references
-it, it does not create it. Default build omits RAI so the confirmed layer is never blocked on it.
+The RAI policy named by --rai-policy must ALREADY exist and be valid for toolbox consumption;
+create_version references it, it does not create it. Default build omits toolbox-level RAI so the
+confirmed Skill/Toolbox layer is never blocked on a policy mismatch. Model/deployment RAI remains
+separate.
 """
 from __future__ import annotations
 
@@ -28,31 +29,27 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
 from pathforward.config import load_settings   # noqa: E402
+from pathforward.skills import read_skill_file  # noqa: E402
 
 SKILL_NAME = "pathforward"
 TOOLBOX_NAME = "pathforward-toolbox"
 CONNECTION = "pathforward-search"
-
-_SKILL_DESCRIPTION = (
-    "PathForward reskilling assessor: generate one grounded competency item for a worker's "
-    "certification gap, citing only retrieved corpus evidence."
-)
-_SKILL_INSTRUCTIONS = (
-    "# PathForward assessment skill\n"
-    "ALWAYS call the Azure AI Search tool to retrieve evidence about the target skill and the "
-    "worker's certification gap BEFORE composing an item, and ground every factual claim only in "
-    "retrieved evidence. Cite the exact search-document ids you grounded on in `cited_ref_ids`. "
-    "Never invent skill requirements and never embed the correct answer inside the stem. If no "
-    "grounded evidence is retrieved, abstain rather than guess."
-)
+SKILL_PATH = os.path.join(_ROOT, "skills", "pathforward", "SKILL.md")
 
 
 def build_skill_content():
     from azure.ai.projects.models import SkillInlineContent
+    skill = read_skill_file(SKILL_PATH)
     return SkillInlineContent(
-        description=_SKILL_DESCRIPTION,
-        instructions=_SKILL_INSTRUCTIONS,
-        metadata={"domain": "workforce-development", "ontology": "certgap-edge-driven"},
+        description=skill.description,
+        instructions=skill.instructions,
+        compatibility=skill.compatibility or None,
+        metadata={
+            "domain": "workforce-development",
+            "ontology": "certgap-edge-driven",
+            "source_path": "skills/pathforward/SKILL.md",
+            **(skill.metadata or {}),
+        },
     )
 
 
@@ -89,23 +86,28 @@ def main() -> int:
     ap.add_argument("--recreate", action="store_true",
                     help="delete the existing skill + toolbox first, then rebuild clean")
     ap.add_argument("--rai-policy", default=None,
-                    help="name of an EXISTING RAI policy to declare on the toolbox version "
-                         "(defaults to AZURE_RAI_POLICY from .env; pass '' to omit)")
+                    help="name of an EXISTING toolbox-valid RAI policy to declare on the toolbox "
+                         "version (default: omit toolbox-level RAI)")
     args = ap.parse_args()
 
     settings = load_settings(os.path.join(_ROOT, ".env"))
     endpoint = (settings.foundry_project_endpoint or "").strip()
     index_name = (settings.search_index or "").strip()
-    rai_policy = (args.rai_policy if args.rai_policy is not None else settings.rai_policy) or None
+    rai_policy = args.rai_policy or None
 
     # Construct everything offline first so a model/schema error surfaces even in --dry-run.
+    skill_file = read_skill_file(SKILL_PATH)
+    if skill_file.name != SKILL_NAME:
+        print(f"FAIL: {SKILL_PATH} declares name={skill_file.name!r}; expected {SKILL_NAME!r}")
+        return 1
     skill_content = build_skill_content()
     placeholder_tool = build_search_tool(conn_id="<resolved-at-runtime>", index_name=index_name)
     policies = build_policies(rai_policy)
     from azure.ai.projects.models import ToolboxSkillReference
     skill_ref = ToolboxSkillReference(name=SKILL_NAME)  # version filled after the skill is created
-    print(f"constructed: skill '{SKILL_NAME}' + azure_ai_search tool over index '{index_name}' "
-          f"+ skill_ref + policies={'RAI:' + rai_policy if policies else 'none'}")
+    print(f"constructed: skill '{SKILL_NAME}' from skills/pathforward/SKILL.md "
+          f"+ azure_ai_search tool over index '{index_name}' + skill_ref "
+          f"+ policies={'RAI:' + rai_policy if policies else 'none'}")
     _ = (skill_content, placeholder_tool, skill_ref)
 
     if args.dry_run:

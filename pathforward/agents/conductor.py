@@ -109,7 +109,7 @@ class OrchestratorPlan:
 class OrchestratorValidator:
     """Deterministic route validator. The Conductor may propose; this class decides what is allowed."""
 
-    def validate(self, plan: OrchestratorPlan) -> OrchestratorPlan:
+    def validate(self, plan: OrchestratorPlan, *, require_assessment: bool = True) -> OrchestratorPlan:
         admissible = set(plan.admissible_skill_ids)
         if not plan.steps:
             raise OrchestratorPlanError("orchestrator plan contains no steps")
@@ -147,7 +147,7 @@ class OrchestratorValidator:
                 seen_terminal = True
             clean.append(step)
 
-        if admissible and not any(s.action == "assess" for s in clean):
+        if require_assessment and admissible and not any(s.action == "assess" for s in clean):
             raise OrchestratorPlanError("orchestrator omitted assessment despite admissible gaps")
         if not admissible and not any(s.action == "abstain" for s in clean):
             raise OrchestratorPlanError("orchestrator must abstain when no admissible gaps exist")
@@ -163,12 +163,26 @@ class OrchestratorValidator:
 class Orchestrator:
     """Model-backed route reasoner, bounded by `OrchestratorValidator`."""
 
-    def __init__(self, client: LLMClient, validator: OrchestratorValidator | None = None):
+    def __init__(self, client: LLMClient, validator: OrchestratorValidator | None = None,
+                 skill_instructions: str = ""):
         self.client = client
         self.validator = validator or OrchestratorValidator()
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self) -> str:
+        if not self.skill_instructions:
+            return CONDUCTOR_INSTRUCTIONS
+        return (
+            f"{CONDUCTOR_INSTRUCTIONS}\n\n"
+            "Loaded Foundry Skill `/pathforward`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the loaded `/pathforward` skill, but the structured output schema and "
+            "deterministic validator remain authoritative."
+        )
 
     def plan(self, worker: Worker, role: Role, onto: Ontology, *,
-             curator_chosen_skill_id: str = "", prior_loop_status: str = "") -> OrchestratorPlan:
+             curator_chosen_skill_id: str = "", prior_loop_status: str = "",
+             require_assessment: bool = True) -> OrchestratorPlan:
         admissible = tuple(s for s in dv.cert_gap_skill_ids(worker, role)
                            if traversal.is_assessable(s, onto))
         payload = {
@@ -182,7 +196,7 @@ class Orchestrator:
             "allowed_actions": list(ALLOWED_ACTIONS),
             "forbidden_actions": list(FORBIDDEN_ACTIONS),
         }
-        resp = self.client.respond(CONDUCTOR_INSTRUCTIONS, json.dumps(payload),
+        resp = self.client.respond(self._instructions(), json.dumps(payload),
                                    schema=CONDUCTOR_SCHEMA)
         parsed = resp.parsed or {}
         steps = tuple(
@@ -194,4 +208,4 @@ class Orchestrator:
         plan = OrchestratorPlan(worker_id=worker.id, role_id=role.id,
                                 admissible_skill_ids=admissible, steps=steps,
                                 rationale=str(parsed.get("rationale", "")))
-        return self.validator.validate(plan)
+        return self.validator.validate(plan, require_assessment=require_assessment)

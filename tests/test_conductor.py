@@ -33,8 +33,10 @@ from pathforward.iq.seed import HERO_WORKER_ID, build_seed
 class StaticClient:
     def __init__(self, parsed: dict):
         self.parsed = parsed
+        self.last_instructions = ""
 
     def respond(self, instructions: str, input: str, *, previous_response_id=None, schema=None):
+        self.last_instructions = instructions
         return LLMResponse("static", json.dumps(self.parsed), self.parsed, previous_response_id)
 
 
@@ -84,6 +86,34 @@ class TestOrchestratorValidator(unittest.TestCase):
         )
         with self.assertRaises(OrchestratorPlanError):
             validator.validate(bad)
+
+    def test_initial_phase_may_curate_before_post_curator_assessment(self):
+        validator = OrchestratorValidator()
+        plan = Orchestrator(FakeLLMClient()).plan(self.worker, self.role, self.onto)
+        initial = type(plan)(
+            worker_id=plan.worker_id,
+            role_id=plan.role_id,
+            admissible_skill_ids=plan.admissible_skill_ids,
+            steps=(OrchestratorStep("curate", rationale="rank first"),),
+            rationale="initial route",
+        )
+        self.assertEqual(validator.validate(initial, require_assessment=False).steps[0].action,
+                         "curate")
+        with self.assertRaises(OrchestratorPlanError):
+            validator.validate(initial)
+
+    def test_loaded_pathforward_skill_is_injected_into_orchestrator_prompt(self):
+        client = StaticClient({
+            "steps": [
+                {"action": "curate", "rationale": "start"},
+                {"action": "assess", "target_skill_id": "S01", "rationale": "assess"},
+            ],
+            "rationale": "skill-driven route",
+        })
+        orch = Orchestrator(client, skill_instructions="# PathForward Orchestrator Skill\nRun it.")
+        orch.plan(self.worker, self.role, self.onto)
+        self.assertIn("Loaded Foundry Skill `/pathforward`", client.last_instructions)
+        self.assertIn("PathForward Orchestrator Skill", client.last_instructions)
 
 
 class TestOrchestratedMultiAgent(unittest.TestCase):

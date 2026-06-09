@@ -73,6 +73,17 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   any attempt to bypass the Evidence Gate. Live smoke on 2026-06-09 used `pathforward-orchestrator`
   to select admissible S08 and mint through the existing code spine. Orchestrator-specific red-team
   and groundedness re-measure are still pending before safety numbers transfer to this path.
+- **The `/pathforward` Foundry Skill is now real and load-bearing for the Orchestrator path**
+  (`skills/pathforward/SKILL.md`, `scripts/build_toolbox.py`, `scripts/smoke_toolbox_skill_live.py`).
+  The skill source follows the `agentskills.io` `SKILL.md` shape, is registered as the Foundry Skill
+  `pathforward`, attached to `pathforward-toolbox`, exposed through the toolbox MCP endpoint, and
+  live-read via `resources/read` as `skill://pathforward/SKILL.md`. A live smoke on 2026-06-09 listed
+  toolbox tools, listed/read the skill resource, injected the MCP-loaded skill into the Foundry
+  Orchestrator, verified through the Evidence Gate, and minted through the code spine. Toolbox-level
+  RAI policy `pathforward-rai` was rejected by the consume endpoint, so `build_toolbox.py` omits
+  toolbox-level RAI by default; model/deployment RAI remains separate. Direct-attached
+  Generator/Fabric tools still exist as fallback/test seams and should not be described as the final
+  primary architecture once the Skill/Toolbox path is expanded.
 - The default storyboard demo (`scripts/run_demo.py`) and fixture export (`scripts/export_web_fixture.py`)
   still run on **`FakeLLMClient`** for deterministic local rehearsal, but both now support `--live`
   to use live Foundry/Fabric clients and stamp fixture provenance. The **live gpt-5.5 path** is proven
@@ -122,9 +133,11 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   Orchestrator-specific red-team/evals and demo tracing, then decide how the Agent Framework Workflow
   projection supports it. Do not treat the current fixed `run_multiagent` sequence or a Workflow
   smoke alone as the final Reasoning Agents architecture.
-- **Foundry tools and skills:** the existing Toolbox/Skill artifacts are governance evidence only
-  unless runtime consumption is proven through a supported Foundry/Agent Framework/MCP/Hosted Agent
-  surface. Do not claim they are load-bearing without evidence.
+- **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
+  Orchestrator now consumes the MCP-loaded Foundry Skill, but do not claim the entire tool surface is
+  migrated until Generator/Search, Fabric, approval/mint, and any specialist skills use supported
+  Foundry Skill/Toolbox/MCP/Agent Framework/Hosted Agent surfaces rather than direct-attached tools
+  as the primary product path.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).

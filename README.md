@@ -69,6 +69,8 @@ Live proof scripts run from the project virtualenv when Azure/Fabric are configu
 ```powershell
 .venv\Scripts\python.exe scripts\smoke_multiagent_live.py
 .venv\Scripts\python.exe scripts\smoke_orchestrator_live.py
+.venv\Scripts\python.exe scripts\build_toolbox.py --recreate
+.venv\Scripts\python.exe scripts\smoke_toolbox_skill_live.py
 $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
 .venv\Scripts\python.exe scripts\run_demo.py --live
@@ -85,6 +87,7 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof + the causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
 | `scripts/` | data generation, mirror build, the offline demo |
+| `skills/pathforward/SKILL.md` | the `agentskills.io` source for the Foundry `/pathforward` Orchestrator skill |
 | `tests/` | the guarantees (derived-edge correctness, loop termination, citations-survive, parity, credential integrity) |
 | `web/` | Carbon UI skeleton (Glass-Box graph · Assessment Arena · Trust Console) |
 | `data/corpus/` | synthetic grounding documents |
@@ -97,8 +100,11 @@ trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_l
 Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a live mode
 (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py --live`) with explicit provenance.
 ✅ A bounded Orchestrator/Conductor contract is implemented, offline-proven (`tests/test_conductor.py`),
-and live-smoke-proven through `scripts/smoke_orchestrator_live.py`; Orchestrator-specific red-team /
-groundedness re-measure is still pending. ✅ Offline suite is green
+and live-smoke-proven through `scripts/smoke_orchestrator_live.py`. ✅ The `/pathforward` Foundry
+Skill is sourced from `skills/pathforward/SKILL.md`, registered into `pathforward-toolbox`, read back
+through toolbox MCP resources, and consumed by the live Orchestrator path through
+`scripts/smoke_toolbox_skill_live.py`; Orchestrator-specific red-team / groundedness re-measure is
+still pending. ✅ Offline suite is green
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is

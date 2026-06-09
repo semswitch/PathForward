@@ -107,7 +107,7 @@ def run_orchestrated_multiagent(worker: Worker, onto: Ontology, edges: list[Edge
     with tracing.span("orchestrated_multiagent",
                       **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:
         with tracing.span("orchestrator.initial", **{"pf.worker": worker.id}) as orch_span:
-            initial_plan = orchestrator.plan(worker, role, onto)
+            initial_plan = orchestrator.plan(worker, role, onto, require_assessment=False)
             orch_span.set(**{"pf.steps": len(initial_plan.steps),
                              "pf.corrected": initial_plan.corrected})
 
