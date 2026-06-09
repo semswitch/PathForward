@@ -20,8 +20,8 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   unsafe here).
 - The end goal is the **real multi-agent reasoning loop**, not the one-off GPT call and not the
   `FakeLLMClient` stub. The chosen architecture is the Foundry-visible `/pathforward`
-  Orchestrator Skill route. Do not spend architecture effort on the optional Agent Framework
-  Workflow projection unless the user explicitly re-authorizes it. Do not call the full architecture
+  Orchestrator Skill route. Agent Framework Workflow is locked out unless the user explicitly
+  re-authorizes it. Do not call the full architecture
   complete while Orchestrator Skill/toolbox/MCP approval/Voice surfaces remain unproven or unbuilt
   under the hard contract. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the
   deterministic Evidence Gate (never let an LLM judge its own grounding).

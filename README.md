@@ -86,10 +86,10 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 | Path | What |
 |---|---|
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
-| `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and an optional/reference **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
+| `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, and calibration |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof, governed approval wrapper, and causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
-| `pathforward/tool_surface.py` | the checked mainline tool-surface contract for `/pathforward`: Toolbox-loaded Skills, direct Foundry Search/Fabric prompt-agent seams, open approval surface, optional Workflow |
+| `pathforward/tool_surface.py` | the checked mainline tool-surface contract for `/pathforward`: Toolbox-loaded Skills, direct Foundry Search/Fabric prompt-agent seams, open approval surface, and Workflow locked out |
 | `scripts/` | data generation, mirror build, the offline demo |
 | `skills/pathforward*/SKILL.md` | the `agentskills.io` sources for the Foundry `/pathforward` Orchestrator skill and specialist Curator/Assessment/Planner/Insights skills |
 | `tests/` | the guarantees (derived-edge correctness, loop termination, citations-survive, parity, credential integrity) |
@@ -119,11 +119,10 @@ adaptive/reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and 
 it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ Offline suite is green
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
-ADR 008) is wired but still needs its live smoke before it should be called live-proven. The optional
-Agent Framework Workflow projection is graph-tested and has one `PF_WORKFLOW=1` HITL smoke proof, but
-it is not the product path and should not drive further architecture work unless explicitly
-re-authorized. Externally hosted MCP/Hosted approval for the Orchestrator route remains a follow-up;
-the current approval proof is local/runtime plus reference Workflow HITL, not an MCP mint server.
+ADR 008) is wired but still needs its live smoke before it should be called live-proven. The Workflow
+decision is locked: PathForward is not using Agent Framework Workflow as an architecture surface.
+Externally hosted MCP/Hosted approval for the Orchestrator route remains a follow-up; the current
+approval proof is local/runtime, not an MCP mint server.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

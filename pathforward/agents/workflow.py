@@ -1,4 +1,11 @@
-"""PathForward as a Microsoft Agent Framework Workflow (P7) — the reasoning chain expressed as an
+"""LOCKED OUT / HISTORICAL REFERENCE ONLY.
+
+Per user instruction on 2026-06-09, PathForward is NOT using Agent Framework Workflow as an
+architecture surface. Do not build on this module, add dependencies for it, or cite it as product
+architecture unless the user explicitly re-authorizes Workflow. The active architecture is the
+Foundry-visible `/pathforward` Orchestrator Skill route.
+
+PathForward as a Microsoft Agent Framework Workflow (P7) — the reasoning chain expressed as an
 explicit graph, with the trust boundary (the deterministic **assessment loop / Evidence Gate** and
 the credential **mint**) as code executor nodes that every credential-bearing path MUST traverse.
 
@@ -11,7 +18,7 @@ Two layers are deliberately separated so the trust proof never depends on a prev
    is a *developer-graph property, proven by a graph-shape test* — NOT a framework guarantee
    (`WorkflowBuilder.build()` validates type-compatibility/connectivity, not our trust invariant).
 
-2. A live ADOPT-LATER adapter (`build_foundry_workflow`, in `workflow_foundry.py`) that PROJECTS
+2. A locked-out historical adapter (`build_foundry_workflow`, in `workflow_foundry.py`) that PROJECTS
    that exact spec onto `agent_framework.WorkflowBuilder` — the assessment loop and the mint as
    deterministic `Executor`/`@handler` nodes, the reasoning steps as executors that delegate to our
    existing agents through the `LLMClient` seam, and the mint approval as a human-in-the-loop
@@ -62,9 +69,8 @@ PF_WORKFLOW_ENV = "PF_WORKFLOW"
 
 
 def workflow_enabled() -> bool:
-    """True iff the ADOPT-LATER Agent Framework Workflow track is explicitly switched on. Off by
-    default: the in-process `run_multiagent` is the always-green path; this flag opts a live run into
-    the GA-but-not-provisioned Workflow projection."""
+    """True iff the locked-out historical Workflow projection is explicitly switched on. Off by
+    default: the Orchestrator Skill route is the architecture path."""
     return os.environ.get(PF_WORKFLOW_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -413,11 +419,11 @@ def project_to_builder_plan(graph: WorkflowGraph) -> ProjectionPlan:
 
 
 # --------------------------------------------------------------------------------------------------
-# Layer 2b — the live ADOPT-LATER adapter (agent_framework imported lazily; offline-safe)
+# Layer 2b — the locked-out historical adapter (agent_framework imported lazily; offline-safe)
 # --------------------------------------------------------------------------------------------------
 
 def build_foundry_workflow(graph: "WorkflowGraph | None" = None, **kwargs):
-    """Project the graph onto a live `agent_framework` Workflow (the ADOPT-LATER track).
+    """Project the graph onto a live `agent_framework` Workflow (locked-out historical reference).
 
     Delegates to `pathforward.agents.workflow_foundry`, which is imported LAZILY here so this module
     (and the offline suite) never require `agent-framework`. If the SDK is absent, a clear,

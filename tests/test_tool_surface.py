@@ -33,8 +33,8 @@ class TestToolSurfaceContract(unittest.TestCase):
         workflow = decisions["agent-framework-workflow"]
         self.assertEqual(approval.status, "open-or-explicitly-defer")
         self.assertIn("Orchestrator-route", approval.surface)
-        self.assertEqual(workflow.status, "do-not-invest-without-user-authorization")
-        self.assertIn("Optional/reference", workflow.surface)
+        self.assertEqual(workflow.status, "locked-out-not-used")
+        self.assertIn("Locked-out", workflow.surface)
 
     def test_default_requirements_do_not_pull_in_workflow_projection(self):
         with open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8") as fh:
@@ -42,7 +42,12 @@ class TestToolSurfaceContract(unittest.TestCase):
         self.assertNotIn("agent-framework", requirements)
         self.assertNotIn("agent-framework-foundry", requirements)
 
+    def test_pyproject_does_not_advertise_workflow_extra(self):
+        with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as fh:
+            pyproject = fh.read()
+        self.assertNotIn("workflow = [", pyproject)
+        self.assertNotIn("agent-framework-foundry", pyproject)
+
 
 if __name__ == "__main__":
     unittest.main()
-

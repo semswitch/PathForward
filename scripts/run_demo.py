@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathforward.agents.adaptive import AdaptiveController                # noqa: E402
 from pathforward.agents.calibration import cold_start_calibrate          # noqa: E402
 from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
-from pathforward.agents import workflow as wf                            # noqa: E402
 from pathforward.config import load_settings                             # noqa: E402
 from pathforward.credential.mint import mint                             # noqa: E402
 from pathforward.iq import derivation as dv                              # noqa: E402
@@ -206,26 +205,11 @@ def main() -> None:
         print("  ^ every number above is recomputed by code from the SAME derivation as the credential;")
         print("    the agent only NARRATES it (cannot fabricate a statistic), and never touches the mint.")
 
-    rule("9. WORKFLOW TOPOLOGY  - the SAME chain as an Agent Framework graph (ADOPT-LATER)")
-    graph = wf.build_pathforward_graph()
-    print("  The in-process run_multiagent above IS the executed path (always-green). The Microsoft")
-    print("  Agent Framework Workflow track projects that SAME chain onto a graph, with the Evidence")
-    print(f"  Gate + mint as deterministic code executors. Flag: {wf.PF_WORKFLOW_ENV}="
-          f"{'on' if wf.workflow_enabled() else 'off'} (off -> in-process).")
-    trust_label = {wf.Trust.TRUST: "TRUST   ", wf.Trust.ADVISORY: "advisory", wf.Trust.SINK: "sink    "}
-    kind_label = {wf.NodeKind.AGENT: "agent       ", wf.NodeKind.EXECUTOR: "CODE EXEC   ",
-                  wf.NodeKind.REQUEST_INFO: "human (HITL)", wf.NodeKind.TERMINAL: "output sink "}
-    print("\n  nodes:")
-    for n in graph.nodes:
-        print(f"    [{trust_label[n.trust]}] {kind_label[n.kind]} {n.id}")
-    print("\n  no-bypass trust audit (developer-proven graph-shape property; plan section 9 / ADR 009):")
-    for p in wf.trust_audit(graph):
-        print(f"    {'PASS' if p.holds else 'FAIL'}  {p.key}")
-    print(f"    -> all hold: {wf.trust_holds(graph)}  "
-          f"(no path reaches the credential without the deterministic gate)")
-    print("  ^ Agent Framework Python is GA (1.0.0, 2026-04-02) but is not provisioned in this env;")
-    print("    by design the credential trust spine never hard-depends on the orchestrator, so the")
-    print("    in-process loop stays canonical and this is a flag-gated projection of the same chain.")
+    rule("9. ARCHITECTURE LOCK  - Orchestrator Skill is the path")
+    print("  Locked decision: PathForward is NOT using Agent Framework Workflow as the product path.")
+    print("  Mainline: Foundry-visible /pathforward Orchestrator Skill + specialist Skills, with")
+    print("  deterministic Evidence Gate and mint authorization in code.")
+    print("  The remaining approval/mint work must attach to the Orchestrator route, not Workflow.")
 
     rule("HERO METRICS  - on screen in the first 30s")
     verified_items = [t for t in loop_result.transcript if t["verdict"].passed]

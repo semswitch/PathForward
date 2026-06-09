@@ -1,4 +1,10 @@
-"""Live smoke for the Agent Framework Workflow track (P7).
+"""LOCKED OUT / HISTORICAL REFERENCE ONLY.
+
+Per user instruction on 2026-06-09, PathForward is NOT using Agent Framework Workflow as an
+architecture surface. Do not use this smoke as product proof or next-step work unless the user
+explicitly re-authorizes Workflow.
+
+Live smoke for the Agent Framework Workflow track (P7).
 
 Two gates:
   1. ALWAYS (offline, no SDK needed): the no-bypass trust audit over the workflow graph holds

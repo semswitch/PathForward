@@ -1,4 +1,10 @@
-"""P7 — the Agent Framework Workflow track's trust proof.
+"""LOCKED OUT / HISTORICAL REFERENCE ONLY.
+
+Per user instruction on 2026-06-09, PathForward is NOT using Agent Framework Workflow as an
+architecture surface. These tests remain only to ensure archived reference code cannot silently become
+unsafe if left in the repo.
+
+P7 — the Agent Framework Workflow track's trust proof.
 
 The Workflow track is a flag-gated projection of the SAME reasoning chain `run_multiagent` runs.
 Its trust claim is a DEVELOPER-PROVEN graph-shape property (plan §9 / ADR 009), NOT a framework

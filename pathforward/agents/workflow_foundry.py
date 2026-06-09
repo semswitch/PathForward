@@ -1,4 +1,11 @@
-"""Live ADOPT-LATER adapter: project the PathForward workflow graph onto a Microsoft Agent Framework
+"""LOCKED OUT / HISTORICAL REFERENCE ONLY.
+
+Per user instruction on 2026-06-09, PathForward is NOT using Agent Framework Workflow as an
+architecture surface. Do not build on this adapter, add dependencies for it, or cite it as product
+architecture unless the user explicitly re-authorizes Workflow. The active architecture is the
+Foundry-visible `/pathforward` Orchestrator Skill route.
+
+Locked-out historical adapter: project the PathForward workflow graph onto a Microsoft Agent Framework
 `Workflow`. This module hard-imports `agent_framework` and is therefore loaded LAZILY (only from
 `workflow.build_foundry_workflow`); the offline core never imports it, so the suite stays green
 without `agent-framework` installed.

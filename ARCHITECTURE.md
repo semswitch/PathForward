@@ -81,7 +81,8 @@ flowchart TB
 
 ## Multi-agent reasoning loop (implemented)
 
-The "Foundry Workflow" box is realized in code as `run_multiagent` (`pathforward/agents/orchestrator.py`):
+The Foundry/Agent control-surface box is realized in code as `run_multiagent`
+(`pathforward/agents/orchestrator.py`):
 **Curator → Generator → Critic → Evidence Gate (deterministic notary) → Planner → Program Insights**,
 agents doing the reasoning and code notarizing the trust boundary; the Critic agent before the gate
 is implemented and advisory-only (see ADR 006).
@@ -106,44 +107,16 @@ Foundry Skill from `pathforward-toolbox` (`scripts/smoke_toolbox_skill_live.py`)
 safety was re-measured with `scripts/eval_orchestrator_live.py` (16/16 grounded + spine-intact, 0.0%
 ASR on 16 attacks). Full-flow proof tracing is implemented in `scripts/trace_full_flow.py`.
 
-## Optional Reference: Agent Framework Workflow (flag-gated — ADR 009)
+## Locked Decision: Do Not Use Agent Framework Workflow
 
-The reasoning chain is **also** expressed as a Microsoft Agent Framework Workflow graph, behind the
-`PF_WORKFLOW` flag, so the trust boundary is a deterministic **code node** (which the Foundry
-portal/YAML Workflows product cannot express — no first-class code node, logic is Power Fx — so that
-product is **avoided for the trust path**). `pathforward/agents/workflow.py` holds a
-framework-agnostic graph spec; `workflow_foundry.py` projects it onto `agent_framework` (Python **GA
-1.0.0+**, 2026-04-02; smoke-tested here with SDK **1.8.0**), imported lazily so the offline suite
-stays green whether or not the optional SDK is installed. Per user instruction on 2026-06-09, this is
-optional/reference infrastructure only. The architecture work should continue on the Foundry-visible
-`/pathforward` Orchestrator Skill route, not on Workflow.
+Per user instruction on 2026-06-09, PathForward is **not** using Agent Framework Workflow as an
+architecture surface. The mainline architecture is the Foundry-visible `/pathforward` Orchestrator
+Skill route, with specialist Skills and direct Foundry prompt-agent Search/Fabric seams documented in
+`pathforward/tool_surface.py`.
 
-```
-  Curator (agent) ──assessable gap──▶ assess  [TRUST: run_assessment_loop + Evidence Gate]
-        │                                  │ verified                │ abstained (fail-closed)
-        │ no gap ─▶ ABSTAIN                ▼                          ▼
-        │                          Human approval (HITL)           ABSTAIN
-        │                          ctx.request_info()
-        │                              │ approve        │ refuse
-        │                              ▼                ▼
-        │                          Credential mint    ABSTAIN
-        │                          [TRUST] (approval wrapper + mint readiness/spine checks)
-        │                              ▼
-        │                          Credential issued
-        └─ advisory ─▶ Planner ─▶ Program Insights ─▶ advisory output   (never reaches the mint)
-```
-
-The trust claim is a **developer-proven graph-shape property** (NOT a framework guarantee — `build()`
-validates types/connectivity, not our invariant): a graph-shape test proves no path reaches `mint`
-without traversing the deterministic `assess` node (the cut-vertex), no agent writes the credential,
-and the gate oracle is `LocalNumericChecker`. The assessment loop is **one** deterministic executor
-that delegates to the existing `run_assessment_loop`, so `status="verified"` is still written in
-exactly one place (`loop.py`) — the Workflow never becomes a second trust authority. `run_multiagent`
-stays the always-green in-process spine. The `PF_WORKFLOW=1` smoke now exercises the Agent Framework
-HITL path: it emits an approval request, resumes with approval, routes through
-`credential.approval.mint_with_approval(...)`, and issues through the existing mint code. This proves
-the Workflow projection path; it does not make the Workflow the mainline product path and should not
-be used as the next parity target.
+Historical Workflow files may remain in the repository as archived reference/proof code, but they are
+not product architecture, not a dependency target, and not the next parity item. Do not build on them
+unless the user explicitly re-authorizes Workflow.
 
 ## Offline ↔ Azure boundary
 

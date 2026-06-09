@@ -84,11 +84,12 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="agent-framework-workflow",
-        surface="Optional/reference projection only",
-        status="do-not-invest-without-user-authorization",
+        surface="Locked-out historical reference only",
+        status="locked-out-not-used",
         rationale=(
-            "Workflow has a no-bypass graph proof and one HITL smoke, but the chosen architecture is "
-            "the Foundry-visible `/pathforward` Orchestrator Skill route."
+            "The user locked the decision on 2026-06-09: PathForward is not using Agent Framework "
+            "Workflow as an architecture surface. Keep old graph proof code only as historical "
+            "reference; do not build on it without explicit re-authorization."
         ),
         proof=(
             "pathforward/agents/workflow.py",
@@ -100,4 +101,3 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
 
 def decisions_by_capability() -> dict[str, ToolSurfaceDecision]:
     return {d.capability: d for d in TOOL_SURFACE_DECISIONS}
-

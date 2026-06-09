@@ -120,20 +120,12 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   existing telemetry path first: run `scripts/trace_full_flow.py` for the full proof artifact or
   `scripts/trace_demo.py` for the focused loop, then query Azure Monitor / Application Insights with
   the service-principal identity. It is evidence/demo telemetry, not part of the trust gate.
-- The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
-  `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
-  trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
-  bearing `assess` loop) is a **graph-shape test**, proven offline (`tests/test_workflow_graph.py`).
-  The live adapter `agents/workflow_foundry.py` projects that spec onto `agent_framework`
-  (GA 1.0.0+, SDK `1.8.0` installed here as of 2026-06-09) and is **imported lazily** so the offline
-  suite stays green with or without the optional SDK. `run_multiagent` remains the always-green
-  in-process spine; the portal/YAML Workflows product is deliberately AVOIDED for the trust path
-  (no first-class code node). `PF_WORKFLOW=1` was live-exercised on 2026-06-09 with Agent Framework
-  HITL: the workflow emitted the approval request, resumed with approval, routed mint through
-  `credential.approval.mint_with_approval(...)`, and issued a credential through the existing spine.
-  This proves the Workflow projection path, not the mainline product path. Per user instruction on
-  2026-06-09, do not spend further architecture effort on Workflow unless explicitly re-authorized;
-  keep it as optional/reference infrastructure.
+- **Workflow decision locked:** per user instruction on 2026-06-09, PathForward is **not** using
+  Agent Framework Workflow as an architecture surface. Historical files such as
+  `pathforward/agents/workflow.py`, `workflow_foundry.py`, `scripts/smoke_workflow_live.py`, and
+  `tests/test_workflow_graph.py` may remain as archived reference/proof code, but do not build on
+  them, cite them as product architecture, add dependencies for them, or use them as the next parity
+  target unless the user explicitly re-authorizes Workflow.
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
@@ -188,14 +180,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (`pathforward/agents/analyst.py`, real impl `CodeInterpreterAnalyst`). Real `LLMClient`:
   `FoundryLLMClient` / `ReasoningFoundryClient`. **Keep these interfaces identical** so the reasoning
   logic is unchanged when swapping. Do not bake fake-only assumptions into the loop.
-- The **Agent Framework Workflow** seam is `pathforward/agents/workflow.py` (the framework-agnostic
-  spec + the no-bypass `trust_audit`, always offline-safe) and `workflow_foundry.py` (the live
-  `agent_framework` projection, imported lazily only). The trust boundary in the Workflow is the
-  deterministic `assess` executor (reuses `run_assessment_loop` — the SOLE `status="verified"` writer)
-  and the `mint` executor (must route through `credential.approval.mint_with_approval(...)`, which
-  delegates to `credential.mint.mint`). **Never** let the Workflow track write `status="verified"`
-  itself, call raw mint without approval, or become a second trust authority; it must stay a
-  projection. It is optional/reference infrastructure only, not the path to keep investing in.
+- Historical Workflow files are locked-out reference only. The active architecture seam is the
+  `/pathforward` Orchestrator Skill route plus the deterministic trust spine.
 
 ## Invariants you must not break
 
