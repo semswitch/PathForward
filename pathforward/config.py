@@ -53,6 +53,7 @@ class Settings:
     azure_monitor_connection_string: str = ""         # App Insights conn string for OTel trace export
     fabric_workspace_id: str = ""
     fabric_artifact_id: str = ""
+    fabric_connection_name: str = ""                  # Foundry 'Microsoft Fabric' connection name (the data agent)
     voice_resource_endpoint: str = ""
     mcp_mint_url: str = ""
 
@@ -75,6 +76,7 @@ def load_settings(dotenv_path: str = ".env") -> Settings:
         azure_monitor_connection_string=g("AZURE_MONITOR_CONNECTION_STRING", ""),
         fabric_workspace_id=g("FABRIC_WORKSPACE_ID", ""),
         fabric_artifact_id=g("FABRIC_ARTIFACT_ID", ""),
+        fabric_connection_name=g("FABRIC_CONNECTION_NAME", ""),
         voice_resource_endpoint=g("VOICE_LIVE_ENDPOINT", ""),
         mcp_mint_url=g("MCP_MINT_URL", ""),
     )

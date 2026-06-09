@@ -13,15 +13,18 @@ program questions — "how does this worker compare to peers targeting the same 
 are the biggest bottlenecks across the cohort?", "which gaps can't even be certified?". Those are
 the cross-worker aggregates this agent reasons over.
 
-Trust posture (verified facts + scope in `.agents/decisions/007-program-insights-fabric-readpath.md`):
-  - constructed with ONLY an `LLMClient` — no handle to the Evidence Gate, `mint`, or a `LoopResult`;
-  - imports neither the gate nor `mint`;
-  - the live swap-in is `ReasoningFoundryClient` (tool-less reasoning agent), identical seam to the
-    Curator/Planner. The Fabric-live tier (a Fabric data agent over OneLake via
-    `MicrosoftFabricPreviewTool` attached to a `PromptAgentDefinition`, consumed over the same
-    Responses-API `agent_reference` shape these clients use; OBO identity; paid F2+ or P1+ capacity —
-    preview) would change `source` to 'fabric-live' and serve the same aggregates from governed
-    OneLake; the numbers are defined in `cohort.py` so the tiers reconcile.
+Two tiers (verified facts + scope in `.agents/decisions/007-program-insights-fabric-readpath.md`):
+  - FLOOR (`analyze`, source="derivation-floor"): the agent NARRATES code-computed aggregates over a
+    tool-less reasoning client (`FakeLLMClient` offline / `ReasoningFoundryClient` live). Zero Fabric.
+  - FABRIC-LIVE (`analyze_via_fabric`, source="fabric-live"): the agent ANSWERS the cohort question by
+    querying a published Fabric data agent over OneLake (NL2SQL, OBO) via `FabricInsightsClient`
+    (`MicrosoftFabricPreviewTool` on a `PromptAgentDefinition`, same Responses-API `agent_reference`
+    shape the other clients use; OBO identity; paid F2+/P1+; preview). `cohort.py` stays the
+    reconciliation ANCHOR — a Fabric answer that diverges from derivation is flagged, never trusted to
+    gate anything. Both tiers stay OFF the mint path.
+
+Trust posture: constructed with ONLY an `LLMClient` — no handle to the Evidence Gate, `mint`, or a
+`LoopResult`; imports neither the gate nor `mint`.
 """
 from __future__ import annotations
 
@@ -39,6 +42,16 @@ INS_INSTRUCTIONS = (
     "Write a concise `narrative` that explains, in plain language, how this worker stands relative to "
     "the cohort targeting the same role, what the cohort's biggest skill bottlenecks are, and why the "
     "chosen reskilling path is reasonable. The narrative is advisory and read-only."
+)
+
+# The Fabric-live tier: the model MUST consult the Fabric data agent (it owns the numbers here),
+# unlike the floor tier where code owns the numbers and the model only narrates them.
+FABRIC_INS_INSTRUCTIONS = (
+    f"{INSIGHTS_TAG} You are the PathForward Program Insights analyst with a Microsoft Fabric data "
+    "agent tool over the reskilling ontology (workers, skills, roles, certifications and their edges, "
+    "plus derived certgap and readiness, as a OneLake star-schema). For cohort/program questions, "
+    "ALWAYS query Fabric via the tool and base your answer ONLY on what it returns — do not guess "
+    "numbers. Write a concise, plain-language narrative. This output is advisory and read-only."
 )
 
 # strict=False on the live reasoning client, so the single-property schema is accepted as-is.
@@ -77,4 +90,33 @@ class ProgramInsightsAgent:
             worker_id=worker.id, role_id=role.id,
             role_cohort=rc.to_doc(), worker_comparison=wc.to_doc(), program=prog.to_doc(),
             narrative=narrative, source="derivation-floor",
+        )
+
+    def analyze_via_fabric(self, worker: Worker, role: Role, onto: Ontology) -> ProgramInsights:
+        """FABRIC-LIVE tier: the model answers the cohort question by querying the published Fabric
+        data agent (NL2SQL over OneLake, OBO). Use with a `FabricInsightsClient`. The code-owned
+        `cohort.py` aggregates are still computed and returned as the reconciliation ANCHOR — Fabric is
+        advisory and never gates anything (this method never touches the Evidence Gate or mint)."""
+        # Reconciliation anchor (single derivation source) — returned alongside the live narrative.
+        rc = cohort.role_cohort(onto, role.id)
+        wc = cohort.worker_vs_cohort(onto, worker.id)
+        prog = cohort.program_aggregates(onto)
+
+        question = (
+            f"Using the connected Fabric data, analyze the cohort of workers targeting the role "
+            f"'{role.name}' (role id {role.id}). Report: (1) how many workers target this role; "
+            f"(2) their average readiness, where readiness = covered required skills / total required "
+            f"skills per worker; (3) the required skills missing for the most workers (top "
+            f"bottlenecks). Then state how worker {worker.id} compares to that cohort."
+        )
+        resp = self.client.respond(FABRIC_INS_INSTRUCTIONS, question)
+        parsed = resp.parsed or {}
+        # The Fabric tier returns free-text NL2SQL answers; take the narrative (parsed.narrative if a
+        # schema was used, else the raw output). The numbers below remain the code-owned anchor.
+        narrative = str(parsed.get("narrative") or resp.output_text or "")
+
+        return ProgramInsights(
+            worker_id=worker.id, role_id=role.id,
+            role_cohort=rc.to_doc(), worker_comparison=wc.to_doc(), program=prog.to_doc(),
+            narrative=narrative, source="fabric-live",
         )
