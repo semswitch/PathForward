@@ -71,6 +71,7 @@ Live proof scripts run from the project virtualenv when Azure/Fabric are configu
 .venv\Scripts\python.exe scripts\smoke_orchestrator_live.py
 .venv\Scripts\python.exe scripts\build_toolbox.py --recreate
 .venv\Scripts\python.exe scripts\smoke_toolbox_skill_live.py
+.venv\Scripts\python.exe scripts\eval_orchestrator_live.py --no-judge
 $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
 .venv\Scripts\python.exe scripts\run_demo.py --live
@@ -103,8 +104,9 @@ Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a 
 and live-smoke-proven through `scripts/smoke_orchestrator_live.py`. ✅ The `/pathforward` Foundry
 Skill is sourced from `skills/pathforward/SKILL.md`, registered into `pathforward-toolbox`, read back
 through toolbox MCP resources, and consumed by the live Orchestrator path through
-`scripts/smoke_toolbox_skill_live.py`; Orchestrator-specific red-team / groundedness re-measure is
-still pending. ✅ Offline suite is green
+`scripts/smoke_toolbox_skill_live.py`. ✅ Skill-loaded Orchestrator safety has its own live scorecards:
+`scripts/eval_orchestrator_live.py --no-judge` produced 16/16 grounded + spine-intact and 0.0% ASR
+(16/16 defenses held, including Orchestrator route attacks). ✅ Offline suite is green
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is

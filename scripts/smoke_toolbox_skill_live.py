@@ -16,13 +16,8 @@ Foundry MCP readback is the runtime-consumption evidence.
 """
 from __future__ import annotations
 
-import json
 import os
 import sys
-from dataclasses import dataclass
-from typing import Any
-
-import httpx
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
@@ -44,6 +39,7 @@ from pathforward.credential.mint import mint  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
+from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
 from generate_data import _learner_responses  # noqa: E402
 
 TOOLBOX_NAME = "pathforward-toolbox"
@@ -53,93 +49,6 @@ CURATOR_AGENT = "pathforward-curator-skill"
 PLANNER_AGENT = "pathforward-planner-skill"
 CRITIC_AGENT = "pathforward-critic-skill"
 INSIGHTS_AGENT = "pathforward-insights-skill"
-TOKEN_SCOPE = "https://ai.azure.com/.default"
-
-
-@dataclass
-class McpResponse:
-    result: dict[str, Any]
-    session_id: str = ""
-
-
-class ToolboxMcpClient:
-    def __init__(self, endpoint: str, toolbox_name: str = TOOLBOX_NAME):
-        self.url = f"{endpoint.rstrip('/')}/toolboxes/{toolbox_name}/mcp?api-version=v1"
-        self.session_id = ""
-        self._next_id = 1
-
-    @staticmethod
-    def _token() -> str:
-        from azure.identity import DefaultAzureCredential
-        return DefaultAzureCredential().get_token(TOKEN_SCOPE).token
-
-    def _headers(self) -> dict[str, str]:
-        headers = {
-            "Authorization": f"Bearer {self._token()}",
-            "Accept": "application/json, text/event-stream",
-            "Content-Type": "application/json",
-            "Foundry-Features": "Toolboxes=V1Preview",
-        }
-        if self.session_id:
-            headers["mcp-session-id"] = self.session_id
-        return headers
-
-    @staticmethod
-    def _parse_response(resp: httpx.Response) -> dict[str, Any]:
-        text = resp.text.strip()
-        if not text:
-            return {}
-        if "text/event-stream" in resp.headers.get("content-type", ""):
-            payloads = []
-            for line in text.splitlines():
-                line = line.strip()
-                if line.startswith("data:"):
-                    payloads.append(line.partition(":")[2].strip())
-            text = payloads[-1] if payloads else "{}"
-        return json.loads(text)
-
-    def call(self, method: str, params: dict[str, Any] | None = None) -> McpResponse:
-        rid = self._next_id
-        self._next_id += 1
-        payload: dict[str, Any] = {"jsonrpc": "2.0", "id": rid, "method": method}
-        if params is not None:
-            payload["params"] = params
-        resp = httpx.post(self.url, headers=self._headers(), json=payload, timeout=60.0)
-        if resp.status_code >= 400:
-            raise RuntimeError(f"MCP {method} failed: HTTP {resp.status_code}: {resp.text[:1000]}")
-        if sid := resp.headers.get("mcp-session-id"):
-            self.session_id = sid
-        parsed = self._parse_response(resp)
-        if "error" in parsed:
-            raise RuntimeError(f"MCP {method} error: {parsed['error']}")
-        return McpResponse(result=parsed.get("result") or {}, session_id=self.session_id)
-
-    def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
-        payload: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
-        if params is not None:
-            payload["params"] = params
-        resp = httpx.post(self.url, headers=self._headers(), json=payload, timeout=60.0)
-        if resp.status_code >= 400:
-            raise RuntimeError(f"MCP notification {method} failed: HTTP {resp.status_code}: {resp.text[:1000]}")
-
-    def initialize(self) -> dict[str, Any]:
-        init = self.call("initialize", {
-            "protocolVersion": "2025-06-18",
-            "capabilities": {},
-            "clientInfo": {"name": "pathforward-toolbox-skill-smoke", "version": "0.1.0"},
-        })
-        self.notify("notifications/initialized")
-        return init.result
-
-
-def _read_skill_content(result: dict[str, Any]) -> str:
-    contents = result.get("contents") or []
-    parts: list[str] = []
-    for item in contents:
-        text = item.get("text") if isinstance(item, dict) else None
-        if text:
-            parts.append(text)
-    return "\n\n".join(parts).strip()
 
 
 def main() -> int:
@@ -149,30 +58,16 @@ def main() -> int:
         return 0
 
     print(f"toolbox={TOOLBOX_NAME} skill={SKILL_NAME}")
-    mcp = ToolboxMcpClient(settings.foundry_project_endpoint)
-    init = mcp.initialize()
-    print(f"initialized: protocol={init.get('protocolVersion') or '(unspecified)'} session={bool(mcp.session_id)}")
-
-    tools = mcp.call("tools/list").result.get("tools") or []
-    tool_names = [t.get("name") or t.get("type") or "(unnamed)" for t in tools if isinstance(t, dict)]
+    skill_content, mcp_evidence = read_skill_from_toolbox(settings.foundry_project_endpoint,
+                                                          TOOLBOX_NAME, SKILL_NAME)
+    print(f"initialized: protocol={mcp_evidence.get('protocol') or '(unspecified)'}")
+    tool_names = mcp_evidence["tools"]
     print(f"tools/list: {tool_names}")
-
-    resources = mcp.call("resources/list").result.get("resources") or []
-    resource_uris = [r.get("uri") for r in resources if isinstance(r, dict)]
-    print(f"resources/list: {resource_uris}")
-    expected_prefix = f"skill://{SKILL_NAME}"
-    skill_uri = next((uri for uri in resource_uris
-                      if uri == expected_prefix or uri == f"{expected_prefix}/SKILL.md"), "")
-    if not skill_uri:
-        print(f"FAIL: no {expected_prefix} resource listed by toolbox MCP resources")
-        return 1
-
-    read = mcp.call("resources/read", {"uri": skill_uri}).result
-    skill_content = _read_skill_content(read)
+    print(f"resources/list: {mcp_evidence['resources']}")
     if "PathForward Orchestrator Skill" not in skill_content:
         print("FAIL: resources/read did not return the expected /pathforward skill body")
         return 1
-    print(f"resources/read: {skill_uri} chars={len(skill_content)}")
+    print(f"resources/read: {mcp_evidence['skill_uri']} chars={len(skill_content)}")
 
     orchestrator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
                                                  agent_name=ORCHESTRATOR_AGENT,

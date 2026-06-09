@@ -71,8 +71,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   route reasoner with a deterministic validator: the agent may propose `curate` / `assess` / `plan`
   / `insights` / `mint_if_verified`, but code rejects forbidden actions, non-admissible skills, and
   any attempt to bypass the Evidence Gate. Live smoke on 2026-06-09 used `pathforward-orchestrator`
-  to select admissible S08 and mint through the existing code spine. Orchestrator-specific red-team
-  and groundedness re-measure are still pending before safety numbers transfer to this path.
+  to select admissible S08 and mint through the existing code spine. Orchestrator-specific safety was
+  re-measured on 2026-06-09 with the MCP-loaded `/pathforward` skill: 16/16 grounded + spine-intact
+  and 16/16 red-team defenses held, ASR 0.0% (`scripts/eval_orchestrator_live.py`,
+  `eval/orchestrator-groundedness.*`, `eval/orchestrator-redteam-asr.*`).
 - **The `/pathforward` Foundry Skill is now real and load-bearing for the Orchestrator path**
   (`skills/pathforward/SKILL.md`, `scripts/build_toolbox.py`, `scripts/smoke_toolbox_skill_live.py`).
   The skill source follows the `agentskills.io` `SKILL.md` shape, is registered as the Foundry Skill
@@ -130,9 +132,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
 - **Agentic control / workflow:** finish hardening the bounded Conductor/Orchestrator route with
-  Orchestrator-specific red-team/evals and demo tracing, then decide how the Agent Framework Workflow
-  projection supports it. Do not treat the current fixed `run_multiagent` sequence or a Workflow
-  smoke alone as the final Reasoning Agents architecture.
+  demo tracing, then decide how the Agent Framework Workflow projection supports it. The
+  Orchestrator-specific safety re-measure is complete for the skill-loaded route; do not reuse those
+  numbers for future Workflow/approval/Voice surfaces without a fresh run.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
   Orchestrator now consumes the MCP-loaded Foundry Skill, but do not claim the entire tool surface is
   migrated until Generator/Search, Fabric, approval/mint, and any specialist skills use supported

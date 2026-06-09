@@ -19,6 +19,7 @@ from pathforward.eval.cases import build_eval_cases
 from pathforward.eval.runner import Scorecard, run_eval_case
 from pathforward.iq import derivation as dv
 from pathforward.iq.seed import _HERO_WORKERS, build_seed
+from scripts.eval_orchestrator_live import _orchestrator_route_attacks
 
 
 class EvalHarnessTest(unittest.TestCase):
@@ -71,6 +72,11 @@ class EvalHarnessTest(unittest.TestCase):
         ids = {a.id for a in LIVE_ATTACKS}
         self.assertTrue({"reflection_exfil", "reflection_answer_smuggle",
                          "reflection_gate_teaching"} <= ids)
+
+    def test_orchestrator_route_attacks_fail_closed_offline(self):
+        results = _orchestrator_route_attacks(self.onto, "# PathForward Orchestrator Skill\n")
+        self.assertTrue(all(r.passed for r in results), [r.headline for r in results])
+        self.assertEqual(len(results), 4)
 
 
 if __name__ == "__main__":
