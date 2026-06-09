@@ -103,8 +103,11 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
   `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
   The **live Fabric data-agent tier is now proven** through `scripts/smoke_fabric_live.py`
-  (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). Voice Live and MCP mint
-  remain config-only.
+  (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). A local governed mint
+  approval wrapper exists (`pathforward/credential/approval.py`): it emits a reviewable
+  `require_approval="always"` request, fails closed on denial or replay/tamper, then delegates to
+  `mint()` so readiness/spine checks still run. Voice Live and externally hosted MCP mint remain
+  config-only.
 - OpenTelemetry is a live-capable proof layer. `scripts/trace_demo.py` prints the focused
   assessment-loop trace; `scripts/trace_full_flow.py` prints the Orchestrator-driven proof trace
   including Skill load, Orchestrator routing, Curator, Generator, Critic, adaptive band, bounded
@@ -151,6 +154,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   surface is migrated until Generator/Search, Fabric, approval/mint, and other tools use supported
   Foundry Skill/Toolbox/MCP/Agent Framework/Hosted Agent surfaces rather than direct-attached tools
   as the primary product path.
+- **Approval/mint:** preserve `pathforward/credential/approval.py` as the runtime approval gate for
+  mint. Microsoft docs state MCP/Toolbox `require_approval` is runtime-enforced, not endpoint-
+  enforced; any future MCP/Agent Framework surface must route through this wrapper and then through
+  `credential.mint.mint()`.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
@@ -188,6 +195,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   approved corpus AND actually returned by the retrieval tool trace. This is the anti-bluff core.
 - **Fail-closed**: exhausting attempts (N=3) → **ABSTAIN**, never a silent pass.
 - **Causal spine**: the minted credential cites the SAME driving CertGap edge.
+- **Mint approval**: approval denial, missing approval, request replay, or request mismatch fails
+  closed before `mint()`; approval never replaces `mint()`'s readiness/spine checks.
 - **Voice/text parity**: one scorer over `FinalTurnTranscript` (`pathforward/scorer.py`).
 - The **offline test suite must stay green**: `python -m unittest discover -s tests -t .`.
 

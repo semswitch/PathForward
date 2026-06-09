@@ -71,6 +71,7 @@ Live proof scripts run from the project virtualenv when Azure/Fabric are configu
 .venv\Scripts\python.exe scripts\smoke_orchestrator_live.py
 .venv\Scripts\python.exe scripts\build_toolbox.py --recreate
 .venv\Scripts\python.exe scripts\smoke_toolbox_skill_live.py
+.venv\Scripts\python.exe scripts\smoke_mint_approval.py
 .venv\Scripts\python.exe scripts\eval_orchestrator_live.py --no-judge
 $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
@@ -86,7 +87,7 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 |---|---|
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
 | `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and the **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
-| `pathforward/credential/` | the W3C VC 2.0-aligned proof + the causal-spine mint |
+| `pathforward/credential/` | the W3C VC 2.0-aligned proof, governed approval wrapper, and causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
 | `scripts/` | data generation, mirror build, the offline demo |
 | `skills/pathforward*/SKILL.md` | the `agentskills.io` sources for the Foundry `/pathforward` Orchestrator skill and specialist Curator/Assessment/Planner/Insights skills |
@@ -109,7 +110,9 @@ through toolbox MCP resources, and consumed by the live Orchestrator path throug
 `scripts/eval_orchestrator_live.py --no-judge` produced 16/16 grounded + spine-intact and 0.0% ASR
 (16/16 defenses held, including Orchestrator route attacks). ✅ Specialist Skill files for Curator,
 Assessment, Planner, and Insights are registered in the Foundry toolbox and read through MCP by
-`scripts/smoke_toolbox_skill_live.py`. ✅ `scripts/trace_full_flow.py` now
+`scripts/smoke_toolbox_skill_live.py`. ✅ The local governed mint approval wrapper is implemented:
+`scripts/smoke_mint_approval.py` proves review request, denied fail-closed path, approved mint, and
+spine preservation. ✅ `scripts/trace_full_flow.py` now
 shows the proof trace for Skill load, Orchestrator routing, Curator, Generator, Critic,
 adaptive/reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and fail-closed ABSTAIN;
 it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ Offline suite is green
@@ -119,6 +122,8 @@ ADR 008) is wired but still needs its live smoke before it should be called live
 also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0),
 with a no-bypass graph-shape test as the trust proof and `run_multiagent` as the canonical
 in-process spine; live Workflow execution still requires `PF_WORKFLOW=1` + SDK/Azure smoke proof.
+Externally hosted MCP/HITL mint remains a follow-up; the current approval proof is local/runtime
+enforcement, not a hosted MCP server.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 
