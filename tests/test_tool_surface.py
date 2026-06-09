@@ -8,13 +8,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class TestToolSurfaceContract(unittest.TestCase):
-    def test_mainline_is_orchestrator_skill_route(self):
-        self.assertEqual(MAINLINE_ROUTE, "foundry-orchestrator-skill")
+    def test_mainline_is_hosted_orchestrator_route(self):
+        self.assertEqual(MAINLINE_ROUTE, "foundry-hosted-orchestrator")
         decisions = decisions_by_capability()
         self.assertEqual(
-            decisions["orchestrator-and-specialist-skills"].status,
-            "mainline",
+            decisions["hosted-orchestrator"].status,
+            "mainline-local-proven-live-pending",
         )
+        self.assertEqual(decisions["orchestrator-and-specialist-skills"].status,
+                         "mainline-supporting-surface")
 
     def test_generator_and_fabric_direct_tools_are_explicit_foundry_seams(self):
         decisions = decisions_by_capability()
@@ -31,8 +33,8 @@ class TestToolSurfaceContract(unittest.TestCase):
         decisions = decisions_by_capability()
         approval = decisions["credential-approval"]
         workflow = decisions["agent-framework-workflow"]
-        self.assertEqual(approval.status, "open-or-explicitly-defer")
-        self.assertIn("Orchestrator-route", approval.surface)
+        self.assertEqual(approval.status, "hosted-local-proven-live-pending")
+        self.assertIn("Hosted Agent", approval.surface)
         self.assertEqual(workflow.status, "locked-out-not-used")
         self.assertIn("Locked-out", workflow.surface)
 

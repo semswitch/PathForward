@@ -81,6 +81,14 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\trace_full_flow.py  # Orchestrator + full reasoning trace
 ```
 
+Hosted Agent surface:
+
+```powershell
+python -m unittest tests.test_hosted_orchestrator -v
+python -m py_compile pathforward\hosted_orchestrator.py hosted\pathforward_orchestrator\main.py
+# Deploy next from agent.yaml/Dockerfile once the local hosted package is ready for Azure.
+```
+
 ## Layout
 
 | Path | What |
@@ -88,8 +96,11 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
 | `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, and calibration |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof, governed approval wrapper, and causal-spine mint |
+| `pathforward/hosted_orchestrator.py` | the testable core for the Foundry Hosted Agent top-level Orchestrator route |
+| `hosted/pathforward_orchestrator/` | the `responses` protocol adapter and hosted-agent runtime requirements |
+| `agent.yaml` / `Dockerfile` | Foundry Hosted Agent manifest and container packaging for `pathforward-orchestrator` |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
-| `pathforward/tool_surface.py` | the checked mainline tool-surface contract for `/pathforward`: Toolbox-loaded Skills, direct Foundry Search/Fabric prompt-agent seams, open approval surface, and Workflow locked out |
+| `pathforward/tool_surface.py` | the checked mainline tool-surface contract for the Hosted `/pathforward` Orchestrator route, Toolbox-loaded Skills, direct Foundry Search/Fabric specialist seams, and Workflow lockout |
 | `scripts/` | data generation, mirror build, the offline demo |
 | `skills/pathforward*/SKILL.md` | the `agentskills.io` sources for the Foundry `/pathforward` Orchestrator skill and specialist Curator/Assessment/Planner/Insights skills |
 | `tests/` | the guarantees (derived-edge correctness, loop termination, citations-survive, parity, credential integrity) |
@@ -98,7 +109,11 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 
 ## Status
 
-✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
+✅ Hosted Agent top-level Orchestrator scaffold is implemented: `agent.yaml`, `Dockerfile`,
+`hosted/pathforward_orchestrator/main.py`, and `pathforward/hosted_orchestrator.py` package the
+existing `/pathforward` route as a Foundry `responses`-protocol Hosted Agent. Local proof
+(`tests/test_hosted_orchestrator.py`) verifies the route requests mint approval and only mints with
+explicit runtime approval. Live Foundry deployment/invocation/evals are still pending. ✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
 run through `scripts/smoke_multiagent_live.py`; the deterministic Evidence Gate and mint remain the
 trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_live.py` using the
 Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a live mode
@@ -121,8 +136,8 @@ it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ O
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The Workflow
 decision is locked: PathForward is not using Agent Framework Workflow as an architecture surface.
-Externally hosted MCP/Hosted approval for the Orchestrator route remains a follow-up; the current
-approval proof is local/runtime, not an MCP mint server.
+Hosted Agent live deployment, invocation smoke, and Foundry evals are the next proof step; do not
+call the hosted route live-proven until that happens.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

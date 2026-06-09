@@ -58,6 +58,14 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 ## Current state → Target state
 
 **Current (verified 2026-06-09):**
+- **Hosted Agent top-level Orchestrator scaffold is implemented locally** (`agent.yaml`,
+  `Dockerfile`, `hosted/pathforward_orchestrator/main.py`, `pathforward/hosted_orchestrator.py`).
+  Microsoft docs verified on 2026-06-09: Hosted Agents are versioned containerized agents with
+  built-in observability and Toolbox MCP access through the hosted container runtime. PathForward now
+  has a `responses`-protocol Hosted Agent wrapper that packages the existing `/pathforward`
+  Orchestrator route, loads Skills, runs the real multi-agent loop, emits a governed mint approval
+  request, and only mints when explicit runtime approval is provided. This is **local/offline-proven**
+  by `tests/test_hosted_orchestrator.py`; it is **not yet live-deployed or Foundry-eval-proven**.
 - **Five code-orchestrated reasoning agents** — Curator, Generator, Critic, Planner, and the
   read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
@@ -140,10 +148,11 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 - **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
-- **Agentic control:** keep hardening the bounded Conductor/Orchestrator route as the mainline
-  `/pathforward` Skill surface. The Orchestrator-specific safety re-measure is complete for the
-  skill-loaded route; do not reuse those numbers for future approval/Voice surfaces without a fresh
-  run.
+- **Agentic control:** the top-level product surface is now the versioned **Foundry Hosted Agent**
+  `pathforward-orchestrator`, not a prompt-agent smoke script. Keep hardening the bounded
+  Conductor/Orchestrator route inside that hosted surface. The older Orchestrator-specific safety
+  re-measure is complete for the skill-loaded prompt-agent route; do not reuse those numbers for the
+  Hosted Agent route until the hosted deployment is invoked and re-evaluated.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
   Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are
   live-registered/read from Foundry and wired for runtime injection. The current tool-surface
@@ -153,9 +162,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   reconciled against code-owned aggregates. Do not re-open those as migration work without explicit
   user authorization. The real open tool surface is Orchestrator-route approval/mint.
 - **Approval/mint:** preserve `pathforward/credential/approval.py` as the runtime approval gate for
-  mint. Microsoft docs state MCP/Toolbox `require_approval` is runtime-enforced, not endpoint-
-  enforced; any future Orchestrator-route MCP/Hosted approval surface must route through this wrapper
-  and then through `credential.mint.mint()`.
+  mint. The Hosted Agent wrapper must route every credential request through this wrapper and then
+  through `credential.mint.mint()`; a natural-language model response must never directly approve or
+  issue a credential. Live Hosted Agent deployment/evals must include both approval-denied and
+  approval-approved cases.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
@@ -181,7 +191,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   `FoundryLLMClient` / `ReasoningFoundryClient`. **Keep these interfaces identical** so the reasoning
   logic is unchanged when swapping. Do not bake fake-only assumptions into the loop.
 - Historical Workflow files are locked-out reference only. The active architecture seam is the
-  `/pathforward` Orchestrator Skill route plus the deterministic trust spine.
+  Foundry Hosted Agent `pathforward-orchestrator` loading the `/pathforward` Skill plus the
+  deterministic trust spine.
 
 ## Invariants you must not break
 
@@ -201,6 +212,11 @@ python scripts/generate_data.py            # synthetic ontology + responses -> d
 python scripts/build_mirror.py             # materialize the Search-mirror docs
 python scripts/run_demo.py                 # offline end-to-end demo (hero worker EMP-001)
 python -m unittest discover -s tests -t .  # the guarantees (derivation, loop, gate, parity, credential)
+```
+Hosted Agent local proof:
+```bash
+python -m unittest tests.test_hosted_orchestrator -v
+python -m py_compile pathforward/hosted_orchestrator.py hosted/pathforward_orchestrator/main.py
 ```
 Task runner: `./tasks.ps1 test|demo` (Windows) or `make test|demo`.
 Web UI: `cd web && npm install && npm run dev` (reads `web/src/lib/fixture.json`; regenerate with

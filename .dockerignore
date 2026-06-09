@@ -1,0 +1,16 @@
+.agents/
+.azure/
+.claude/
+.git/
+.kiro/
+.venv/
+.vscode/
+.worktrees/
+__pycache__/
+*.pyc
+data/generated/
+web/node_modules/
+web/dist/
+web/.vite/
+.env
+.env.local

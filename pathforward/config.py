@@ -14,6 +14,16 @@ import os
 from dataclasses import dataclass
 
 
+def _env_value(name: str, default: str = "") -> str:
+    value = os.environ.get(name, default)
+    stripped = value.strip()
+    if stripped.startswith("${") and stripped.endswith("}"):
+        return default
+    if stripped.startswith("{{") and stripped.endswith("}}"):
+        return default
+    return value
+
+
 def _load_dotenv(path: str = ".env") -> None:
     if not os.path.exists(path):
         return
@@ -64,19 +74,24 @@ class Settings:
 
 def load_settings(dotenv_path: str = ".env") -> Settings:
     _load_dotenv(dotenv_path)
-    g = os.environ.get
     return Settings(
-        region=g("PATHFORWARD_REGION", "eastus2"),
-        model_deployment=g("AZURE_AI_MODEL_DEPLOYMENT", "reasoning"),
-        foundry_project_endpoint=g("AZURE_AI_PROJECT_ENDPOINT", ""),
-        search_endpoint=g("AZURE_SEARCH_ENDPOINT", ""),
-        search_index=g("AZURE_SEARCH_INDEX", "pathforward-iq"),
-        rai_policy=g("AZURE_RAI_POLICY", ""),
-        eval_judge_api_version=g("EVAL_JUDGE_API_VERSION", "2025-01-01-preview"),
-        azure_monitor_connection_string=g("AZURE_MONITOR_CONNECTION_STRING", ""),
-        fabric_workspace_id=g("FABRIC_WORKSPACE_ID", ""),
-        fabric_artifact_id=g("FABRIC_ARTIFACT_ID", ""),
-        fabric_connection_name=g("FABRIC_CONNECTION_NAME", ""),
-        voice_resource_endpoint=g("VOICE_LIVE_ENDPOINT", ""),
-        mcp_mint_url=g("MCP_MINT_URL", ""),
+        region=_env_value("PATHFORWARD_REGION", "eastus2"),
+        model_deployment=_env_value(
+            "AZURE_AI_MODEL_DEPLOYMENT",
+            _env_value("AZURE_AI_MODEL_DEPLOYMENT_NAME", "reasoning"),
+        ),
+        foundry_project_endpoint=_env_value(
+            "AZURE_AI_PROJECT_ENDPOINT",
+            _env_value("FOUNDRY_PROJECT_ENDPOINT", ""),
+        ),
+        search_endpoint=_env_value("AZURE_SEARCH_ENDPOINT", ""),
+        search_index=_env_value("AZURE_SEARCH_INDEX", "pathforward-iq"),
+        rai_policy=_env_value("AZURE_RAI_POLICY", ""),
+        eval_judge_api_version=_env_value("EVAL_JUDGE_API_VERSION", "2025-01-01-preview"),
+        azure_monitor_connection_string=_env_value("AZURE_MONITOR_CONNECTION_STRING", ""),
+        fabric_workspace_id=_env_value("FABRIC_WORKSPACE_ID", ""),
+        fabric_artifact_id=_env_value("FABRIC_ARTIFACT_ID", ""),
+        fabric_connection_name=_env_value("FABRIC_CONNECTION_NAME", ""),
+        voice_resource_endpoint=_env_value("VOICE_LIVE_ENDPOINT", ""),
+        mcp_mint_url=_env_value("MCP_MINT_URL", ""),
     )

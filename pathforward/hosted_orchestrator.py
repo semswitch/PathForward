@@ -1,0 +1,233 @@
+"""Hosted Agent entrypoint logic for the PathForward Orchestrator.
+
+This module is intentionally independent of the Foundry hosting adapter. It builds the same
+Orchestrator -> Curator -> Generator/Critic/Evidence Gate -> Planner -> Insights route used by the
+smoke scripts, then returns a serializable response for the hosted `responses` protocol wrapper.
+The hosted wrapper may expose this in Foundry, but the trust-bearing checks stay here.
+"""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from .agents.adaptive import AdaptiveController
+from .agents.calibration import cold_start_calibrate
+from .agents.client import FakeLLMClient
+from .agents.conductor import Orchestrator
+from .agents.critic import Critic
+from .agents.curator import Curator
+from .agents.evidence_gate import EvidenceGate
+from .agents.generator import Generator
+from .agents.insights import ProgramInsightsAgent
+from .agents.numeric import LocalNumericChecker
+from .agents.orchestrator import run_orchestrated_multiagent
+from .agents.planner import Planner
+from .config import Settings, load_settings
+from .credential.approval import (
+    MintApprovalDecision,
+    MintApprovalError,
+    mint_with_approval,
+    request_mint_approval,
+)
+from .iq import derivation as dv
+from .iq.seed import HERO_WORKER_ID, build_seed
+from .skills import read_skill_file
+
+_ROOT = Path(__file__).resolve().parent.parent
+_TOOLBOX_NAME = "pathforward-toolbox"
+_SKILL_NAMES = (
+    "pathforward",
+    "pathforward-curate",
+    "pathforward-assess",
+    "pathforward-plan",
+    "pathforward-insights",
+)
+
+
+@dataclass(frozen=True)
+class HostedRequest:
+    """A single hosted Orchestrator request.
+
+    `approve_mint` is runtime/user approval, not model approval. Natural-language prompts should
+    request an approval packet first; callers may explicitly set this flag only when they are acting
+    as the approval surface.
+    """
+
+    message: str
+    worker_id: str = HERO_WORKER_ID
+    approve_mint: bool = False
+    approver: str = "hosted-agent-runtime"
+    mode: str = "auto"  # auto | live | offline
+
+
+def _local_skill_bodies() -> dict[str, str]:
+    bodies: dict[str, str] = {}
+    for name in _SKILL_NAMES:
+        bodies[name] = read_skill_file(_ROOT / "skills" / name / "SKILL.md").instructions
+    return bodies
+
+
+def _resolve_mode(settings: Settings, requested: str) -> str:
+    mode = (requested or "auto").strip().lower()
+    if mode not in {"auto", "live", "offline"}:
+        raise ValueError(f"unsupported hosted mode: {requested!r}")
+    if mode == "auto":
+        return "live" if settings.foundry_project_endpoint else "offline"
+    if mode == "live" and not settings.foundry_project_endpoint:
+        raise RuntimeError("PATHFORWARD_HOSTED_MODE=live requires FOUNDRY_PROJECT_ENDPOINT")
+    return mode
+
+
+def _load_live_skill_bodies(settings: Settings) -> tuple[dict[str, str], dict[str, Any]]:
+    from .toolbox_mcp import read_skills_from_toolbox
+
+    toolbox = os.getenv("PATHFORWARD_TOOLBOX_NAME", _TOOLBOX_NAME)
+    bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
+                                                toolbox, _SKILL_NAMES)
+    return bodies, {"source": "foundry-toolbox-mcp", "toolbox": toolbox, **evidence}
+
+
+def _build_clients(settings: Settings, mode: str, skill_bodies: dict[str, str]):
+    if mode == "offline":
+        fake = FakeLLMClient()
+        return {
+            "orchestrator": fake,
+            "curator": fake,
+            "generator": fake,
+            "critic": fake,
+            "planner": fake,
+            "insights": fake,
+        }, ()
+
+    from .agents.foundry import FabricInsightsClient, FoundryLLMClient, ReasoningFoundryClient
+
+    clients: dict[str, Any] = {
+        "orchestrator": ReasoningFoundryClient(settings.foundry_project_endpoint,
+                                               "pathforward-hosted-orchestrator",
+                                               settings.model_deployment),
+        "curator": ReasoningFoundryClient(settings.foundry_project_endpoint,
+                                          "pathforward-hosted-curator",
+                                          settings.model_deployment),
+        "generator": FoundryLLMClient(settings.foundry_project_endpoint,
+                                      settings.model_deployment,
+                                      index_name=settings.search_index,
+                                      agent_name="pathforward-hosted-generator"),
+        "critic": ReasoningFoundryClient(settings.foundry_project_endpoint,
+                                         "pathforward-hosted-critic",
+                                         settings.model_deployment),
+        "planner": ReasoningFoundryClient(settings.foundry_project_endpoint,
+                                          "pathforward-hosted-planner",
+                                          settings.model_deployment),
+    }
+    if os.getenv("PATHFORWARD_INSIGHTS_TIER", "").strip().lower() == "fabric-live":
+        if not settings.fabric_connection_name:
+            raise RuntimeError("PATHFORWARD_INSIGHTS_TIER=fabric-live requires FABRIC_CONNECTION_NAME")
+        clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
+                                                   settings.fabric_connection_name,
+                                                   agent_name="pathforward-hosted-insights-fabric",
+                                                   model=settings.model_deployment)
+    else:
+        clients["insights"] = ReasoningFoundryClient(settings.foundry_project_endpoint,
+                                                     "pathforward-hosted-insights",
+                                                     settings.model_deployment)
+    return clients, tuple(c for c in clients.values() if hasattr(c, "close"))
+
+
+def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
+    """Run the PathForward hosted Orchestrator route and return a JSON-safe document."""
+    settings = load_settings(str(_ROOT / ".env"))
+    mode = _resolve_mode(settings, request.mode or os.getenv("PATHFORWARD_HOSTED_MODE", "auto"))
+
+    if mode == "live":
+        skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
+    else:
+        skill_bodies = _local_skill_bodies()
+        skill_evidence = {"source": "local-skill-files", "skills": list(skill_bodies)}
+
+    clients, closeables = _build_clients(settings, mode, skill_bodies)
+    try:
+        onto = build_seed()
+        worker = onto.workers.get(request.worker_id)
+        if worker is None:
+            raise ValueError(f"unknown worker_id: {request.worker_id}")
+        role = onto.roles[worker.target_role_id]
+        edges = dv.build_all_edges(onto)
+
+        # Imported lazily so importing the hosted module does not depend on scripts at test discovery.
+        from scripts.generate_data import _learner_responses
+
+        adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
+        result = run_orchestrated_multiagent(
+            worker, onto, edges,
+            Orchestrator(clients["orchestrator"], skill_instructions=skill_bodies["pathforward"]),
+            Curator(clients["curator"], skill_instructions=skill_bodies["pathforward-curate"]),
+            Generator(clients["generator"], skill_instructions=skill_bodies["pathforward-assess"]),
+            EvidenceGate(LocalNumericChecker()),
+            Planner(clients["planner"], LocalNumericChecker(),
+                    skill_instructions=skill_bodies["pathforward-plan"]),
+            critic=Critic(clients["critic"], skill_instructions=skill_bodies["pathforward-assess"]),
+            adaptive=adaptive,
+            insights=ProgramInsightsAgent(clients["insights"],
+                                          skill_instructions=skill_bodies["pathforward-insights"]),
+        )
+
+        approval = None
+        credential = None
+        mint_error = ""
+        if result.loop.status == "verified":
+            approval_request = request_mint_approval(worker, role, result.loop.driving_edge_id,
+                                                     result.loop.targeted_skill_id, result.loop)
+            approval = approval_request.to_doc()
+            if request.approve_mint:
+                try:
+                    decision = MintApprovalDecision(approval_request.request_id, True,
+                                                    request.approver,
+                                                    "approved by hosted-agent approval surface")
+                    cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
+                                              result.loop.targeted_skill_id, result.loop, decision)
+                    credential = cred.to_doc()
+                except MintApprovalError as exc:
+                    mint_error = str(exc)
+
+        return {
+            "agent": "pathforward-orchestrator",
+            "surface": "foundry-hosted-agent",
+            "mode": mode,
+            "message": request.message,
+            "worker_id": worker.id,
+            "target_role_id": role.id,
+            "skill_evidence": skill_evidence,
+            "result": result.to_doc(),
+            "approval_request": approval,
+            "credential": credential,
+            "mint_error": mint_error,
+        }
+    finally:
+        for client in closeables:
+            client.close()
+
+
+def summarize_hosted_response(doc: dict[str, Any]) -> str:
+    """Human-readable response text for the Foundry dashboard."""
+    result = doc["result"]
+    loop = result["loop"]
+    orch = result.get("orchestrator") or {}
+    target = orch.get("selected_target_skill_id") or loop.get("targeted_skill_id") or "(none)"
+    lines = [
+        "PathForward Orchestrator completed.",
+        f"Surface: {doc['surface']} ({doc['mode']})",
+        f"Worker: {doc['worker_id']} -> role {doc['target_role_id']}",
+        f"Selected skill: {target}",
+        f"Assessment: {loop['status'].upper()} after {loop['attempts']} attempt(s)",
+        f"Skill source: {doc['skill_evidence'].get('source')}",
+    ]
+    if doc.get("approval_request") and not doc.get("credential"):
+        lines.append(f"Mint approval required: {doc['approval_request']['request_id']}")
+    if doc.get("credential"):
+        subject = doc["credential"]["credentialSubject"]
+        lines.append(f"Credential minted: cited_edge_id={subject.get('cited_edge_id')}")
+    if doc.get("mint_error"):
+        lines.append(f"Mint refused: {doc['mint_error']}")
+    return "\n".join(lines)

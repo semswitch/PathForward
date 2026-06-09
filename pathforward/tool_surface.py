@@ -1,4 +1,4 @@
-"""Mainline tool-surface contract for the `/pathforward` Orchestrator Skill route.
+"""Mainline tool-surface contract for the Hosted `/pathforward` Orchestrator route.
 
 This module is documentation-as-code: it records which Microsoft Foundry surface each live
 capability is allowed to use. Tests lock these decisions so future work does not reopen optional
@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-MAINLINE_ROUTE = "foundry-orchestrator-skill"
+MAINLINE_ROUTE = "foundry-hosted-orchestrator"
 
 
 @dataclass(frozen=True)
@@ -23,13 +23,30 @@ class ToolSurfaceDecision:
 
 TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ToolSurfaceDecision(
+        capability="hosted-orchestrator",
+        surface="Foundry Hosted Agent (`agent.yaml` + Dockerfile + responses protocol)",
+        status="mainline-local-proven-live-pending",
+        rationale=(
+            "The user locked Hosted Agents as the top-level Orchestrator path. The hosted surface "
+            "packages the existing PathForward route into a versionable Foundry Hosted Agent while "
+            "preserving the deterministic Evidence Gate and mint spine."
+        ),
+        proof=(
+            "agent.yaml",
+            "Dockerfile",
+            "hosted/pathforward_orchestrator/main.py",
+            "pathforward/hosted_orchestrator.py",
+            "tests/test_hosted_orchestrator.py",
+        ),
+    ),
+    ToolSurfaceDecision(
         capability="orchestrator-and-specialist-skills",
         surface="Foundry Toolbox MCP resources (`resources/list` + `resources/read`)",
-        status="mainline",
+        status="mainline-supporting-surface",
         rationale=(
             "The `/pathforward` Orchestrator Skill and specialist Skill files are registered in "
             "Foundry, attached to `pathforward-toolbox`, read through the toolbox MCP endpoint, and "
-            "injected into the live Orchestrator/agent prompts."
+            "loaded by the Hosted Orchestrator path before it runs the specialist agents."
         ),
         proof=(
             "scripts/build_toolbox.py --recreate",
@@ -70,15 +87,18 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="credential-approval",
-        surface="Local governed approval wrapper; Orchestrator-route MCP/Hosted approval still open",
-        status="open-or-explicitly-defer",
+        surface="Hosted Agent governed approval wrapper; live Foundry approval/eval pending",
+        status="hosted-local-proven-live-pending",
         rationale=(
-            "`credential.approval` correctly fails closed before mint, but the chosen `/pathforward` "
-            "Orchestrator route does not yet expose approval through a Foundry MCP or Hosted surface."
+            "`credential.approval` correctly fails closed before mint. The Hosted Orchestrator now "
+            "creates a mint approval request and mints only with explicit runtime approval; live "
+            "Foundry deployment/invocation/eval proof is still pending."
         ),
         proof=(
             "pathforward/credential/approval.py",
+            "pathforward/hosted_orchestrator.py",
             "scripts/smoke_mint_approval.py",
+            "tests/test_hosted_orchestrator.py",
             "tests/test_mint_approval.py",
         ),
     ),

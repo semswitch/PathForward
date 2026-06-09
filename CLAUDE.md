@@ -19,12 +19,12 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   its §10 lists repo claims that have already drifted from live docs (proof that assumptions are
   unsafe here).
 - The end goal is the **real multi-agent reasoning loop**, not the one-off GPT call and not the
-  `FakeLLMClient` stub. The chosen architecture is the Foundry-visible `/pathforward`
-  Orchestrator Skill route. Agent Framework Workflow is locked out unless the user explicitly
-  re-authorizes it. Do not call the full architecture
-  complete while Orchestrator Skill/toolbox/MCP approval/Voice surfaces remain unproven or unbuilt
-  under the hard contract. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the
-  deterministic Evidence Gate (never let an LLM judge its own grounding).
+  `FakeLLMClient` stub. The chosen top-level architecture is now the versioned Foundry Hosted Agent
+  `pathforward-orchestrator`, loading the `/pathforward` Skill and running the bounded Orchestrator
+  route. Agent Framework Workflow is locked out unless the user explicitly re-authorizes it. Do not
+  call the full architecture complete until the Hosted Agent is deployed, invoked, and evaluated in
+  Foundry. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the deterministic Evidence
+  Gate (never let an LLM judge its own grounding).
 - Telemetry is available and should be used before inventing stream-output captures or local
   observability workarounds. Use `scripts/trace_full_flow.py` for the Orchestrator-driven proof
   trace and `scripts/trace_demo.py` for the focused assessment-loop trace; both export to Azure
