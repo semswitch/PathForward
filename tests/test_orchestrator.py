@@ -61,7 +61,8 @@ class TestOrchestrator(unittest.TestCase):
         res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
         doc = res.to_doc()
         # insights is an additive key (None here — no Insights agent wired in this test).
-        self.assertEqual(set(doc), {"curator", "loop", "plan", "insights"})
+        self.assertEqual(set(doc), {"orchestrator", "curator", "loop", "plan", "insights"})
+        self.assertIsNone(doc["orchestrator"])
         self.assertIsNone(doc["insights"])
         # the critic review serializes inside the loop transcript
         self.assertEqual(doc["loop"]["transcript"][-1]["critic"]["recommendation"], "pass")

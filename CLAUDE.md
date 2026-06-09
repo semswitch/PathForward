@@ -23,5 +23,10 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   not call the full architecture complete while Workflow/Conductor/toolbox-skill/MCP/Voice surfaces
   remain unproven or unbuilt under the hard contract. Preserve the `LLMClient` / `NumericChecker`
   swap-in seams and the deterministic Evidence Gate (never let an LLM judge its own grounding).
+- Telemetry is available and should be used before inventing stream-output captures or local
+  observability workarounds. `scripts/trace_demo.py` exports to Azure Monitor when configured, and
+  Azure-side query access was verified with the service principal identity from `.env` on
+  2026-06-09. If a normal user CLI login gets `InsufficientAccessError`, switch to the service
+  principal before concluding telemetry is blocked.
 
 > Keep this file thin. Put substantive guidance in `AGENTS.md` so the two never drift.

@@ -92,6 +92,18 @@ the weekly phasing (worker capacity), the arithmetic (`NumericChecker`), and the
 adaptations (fixed vocabulary) are all code-owned. The Planner is advisory — outside the credential
 trust chain. (The read-only **Program Insights** agent is built — ADR 007; `Engagement`/voice is unbuilt.)
 
+## Bounded Orchestrator / Conductor (implemented, live-smoke-proven)
+
+Checklist #1 adds a real Orchestrator/Conductor surface in `pathforward/agents/conductor.py` and
+`run_orchestrated_multiagent` (`pathforward/agents/orchestrator.py`). The Orchestrator is an
+`LLMClient`-backed route reasoner: it may propose bounded actions such as `curate`, `assess`, `plan`,
+`insights`, and `mint_if_verified`, but deterministic code validates the route before execution. It
+cannot set `status="verified"`, override the Evidence Gate, pick a non-admissible skill, or call mint
+directly. This slice is offline-proven by `tests/test_conductor.py` and live-smoke-proven by
+`scripts/smoke_orchestrator_live.py` (`pathforward-orchestrator` selected admissible S08 and minted
+through the existing code spine). Orchestrator-specific red-team / groundedness re-measure and demo
+trace polish are still pending.
+
 ## The same chain as an Agent Framework Workflow (flag-gated, ADOPT-LATER — ADR 009)
 
 The reasoning chain is **also** expressed as a Microsoft Agent Framework Workflow graph, behind the

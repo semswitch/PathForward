@@ -62,9 +62,17 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
   `ReasoningFoundryClient`). The Evidence Gate (deterministic notary, formerly "Verifier"),
-  the reflection/adaptive controllers, and the orchestrator are **deterministic code**, not agents.
+  the reflection/adaptive controllers, and the original `run_multiagent` orchestrator are
+  **deterministic code**, not agents.
   This is a real multi-agent live path, but it is still code-orchestrated; it is not the final
   full architecture shape described in the hard contract.
+- **Bounded Orchestrator/Conductor is implemented and live-smoke-proven** (`pathforward/agents/conductor.py`,
+  `run_orchestrated_multiagent`, `scripts/smoke_orchestrator_live.py`). It is an `LLMClient`-backed
+  route reasoner with a deterministic validator: the agent may propose `curate` / `assess` / `plan`
+  / `insights` / `mint_if_verified`, but code rejects forbidden actions, non-admissible skills, and
+  any attempt to bypass the Evidence Gate. Live smoke on 2026-06-09 used `pathforward-orchestrator`
+  to select admissible S08 and mint through the existing code spine. Orchestrator-specific red-team
+  and groundedness re-measure are still pending before safety numbers transfer to this path.
 - The default storyboard demo (`scripts/run_demo.py`) and fixture export (`scripts/export_web_fixture.py`)
   still run on **`FakeLLMClient`** for deterministic local rehearsal, but both now support `--live`
   to use live Foundry/Fabric clients and stamp fixture provenance. The **live gpt-5.5 path** is proven
@@ -79,7 +87,13 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   remain config-only.
 - OpenTelemetry is a live-capable proof layer: `scripts/trace_demo.py` prints the local span tree and,
   when `AZURE_MONITOR_CONNECTION_STRING` is present, exports to Azure Monitor / Application Insights
-  (`azure_export=on` verified 2026-06-09). It is evidence/demo telemetry, not part of the trust gate.
+  (`azure_export=on` verified 2026-06-09). Azure-side telemetry query was also verified on
+  2026-06-09 when Azure CLI was logged in as the service principal from `.env`; a normal user login
+  may return `InsufficientAccessError` even though the service principal can read the traces. Before
+  scaffolding stream-output captures, local log mirrors, or other observability workarounds, use the
+  existing telemetry path first: run `scripts/trace_demo.py`, then query Azure Monitor / Application
+  Insights with the service-principal identity. It is evidence/demo telemetry, not part of the trust
+  gate.
 - The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
   `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
   trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
@@ -104,9 +118,10 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 - **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
-- **Agentic control / workflow:** live-prove the Agent Framework Workflow path or implement a bounded
-  Conductor/Orchestrator agent whose plan is code-validated before execution. Do not treat the
-  current fixed `run_multiagent` sequence as the final architecture ceiling.
+- **Agentic control / workflow:** finish hardening the bounded Conductor/Orchestrator route with
+  Orchestrator-specific red-team/evals and demo tracing, then decide how the Agent Framework Workflow
+  projection supports it. Do not treat the current fixed `run_multiagent` sequence or a Workflow
+  smoke alone as the final Reasoning Agents architecture.
 - **Foundry tools and skills:** the existing Toolbox/Skill artifacts are governance evidence only
   unless runtime consumption is proven through a supported Foundry/Agent Framework/MCP/Hosted Agent
   surface. Do not claim they are load-bearing without evidence.

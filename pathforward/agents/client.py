@@ -21,6 +21,7 @@ CRITIC_TAG = "[CRITIC]"      # the Critic AGENT (advisory quality review); the E
 CURATOR_TAG = "[CURATOR]"
 PLANNER_TAG = "[PLANNER]"
 INSIGHTS_TAG = "[INSIGHTS]"  # the Program Insights AGENT (read-only cohort narration over code-computed aggregates)
+ORCHESTRATOR_TAG = "[ORCHESTRATOR]"  # the Orchestrator/Conductor AGENT (bounded route reasoning)
 
 
 @dataclass
@@ -71,6 +72,9 @@ class FakeLLMClient:
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         if INSIGHTS_TAG in instructions:
             parsed = self._insights(json.loads(input))
+            return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
+        if ORCHESTRATOR_TAG in instructions:
+            parsed = self._orchestrate(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         # default: echo (advisory-rationale path for unrecognized tags, unused offline)
         return LLMResponse(rid, "", {"note": "fake-default"}, previous_response_id)
@@ -176,4 +180,26 @@ class FakeLLMClient:
             "weekly_hours": capacity * 3 if capacity else 99,   # unrealistic -> gate clamps it
             "accessibility_adaptations": ["unlimited tutor hours", "high-contrast materials"],
             "rationale": "Front-load the highest-priority gap, then proceed in adjacency order.",
+        }
+
+    @staticmethod
+    def _orchestrate(p: dict) -> dict:
+        """Deterministic Orchestrator stand-in. It proposes the route; code validates every step
+        before execution. This is scaffolding for tests only — live uses a Foundry-backed client."""
+        admissible = list(p.get("admissible_skill_ids", []))
+        target = p.get("curator_chosen_skill_id") or (admissible[0] if admissible else "")
+        steps = [{"action": "curate", "rationale": "rank admissible gaps before assessing"}]
+        if target:
+            steps.append({"action": "assess", "target_skill_id": target,
+                          "rationale": "assess the highest-priority admissible gap"})
+        else:
+            steps.append({"action": "abstain", "rationale": "no assessable gap is available"})
+        steps.append({"action": "plan", "rationale": "produce advisory learning plan"})
+        steps.append({"action": "insights", "rationale": "add read-only cohort/program context"})
+        if target:
+            steps.append({"action": "mint_if_verified",
+                          "rationale": "request deterministic mint only after gate verification"})
+        return {
+            "steps": steps,
+            "rationale": "Use agents for route reasoning; deterministic code validates and notarizes.",
         }

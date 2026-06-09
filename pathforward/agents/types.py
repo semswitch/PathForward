@@ -227,9 +227,11 @@ class MultiAgentResult:
     loop: LoopResult
     plan: LearningPlan
     insights: Optional[ProgramInsights] = None
+    orchestrator: Optional[dict] = None
 
     def to_doc(self) -> dict:
         return {
+            "orchestrator": dict(self.orchestrator) if self.orchestrator else None,
             "curator": self.curator.to_doc(),
             "loop": self.loop.to_doc(),
             "plan": self.plan.to_doc(),
