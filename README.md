@@ -59,7 +59,7 @@ root:
 python scripts/generate_data.py     # synthetic ontology + learner responses -> data/generated/
 python scripts/build_mirror.py      # materialize the Search-mirror docs (+ build-time guard)
 python scripts/run_demo.py          # full reasoning spine, end-to-end, for hero worker EMP-001
-python -m unittest discover -s tests -t .   # offline suite (derivation, loop, gate, credential, workflow no-bypass)
+python -m unittest discover -s tests -t .   # offline suite (derivation, loop, gate, credential)
 ```
 
 Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `make test` · `make demo`.
@@ -86,7 +86,7 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 | Path | What |
 |---|---|
 | `pathforward/iq/` | ontology models, the version-pinned **derivation** module, seed, traversal (Glass-Box), Search mirror |
-| `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and the **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
+| `pathforward/agents/` | LLM client (fake + Foundry), Orchestrator/Conductor contract, Curator/Generator/Critic/Planner/Insights, the **Evidence Gate** (deterministic notary), the **loop**, numeric checker, calibration, and an optional/reference **Agent Framework Workflow** projection (`workflow.py` spec + no-bypass audit; `workflow_foundry.py` live adapter) |
 | `pathforward/credential/` | the W3C VC 2.0-aligned proof, governed approval wrapper, and causal-spine mint |
 | `pathforward/scorer.py` | the shared scorer (voice/text parity) |
 | `scripts/` | data generation, mirror build, the offline demo |
@@ -118,13 +118,11 @@ adaptive/reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and 
 it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ Offline suite is green
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
-ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is
-also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0+;
-tested here with SDK 1.8.0), with a no-bypass graph-shape test as the trust proof and
-`run_multiagent` as the canonical in-process spine. `PF_WORKFLOW=1` is now smoke-proven: the live
-Workflow path emits a HITL approval request, resumes on approval, calls the governed approval wrapper,
-and then issues through the existing mint spine. Externally hosted MCP mint remains a follow-up; the
-current hosted proof is Agent Framework HITL, not an MCP mint server.
+ADR 008) is wired but still needs its live smoke before it should be called live-proven. The optional
+Agent Framework Workflow projection is graph-tested and has one `PF_WORKFLOW=1` HITL smoke proof, but
+it is not the product path and should not drive further architecture work unless explicitly
+re-authorized. Externally hosted MCP/Hosted approval for the Orchestrator route remains a follow-up;
+the current approval proof is local/runtime plus reference Workflow HITL, not an MCP mint server.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

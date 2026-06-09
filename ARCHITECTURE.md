@@ -10,7 +10,7 @@
 flowchart TB
     user([Worker / Manager]) --> orch
 
-    subgraph WF["Foundry/Agent control surface (Orchestrator live; Workflow flag-gated)"]
+    subgraph WF["Foundry/Agent control surface (Orchestrator Skill mainline)"]
         orch[Orchestrator]
         curator[Curator agent]
         planner[Planner agent\ncapacity + accessibility]
@@ -106,7 +106,7 @@ Foundry Skill from `pathforward-toolbox` (`scripts/smoke_toolbox_skill_live.py`)
 safety was re-measured with `scripts/eval_orchestrator_live.py` (16/16 grounded + spine-intact, 0.0%
 ASR on 16 attacks). Full-flow proof tracing is implemented in `scripts/trace_full_flow.py`.
 
-## The same chain as an Agent Framework Workflow (flag-gated, ADOPT-LATER — ADR 009)
+## Optional Reference: Agent Framework Workflow (flag-gated — ADR 009)
 
 The reasoning chain is **also** expressed as a Microsoft Agent Framework Workflow graph, behind the
 `PF_WORKFLOW` flag, so the trust boundary is a deterministic **code node** (which the Foundry
@@ -114,7 +114,9 @@ portal/YAML Workflows product cannot express — no first-class code node, logic
 product is **avoided for the trust path**). `pathforward/agents/workflow.py` holds a
 framework-agnostic graph spec; `workflow_foundry.py` projects it onto `agent_framework` (Python **GA
 1.0.0+**, 2026-04-02; smoke-tested here with SDK **1.8.0**), imported lazily so the offline suite
-stays green whether or not the optional SDK is installed.
+stays green whether or not the optional SDK is installed. Per user instruction on 2026-06-09, this is
+optional/reference infrastructure only. The architecture work should continue on the Foundry-visible
+`/pathforward` Orchestrator Skill route, not on Workflow.
 
 ```
   Curator (agent) ──assessable gap──▶ assess  [TRUST: run_assessment_loop + Evidence Gate]
@@ -140,7 +142,8 @@ exactly one place (`loop.py`) — the Workflow never becomes a second trust auth
 stays the always-green in-process spine. The `PF_WORKFLOW=1` smoke now exercises the Agent Framework
 HITL path: it emits an approval request, resumes with approval, routes through
 `credential.approval.mint_with_approval(...)`, and issues through the existing mint code. This proves
-the Workflow projection path; it does not make the Workflow the mainline product path.
+the Workflow projection path; it does not make the Workflow the mainline product path and should not
+be used as the next parity target.
 
 ## Offline ↔ Azure boundary
 

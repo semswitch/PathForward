@@ -131,35 +131,37 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   (no first-class code node). `PF_WORKFLOW=1` was live-exercised on 2026-06-09 with Agent Framework
   HITL: the workflow emitted the approval request, resumed with approval, routed mint through
   `credential.approval.mint_with_approval(...)`, and issued a credential through the existing spine.
-  This proves the Workflow projection path, not the mainline product path.
+  This proves the Workflow projection path, not the mainline product path. Per user instruction on
+  2026-06-09, do not spend further architecture effort on Workflow unless explicitly re-authorized;
+  keep it as optional/reference infrastructure.
 
 **Target (where changes should head):**
 - A genuine **multi-agent reasoning loop** worthy of the "Reasoning Agents" track: keep
   Generator→Evidence Gate; add real reasoning agents (a **Critic** before the gate, a **Curator** for
   adjacency/gap reasoning, a **Planner** for capacity + accessibility, a read-only **Program Insights**
   agent for cohort/why-this-path), and continue toward the stricter architecture contract: a
-  Foundry-centered workflow/control surface where the agentic route is live-proven, not merely a fixed
-  Python sequence. Plural agents that genuinely reason are implemented, but the full contract is not
-  done until the missing workflow/conductor/tooling surfaces in
+  Foundry-centered Orchestrator Skill control surface where the agentic route is live-proven, not
+  merely a fixed Python sequence. Plural agents that genuinely reason are implemented, but the full
+  contract is not done until the missing Orchestrator Skill/tooling surfaces in
   `.agents/plans/000-non-negotiable-agentic-architecture-contract.md` are addressed or explicitly
   deferred by the user.
 - **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
   (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
   when making evidence claims.
-- **Agentic control / workflow:** finish hardening the bounded Conductor/Orchestrator route with
-  demo tracing, then decide how the Agent Framework Workflow projection supports it. The
-  Orchestrator-specific safety re-measure is complete for the skill-loaded route; do not reuse those
-  numbers for future Workflow/approval/Voice surfaces without a fresh run.
+- **Agentic control:** keep hardening the bounded Conductor/Orchestrator route as the mainline
+  `/pathforward` Skill surface. The Orchestrator-specific safety re-measure is complete for the
+  skill-loaded route; do not reuse those numbers for future approval/Voice surfaces without a fresh
+  run.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
   Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are
   live-registered/read from Foundry and wired for runtime injection. Do not claim the entire tool
   surface is migrated until Generator/Search, Fabric, approval/mint, and other tools use supported
-  Foundry Skill/Toolbox/MCP/Agent Framework/Hosted Agent surfaces rather than direct-attached tools
-  as the primary product path.
+  Foundry Skill/Toolbox/MCP/Hosted Agent surfaces rather than direct-attached tools as the primary
+  product path.
 - **Approval/mint:** preserve `pathforward/credential/approval.py` as the runtime approval gate for
   mint. Microsoft docs state MCP/Toolbox `require_approval` is runtime-enforced, not endpoint-
-  enforced; any future MCP/Agent Framework surface must route through this wrapper and then through
-  `credential.mint.mint()`.
+  enforced; any future Orchestrator-route MCP/Hosted approval surface must route through this wrapper
+  and then through `credential.mint.mint()`.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py
   --live`), and keep provenance explicit (`live-foundry`, `fabric-live`, `offline-rehearsal`).
@@ -191,7 +193,7 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   and the `mint` executor (must route through `credential.approval.mint_with_approval(...)`, which
   delegates to `credential.mint.mint`). **Never** let the Workflow track write `status="verified"`
   itself, call raw mint without approval, or become a second trust authority; it must stay a
-  projection.
+  projection. It is optional/reference infrastructure only, not the path to keep investing in.
 
 ## Invariants you must not break
 
