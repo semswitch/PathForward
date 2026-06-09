@@ -98,15 +98,18 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   The **live Fabric data-agent tier is now proven** through `scripts/smoke_fabric_live.py`
   (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). Voice Live and MCP mint
   remain config-only.
-- OpenTelemetry is a live-capable proof layer: `scripts/trace_demo.py` prints the local span tree and,
-  when `AZURE_MONITOR_CONNECTION_STRING` is present, exports to Azure Monitor / Application Insights
+- OpenTelemetry is a live-capable proof layer. `scripts/trace_demo.py` prints the focused
+  assessment-loop trace; `scripts/trace_full_flow.py` prints the Orchestrator-driven proof trace
+  including Skill load, Orchestrator routing, Curator, Generator, Critic, adaptive band, bounded
+  reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and fail-closed ABSTAIN. When
+  `AZURE_MONITOR_CONNECTION_STRING` is present, both export to Azure Monitor / Application Insights
   (`azure_export=on` verified 2026-06-09). Azure-side telemetry query was also verified on
   2026-06-09 when Azure CLI was logged in as the service principal from `.env`; a normal user login
   may return `InsufficientAccessError` even though the service principal can read the traces. Before
   scaffolding stream-output captures, local log mirrors, or other observability workarounds, use the
-  existing telemetry path first: run `scripts/trace_demo.py`, then query Azure Monitor / Application
-  Insights with the service-principal identity. It is evidence/demo telemetry, not part of the trust
-  gate.
+  existing telemetry path first: run `scripts/trace_full_flow.py` for the full proof artifact or
+  `scripts/trace_demo.py` for the focused loop, then query Azure Monitor / Application Insights with
+  the service-principal identity. It is evidence/demo telemetry, not part of the trust gate.
 - The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
   `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
   trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-

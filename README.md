@@ -76,7 +76,8 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
 .venv\Scripts\python.exe scripts\run_demo.py --live
 .venv\Scripts\python.exe scripts\export_web_fixture.py --live
-.venv\Scripts\python.exe scripts\trace_demo.py  # console trace + Azure Monitor export when AZURE_MONITOR_CONNECTION_STRING is set
+.venv\Scripts\python.exe scripts\trace_demo.py       # focused assessment-loop trace
+.venv\Scripts\python.exe scripts\trace_full_flow.py  # Orchestrator + full reasoning trace
 ```
 
 ## Layout
@@ -106,7 +107,10 @@ Skill is sourced from `skills/pathforward/SKILL.md`, registered into `pathforwar
 through toolbox MCP resources, and consumed by the live Orchestrator path through
 `scripts/smoke_toolbox_skill_live.py`. ✅ Skill-loaded Orchestrator safety has its own live scorecards:
 `scripts/eval_orchestrator_live.py --no-judge` produced 16/16 grounded + spine-intact and 0.0% ASR
-(16/16 defenses held, including Orchestrator route attacks). ✅ Offline suite is green
+(16/16 defenses held, including Orchestrator route attacks). ✅ `scripts/trace_full_flow.py` now
+shows the proof trace for Skill load, Orchestrator routing, Curator, Generator, Critic,
+adaptive/reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and fail-closed ABSTAIN;
+it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ Offline suite is green
 (`python -m unittest discover -s tests -t .`).
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is

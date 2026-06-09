@@ -105,11 +105,14 @@ def run_orchestrated_multiagent(worker: Worker, onto: Ontology, edges: list[Edge
     """
     role = onto.roles[worker.target_role_id]
     with tracing.span("orchestrated_multiagent",
-                      **{"pf.worker": worker.id, "pf.target_role": role.id}) as root:
+                      **{"pf.worker": worker.id, "pf.target_role": role.id,
+                         "pf.skill_loaded": orchestrator.skill_loaded}) as root:
         with tracing.span("orchestrator.initial", **{"pf.worker": worker.id}) as orch_span:
             initial_plan = orchestrator.plan(worker, role, onto, require_assessment=False)
             orch_span.set(**{"pf.steps": len(initial_plan.steps),
                              "pf.corrected": initial_plan.corrected})
+            orch_span.event("orchestrator.initial.validated",
+                            **{"pf.steps": len(initial_plan.steps)})
 
         with tracing.span("curate", **{"pf.worker": worker.id}) as cur_span:
             decision = curator.curate(worker, role, onto)
@@ -124,6 +127,9 @@ def run_orchestrated_multiagent(worker: Worker, onto: Ontology, edges: list[Edge
             route_span.set(**{"pf.steps": len(route_plan.steps),
                               "pf.target_skill": target_skill_id or "(none)",
                               "pf.corrected": route_plan.corrected})
+            route_span.event("orchestrator.route.validated",
+                             **{"pf.target_skill": target_skill_id or "(none)",
+                                "pf.steps": len(route_plan.steps)})
 
         if not decision.chosen_skill_id or not target_skill_id:
             root.set(**{"pf.status": "abstained", "pf.reason": "orchestrator_no_assessment"})

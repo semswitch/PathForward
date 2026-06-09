@@ -73,6 +73,8 @@ def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ..
     with tracing.span("assessment.loop", **{"pf.worker": edge.source_id, "pf.skill": skill.id,
                                             "pf.driving_edge": edge.id, "pf.corpus_size": len(corpus),
                                             "pf.difficulty_band": band or "(none)"}) as root:
+        if adaptive is not None:
+            root.event("adaptive.band_selected", **{"pf.band": band or "core"})
         for attempt in range(max_attempts):
             # Reflection is STATELESS: on a regenerate (feedback present) drop previous_response_id so
             # the model gets the bounded feedback, never its own prior answer-bearing draft.
@@ -80,6 +82,11 @@ def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ..
             with tracing.span(f"generate.attempt.{attempt}",
                               **{"pf.attempt": attempt, "pf.has_feedback": feedback is not None,
                                  "pf.band": band or "(none)"}) as gen_span:
+                if feedback is not None:
+                    gen_span.event("reflection.applied", **{
+                        "pf.failed_criteria_count": len(feedback.get("failed_criteria", ())),
+                        "pf.feedback_source": "code_owned_static",
+                    })
                 item = generator.generate(edge, skill, allowed_ref_ids, attempt,
                                           previous_response_id=gen_prev,
                                           feedback=feedback, difficulty_band=band)
@@ -117,6 +124,11 @@ def run_assessment_loop(edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ..
             # rejected -> assemble bounded, code-owned feedback for the next attempt (criterion
             # NAMES + static remediation only; the regenerate above will run statelessly).
             feedback = _build_feedback(verdict, review, band)
+            root.event("reflection.prepared", **{
+                "pf.failed_criteria_count": len(feedback.get("failed_criteria", ())),
+                "pf.feedback_source": "code_owned_static",
+                "pf.next_attempt": attempt + 1,
+            })
         # exhausted -> fail closed
         root.set(**{"pf.status": "abstained", "pf.attempts": max_attempts})
         root.event("abstained.fail_closed")

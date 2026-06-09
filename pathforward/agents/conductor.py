@@ -169,6 +169,10 @@ class Orchestrator:
         self.validator = validator or OrchestratorValidator()
         self.skill_instructions = skill_instructions.strip()
 
+    @property
+    def skill_loaded(self) -> bool:
+        return bool(self.skill_instructions)
+
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return CONDUCTOR_INSTRUCTIONS
