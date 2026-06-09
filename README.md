@@ -72,6 +72,7 @@ $env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
 .venv\Scripts\python.exe scripts\smoke_fabric_live.py
 .venv\Scripts\python.exe scripts\run_demo.py --live
 .venv\Scripts\python.exe scripts\export_web_fixture.py --live
+.venv\Scripts\python.exe scripts\trace_demo.py  # console trace + Azure Monitor export when AZURE_MONITOR_CONNECTION_STRING is set
 ```
 
 ## Layout

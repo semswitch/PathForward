@@ -70,6 +70,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   The **live Fabric data-agent tier is now proven** through `scripts/smoke_fabric_live.py`
   (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). Voice Live and MCP mint
   remain config-only.
+- OpenTelemetry is a live-capable proof layer: `scripts/trace_demo.py` prints the local span tree and,
+  when `AZURE_MONITOR_CONNECTION_STRING` is present, exports to Azure Monitor / Application Insights
+  (`azure_export=on` verified 2026-06-09). It is evidence/demo telemetry, not part of the trust gate.
 - The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
   `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
   trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
