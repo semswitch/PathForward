@@ -41,15 +41,19 @@ not classic connected agents. See [ARCHITECTURE.md](ARCHITECTURE.md).
   and `Readiness`. These drive the assessment blueprint. The demo proves live inference by
   editing a skill on screen and watching `CertGap`/`Readiness` re-derive.
 - **Foundry IQ** — GA agentic retrieval (extractive grounding + rerank + citations) over the
-  synthetic corpus; grounds every adjacency hop and assessment item. At runtime the system
-  queries a **pre-materialized Search mirror** of the ontology (the live Fabric data agent is
-  never on the critical path).
+  synthetic corpus; grounds every adjacency hop and assessment item. At runtime the Generator
+  queries a **pre-materialized Search mirror** of the ontology.
+- **Fabric live read path** — a published Fabric data agent over OneLake powers the
+  `ProgramInsightsAgent` live tier (`source="fabric-live"`). It is read-only and advisory, not on the
+  credential mint path, but it is now a real live path rather than a placeholder.
 
 ---
 
-## Run it (no Azure required)
+## Run it
 
-The offline core is **standard-library only**. From the repo root:
+The deterministic rehearsal path requires no Azure and remains useful for fast local development.
+The product-shaped path swaps in live Foundry/Fabric clients behind the same seams. From the repo
+root:
 
 ```bash
 python scripts/generate_data.py     # synthetic ontology + learner responses -> data/generated/
@@ -59,6 +63,14 @@ python -m unittest discover -s tests -t .   # offline suite (derivation, loop, g
 ```
 
 Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `make test` · `make demo`.
+
+Live proof scripts run from the project virtualenv when Azure/Fabric are configured:
+
+```powershell
+.venv\Scripts\python.exe scripts\smoke_multiagent_live.py
+$env:FABRIC_CONNECTION_NAME="<your-foundry-fabric-connection-name>"
+.venv\Scripts\python.exe scripts\smoke_fabric_live.py
+```
 
 ## Layout
 
@@ -75,15 +87,15 @@ Or use the task runner: `./tasks.ps1 test` · `./tasks.ps1 demo` (Windows) / `ma
 
 ## Status
 
-✅ Offline reasoning core complete and tested (full offline suite green —
-`python -m unittest discover -s tests -t .`).  ⏳ Azure layer (Foundry agents, agentic
-retrieval, Fabric ontology, Voice Live, MCP mint, evals) wires in per the
-[planning package](../Microsoft-Agents-League/03-Build-Plan.md). The live `FoundryLLMClient` /
-`ReasoningFoundryClient` and the non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory,
-never the numeric oracle; see ADR 008) are wired behind their seams; remaining config endpoints are
-stubs marked with their wire-in day. The chain is also projected as a flag-gated **Microsoft Agent
-Framework Workflow** (`agent_framework` GA 1.0.0), with a no-bypass graph-shape test as the trust
-proof and `run_multiagent` as the always-green in-process spine (see ADR 009).
+✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
+run through `scripts/smoke_multiagent_live.py`; the deterministic Evidence Gate and mint remain the
+trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_live.py` using the
+Microsoft Fabric data-agent tool. ✅ Offline suite is green (`python -m unittest discover -s tests -t .`).
+The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
+ADR 008) is wired but still needs its live smoke before it should be called live-proven. The chain is
+also projected as a flag-gated **Microsoft Agent Framework Workflow** (`agent_framework` GA 1.0.0),
+with a no-bypass graph-shape test as the trust proof and `run_multiagent` as the canonical
+in-process spine; live Workflow execution still requires `PF_WORKFLOW=1` + SDK/Azure smoke proof.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

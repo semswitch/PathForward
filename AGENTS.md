@@ -52,19 +52,23 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 ## Current state → Target state
 
-**Current (verified 2026-06-08):**
+**Current (verified 2026-06-09):**
 - **Five code-orchestrated reasoning agents** — Curator, Generator, Critic, Planner, and the
   read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
   `ReasoningFoundryClient`). The Evidence Gate (deterministic notary, formerly "Verifier"),
   the reflection/adaptive controllers, and the orchestrator are **deterministic code**, not agents.
-- The default demo (`scripts/run_demo.py`) and the web fixture run on **`FakeLLMClient`**
-  (deterministic stub). The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
-  `scripts/eval_groundedness.py`, and `scripts/redteam_live.py` (16/16 grounded, 0% ASR).
+- The default storyboard demo (`scripts/run_demo.py`) and the web fixture still run on
+  **`FakeLLMClient`** for deterministic local rehearsal. That is a demo/export convenience, not the
+  production scope. The **live gpt-5.5 path** is proven via `scripts/smoke_loop_live.py`,
+  `scripts/smoke_multiagent_live.py`, `scripts/eval_groundedness.py`, and `scripts/redteam_live.py`
+  (16/16 grounded + spine-intact, 12/12 red-team held, 0% ASR with Critic + reflection ON).
 - Numeric checks use `LocalNumericChecker` — the **sole** gate oracle, offline AND live. Code
   Interpreter is wired as a distinct **non-gating** advisory analyst (`agents/analyst.py`:
   `LocalAnalyst` offline / `CodeInterpreterAnalyst` live), NOT a gate-oracle swap-in (ADR 008).
-  Voice Live, MCP mint, and the live Fabric data agent are config-only.
+  The **live Fabric data-agent tier is now proven** through `scripts/smoke_fabric_live.py`
+  (`source="fabric-live"`, OBO user identity, MicrosoftFabricPreviewTool). Voice Live and MCP mint
+  remain config-only.
 - The same chain is **also expressed as a Microsoft Agent Framework Workflow** (flag-gated
   `PF_WORKFLOW`; ADR 009). `agents/workflow.py` is a framework-agnostic graph spec whose **no-bypass
   trust property** (no path reaches the credential `mint` without the deterministic, Evidence-Gate-
@@ -80,10 +84,11 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   adjacency/gap reasoning, a **Planner** for capacity + accessibility, a read-only **Program Insights**
   agent for cohort/why-this-path), orchestrated in code. Plural agents that genuinely reason — not a
   single one-off GPT call. **(Done as of 2026-06-08 — all five exist; see `current-state-assessment.md`.)**
-- **Program Insights live tier:** promote the cohort read-path from the derivation floor to a live
-  Fabric data agent over OneLake (`FabricTool`, OBO) when F2 capacity is un-paused (ADR 007).
-- Wire the **live `FoundryLLMClient`** into the demo and the web UI (not just smoke tests), and
-  re-export the web fixture from a live run.
+- **Program Insights live tier:** keep the live Fabric data-agent read path repeatable and documented
+  (`FABRIC_CONNECTION_NAME` + OBO user identity); do not collapse it back into the derivation floor
+  when making evidence claims.
+- Wire the **live `FoundryLLMClient` / `ReasoningFoundryClient` / FabricInsightsClient** into the
+  demo and the web UI evidence path where appropriate, and re-export the web fixture from a live run.
 - Use Code Interpreter ONLY as a non-gating analyst (`CodeInterpreterAnalyst`) for second-opinion
   recompute + calibration explainability — never as the gate oracle (it is non-deterministic: the
   model writes the code). `LocalNumericChecker` stays the sole oracle. **(Seam landed 2026-06-08, ADR 008.)**
@@ -92,8 +97,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
 
 ## Stubs are temporary — preserve the seams
 
-- `FakeLLMClient` / `LocalNumericChecker` exist for offline development, deterministic demos, and
-  tests. **They are not the product.**
+- `FakeLLMClient` exists for offline development, deterministic demos, and tests. It is **not the
+  production agent path**. `LocalNumericChecker` is different: it is the production gate oracle both
+  offline and live.
 - The swap-in seams are `LLMClient` (`pathforward/agents/client.py`), `NumericChecker`
   (`pathforward/agents/numeric.py`, real impl `LocalNumericChecker` — the gate oracle stays code,
   there is intentionally no model-backed `NumericChecker`), and the non-gating `Analyst`

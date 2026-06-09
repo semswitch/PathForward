@@ -16,7 +16,11 @@ the project .venv (azure-ai-projects present):
 """
 from __future__ import annotations
 
+import os
 import sys
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
 
 from pathforward.agents.foundry import FabricInsightsClient
 from pathforward.agents.insights import ProgramInsightsAgent

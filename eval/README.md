@@ -1,6 +1,6 @@
 # PathForward — Eval & Red-Team Pack
 
-Two **deterministic** scorecards over the *same* generator→verifier loop the product runs. Every
+Two **deterministic** scorecards over the *same* Generator→Critic→Evidence Gate loop the product runs. Every
 pass/fail is decided in **code** (the `corpus ∩ retrieved` gate, the credential spine, an injected
 marker surviving into output) — **never an LLM judge** — which is what makes a safety claim
 falsifiable. Cases are derived from the synthetic ontology, so the benchmark is reproducible.
@@ -10,11 +10,12 @@ falsifiable. Cases are derived from the synthetic ontology, so the benchmark is 
 | Scorecard | What it measures | Result |
 |---|---|---|
 | [`eval-groundedness.md`](eval-groundedness.md) | Every legitimate CertGap case: the agent produced a **grounded** item (cited ⊆ corpus∩retrieved), retrieval actually happened, and the credential's `cited_edge_id` == the driving CertGap edge (**spine intact**). | **16/16 — 100%** (Foundry judge avg **4.1/5**) |
-| [`redteam-asr.md`](redteam-asr.md) | 9 model-side attack families vs. the real agent under the enforced `pathforward-rai` policy. **Attack Success Rate** = fraction where the refuse-to-bluff defense failed. | **0.0% — 9/9 held** |
+| [`redteam-asr.md`](redteam-asr.md) | 12 model-side attack families vs. the real agent under the enforced `pathforward-rai` policy, including the reflection-channel attack family added after the Critic/reflection work. **Attack Success Rate** = fraction where the refuse-to-bluff defense failed. | **0.0% — 12/12 held** |
 
-Plus **12 offline gate proofs** in [`tests/test_redteam_gate.py`](../tests/test_redteam_gate.py): for
-every offline-testable attack, a hand-crafted malicious item or mint call is asserted to be **struck**
-by the hardened defense (run with `python -m unittest tests.test_redteam_gate`).
+Plus offline gate and harness proofs in [`tests/test_redteam_gate.py`](../tests/test_redteam_gate.py)
+and [`tests/test_eval_harness.py`](../tests/test_eval_harness.py): for every offline-testable attack,
+a hand-crafted malicious item, mint call, or reflection-channel scenario is asserted to be **struck**
+by the hardened defense (run with `python -m unittest discover -s tests -t .`).
 
 ## Defense-in-depth (why ASR is 0%)
 

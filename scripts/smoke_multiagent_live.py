@@ -15,8 +15,8 @@ admissible gap — that is genuine reasoning — so this script does NOT assert 
 
     python scripts/smoke_multiagent_live.py
 
-Exit 0 = the live three-agent loop ran, verified, minted with the spine intact, and produced a
-capacity-respecting plan.
+Exit 0 = the live multi-agent loop ran, verified, minted with the spine intact, produced a
+capacity-respecting plan, and reconciled Program Insights to derivation.
 """
 from __future__ import annotations
 
