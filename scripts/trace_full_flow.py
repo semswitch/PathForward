@@ -5,8 +5,9 @@ This is the demo/proof artifact for the "agents reason, code notarizes" architec
   Foundry Skill load -> Orchestrator route -> Curator -> Generator/Critic/Evidence Gate with
   adaptive + reflection -> Planner -> Program Insights/Fabric -> mint, plus an explicit ABSTAIN.
 
-Offline default uses deterministic fakes and the local skill file. `--live` loads the `/pathforward`
-Skill through the Foundry Toolbox MCP endpoint and runs the live Foundry prompt-agent clients.
+Offline default uses deterministic fakes and the local Skill files. `--live` loads `/pathforward`
+plus the specialist Skills through the Foundry Toolbox MCP endpoint and runs the live Foundry
+prompt-agent clients.
 
     python scripts/trace_full_flow.py
     python scripts/trace_full_flow.py --live
@@ -43,6 +44,13 @@ from pathforward.skills import read_skill_file  # noqa: E402
 
 TOOLBOX_NAME = "pathforward-toolbox"
 SKILL_NAME = "pathforward"
+SPECIALIST_SKILLS = (
+    "pathforward",
+    "pathforward-curate",
+    "pathforward-assess",
+    "pathforward-plan",
+    "pathforward-insights",
+)
 
 
 class FabricProgramInsightsAgent(ProgramInsightsAgent):
@@ -52,20 +60,30 @@ class FabricProgramInsightsAgent(ProgramInsightsAgent):
         return self.analyze_via_fabric(worker, role, onto)
 
 
-def _load_skill(settings, live: bool) -> tuple[str, str, dict]:
+def _load_skills(settings, live: bool) -> tuple[dict[str, str], str, dict]:
     if live:
-        from pathforward.toolbox_mcp import read_skill_from_toolbox
+        from pathforward.toolbox_mcp import read_skills_from_toolbox
 
         if not settings.foundry_project_endpoint:
             raise RuntimeError("live skill load requires AZURE_AI_PROJECT_ENDPOINT")
-        body, evidence = read_skill_from_toolbox(settings.foundry_project_endpoint,
-                                                TOOLBOX_NAME, SKILL_NAME)
-        return body, "foundry-toolbox-mcp", evidence
+        bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
+                                                    TOOLBOX_NAME, SPECIALIST_SKILLS)
+        return bodies, "foundry-toolbox-mcp", evidence
 
-    skill = read_skill_file(os.path.join(_ROOT, "skills", "pathforward", "SKILL.md"))
-    return skill.instructions, "local-skill-file", {
-        "skill_uri": "skills/pathforward/SKILL.md",
-        "skill_chars": len(skill.instructions),
+    bodies: dict[str, str] = {}
+    uris: dict[str, str] = {}
+    chars: dict[str, int] = {}
+    for name in SPECIALIST_SKILLS:
+        path = os.path.join(_ROOT, "skills", name, "SKILL.md")
+        skill = read_skill_file(path)
+        bodies[name] = skill.instructions
+        uris[name] = os.path.relpath(path, _ROOT).replace("\\", "/")
+        chars[name] = len(skill.instructions)
+    return bodies, "local-skill-file", {
+        "skill_uris": uris,
+        "skill_chars": chars,
+        "skill_uri": uris[SKILL_NAME],
+        "skill_chars_total": sum(chars.values()),
         "tools": [],
     }
 
@@ -73,14 +91,14 @@ def _load_skill(settings, live: bool) -> tuple[str, str, dict]:
 def _clients(settings, live: bool, fabric: bool):
     if not live:
         fake = FakeLLMClient()
-        insights = ProgramInsightsAgent(fake)
         return {
             "orchestrator": fake,
             "curator": fake,
             "generator": fake,
             "critic": fake,
             "planner": fake,
-            "insights_agent": insights,
+            "insights_client": fake,
+            "insights_cls": ProgramInsightsAgent,
             "close": lambda: None,
         }
 
@@ -130,7 +148,8 @@ def _clients(settings, live: bool, fabric: bool):
         "generator": generator,
         "critic": critic,
         "planner": planner,
-        "insights_agent": insights_agent,
+        "insights_client": insights_client,
+        "insights_cls": insights_agent.__class__,
         "close": lambda: [c.close() for c in live_clients],
     }
 
@@ -158,7 +177,7 @@ def main() -> int:
     edges = dv.build_all_edges(onto)
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
-    skill_body, skill_source, skill_evidence = _load_skill(settings, args.live)
+    skill_bodies, skill_source, skill_evidence = _load_skills(settings, args.live)
     clients = _clients(settings, args.live, args.fabric)
 
     # Deterministic cold-start signal for the hero path: S01 selects stretch, so adaptive is visible.
@@ -173,18 +192,25 @@ def main() -> int:
             root.event("skill.loaded", **{
                 "pf.source": skill_source,
                 "pf.uri": str(skill_evidence.get("skill_uri", "")),
-                "pf.chars": int(skill_evidence.get("skill_chars", 0) or 0),
+                "pf.count": len(skill_bodies),
             })
             result = run_orchestrated_multiagent(
                 worker, onto, edges,
-                Orchestrator(clients["orchestrator"], skill_instructions=skill_body),
-                Curator(clients["curator"]),
-                Generator(clients["generator"]),
+                Orchestrator(clients["orchestrator"],
+                             skill_instructions=skill_bodies["pathforward"]),
+                Curator(clients["curator"],
+                        skill_instructions=skill_bodies["pathforward-curate"]),
+                Generator(clients["generator"],
+                          skill_instructions=skill_bodies["pathforward-assess"]),
                 gate,
-                Planner(clients["planner"], LocalNumericChecker()),
-                critic=Critic(clients["critic"]),
+                Planner(clients["planner"], LocalNumericChecker(),
+                        skill_instructions=skill_bodies["pathforward-plan"]),
+                critic=Critic(clients["critic"],
+                              skill_instructions=skill_bodies["pathforward-assess"]),
                 adaptive=adaptive,
-                insights=clients["insights_agent"],
+                insights=clients["insights_cls"](
+                    clients["insights_client"],
+                    skill_instructions=skill_bodies["pathforward-insights"]),
             )
             root.set(**{"pf.status": result.loop.status,
                         "pf.attempts": result.loop.attempts,
@@ -204,8 +230,13 @@ def main() -> int:
             with tracing.span("pathforward.abstain_proof",
                               **{"pf.worker": worker.id, "pf.skill": skill.id}) as abstain_root:
                 abstain = run_assessment_loop(
-                    driving, skill, (), Generator(clients["generator"]), gate,
-                    critic=Critic(clients["critic"]), adaptive=adaptive)
+                    driving, skill, (),
+                    Generator(clients["generator"],
+                              skill_instructions=skill_bodies["pathforward-assess"]),
+                    gate,
+                    critic=Critic(clients["critic"],
+                                  skill_instructions=skill_bodies["pathforward-assess"]),
+                    adaptive=adaptive)
                 abstain_root.set(**{"pf.status": abstain.status, "pf.attempts": abstain.attempts})
                 print(f"abstain proof status={abstain.status} attempts={abstain.attempts}")
 

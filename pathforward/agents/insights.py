@@ -64,8 +64,20 @@ INSIGHTS_SCHEMA = {
 
 
 class ProgramInsightsAgent:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, skill_instructions: str = ""):
         self.client = client
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self, base: str, skill_name: str) -> str:
+        if not self.skill_instructions:
+            return base
+        return (
+            f"{base}\n\n"
+            f"Loaded Foundry Skill `{skill_name}`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the loaded skill. Program Insights is advisory, read-only, and off the "
+            "credential trust path."
+        )
 
     def analyze(self, worker: Worker, role: Role, onto: Ontology) -> ProgramInsights:
         # Deterministic, code-owned facts (single derivation source). The agent cannot change these.
@@ -80,7 +92,8 @@ class ProgramInsightsAgent:
             "role_cohort": rc.to_doc(),
             "program": prog.to_doc(),
         }
-        resp = self.client.respond(INS_INSTRUCTIONS, json.dumps(payload), schema=INSIGHTS_SCHEMA)
+        resp = self.client.respond(self._instructions(INS_INSTRUCTIONS, "/pathforward-insights"),
+                                   json.dumps(payload), schema=INSIGHTS_SCHEMA)
         parsed = resp.parsed or {}
         # GATE: we read ONLY the narrative from the model. Every number comes from the code-computed
         # aggregates above — anything numeric the model returns is ignored, so it cannot fabricate.
@@ -109,7 +122,8 @@ class ProgramInsightsAgent:
             f"skills per worker; (3) the required skills missing for the most workers (top "
             f"bottlenecks). Then state how worker {worker.id} compares to that cohort."
         )
-        resp = self.client.respond(FABRIC_INS_INSTRUCTIONS, question)
+        resp = self.client.respond(self._instructions(FABRIC_INS_INSTRUCTIONS,
+                                                      "/pathforward-insights"), question)
         parsed = resp.parsed or {}
         # The Fabric tier returns free-text NL2SQL answers; take the narrative (parsed.narrative if a
         # schema was used, else the raw output). The numbers below remain the code-owned anchor.

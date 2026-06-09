@@ -135,9 +135,11 @@ class TestInsightsAgent(unittest.TestCase):
         self.worker = self.onto.workers[HERO_WORKER_ID]
         self.role = self.onto.roles[self.worker.target_role_id]
 
-    def test_agent_constructed_with_only_a_client(self):
-        self.assertEqual(list(inspect.signature(ProgramInsightsAgent.__init__).parameters),
-                         ["self", "client"])
+    def test_agent_constructed_with_only_a_client_as_required_dependency(self):
+        params = inspect.signature(ProgramInsightsAgent.__init__).parameters
+        self.assertEqual(list(params)[:2], ["self", "client"])
+        self.assertEqual(params["client"].default, inspect._empty)
+        self.assertEqual(params["skill_instructions"].default, "")
 
     def test_insights_reconciles_to_derivation(self):
         ins = ProgramInsightsAgent(FakeLLMClient()).analyze(self.worker, self.role, self.onto)

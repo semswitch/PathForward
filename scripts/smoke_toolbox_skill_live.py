@@ -5,8 +5,9 @@ This is the checklist #4 proof path:
   - `skills/pathforward/SKILL.md` has been registered as the Foundry Skill `pathforward`.
   - `pathforward-toolbox` exposes that Skill through its MCP endpoint as
     `skill://pathforward/SKILL.md`.
+  - The toolbox also exposes specialist skills for Curator, Assessment, Planner, and Insights.
   - The smoke calls `tools/list`, `resources/list`, and `resources/read`.
-  - The Orchestrator receives the MCP-loaded `/pathforward` skill content at inference time.
+  - The Orchestrator and specialist agents receive MCP-loaded skill content at inference time.
 
 It intentionally does NOT fall back to the local file for the live proof. Local files are source;
 Foundry MCP readback is the runtime-consumption evidence.
@@ -39,11 +40,18 @@ from pathforward.credential.mint import mint  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
-from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
+from pathforward.toolbox_mcp import read_skills_from_toolbox  # noqa: E402
 from generate_data import _learner_responses  # noqa: E402
 
 TOOLBOX_NAME = "pathforward-toolbox"
 SKILL_NAME = "pathforward"
+SPECIALIST_SKILLS = (
+    "pathforward",
+    "pathforward-curate",
+    "pathforward-assess",
+    "pathforward-plan",
+    "pathforward-insights",
+)
 ORCHESTRATOR_AGENT = "pathforward-orchestrator-skill"
 CURATOR_AGENT = "pathforward-curator-skill"
 PLANNER_AGENT = "pathforward-planner-skill"
@@ -58,8 +66,9 @@ def main() -> int:
         return 0
 
     print(f"toolbox={TOOLBOX_NAME} skill={SKILL_NAME}")
-    skill_content, mcp_evidence = read_skill_from_toolbox(settings.foundry_project_endpoint,
-                                                          TOOLBOX_NAME, SKILL_NAME)
+    skill_contents, mcp_evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
+                                                            TOOLBOX_NAME, SPECIALIST_SKILLS)
+    skill_content = skill_contents[SKILL_NAME]
     print(f"initialized: protocol={mcp_evidence.get('protocol') or '(unspecified)'}")
     tool_names = mcp_evidence["tools"]
     print(f"tools/list: {tool_names}")
@@ -67,7 +76,9 @@ def main() -> int:
     if "PathForward Orchestrator Skill" not in skill_content:
         print("FAIL: resources/read did not return the expected /pathforward skill body")
         return 1
-    print(f"resources/read: {mcp_evidence['skill_uri']} chars={len(skill_content)}")
+    for name in SPECIALIST_SKILLS:
+        print(f"resources/read: {mcp_evidence['skill_uris'][name]} "
+              f"chars={mcp_evidence['skill_chars'][name]}")
 
     orchestrator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
                                                  agent_name=ORCHESTRATOR_AGENT,
@@ -100,13 +111,15 @@ def main() -> int:
         result = run_orchestrated_multiagent(
             worker, onto, edges,
             Orchestrator(orchestrator_client, skill_instructions=skill_content),
-            Curator(curator_client),
-            Generator(generator_client),
+            Curator(curator_client, skill_instructions=skill_contents["pathforward-curate"]),
+            Generator(generator_client, skill_instructions=skill_contents["pathforward-assess"]),
             EvidenceGate(LocalNumericChecker()),
-            Planner(planner_client, LocalNumericChecker()),
-            critic=Critic(critic_client),
+            Planner(planner_client, LocalNumericChecker(),
+                    skill_instructions=skill_contents["pathforward-plan"]),
+            critic=Critic(critic_client, skill_instructions=skill_contents["pathforward-assess"]),
             adaptive=adaptive,
-            insights=ProgramInsightsAgent(insights_client),
+            insights=ProgramInsightsAgent(
+                insights_client, skill_instructions=skill_contents["pathforward-insights"]),
         )
         orch = result.orchestrator or {}
         target = orch.get("selected_target_skill_id", "")
@@ -123,8 +136,9 @@ def main() -> int:
         print(f"mint spine: {spine_ok}")
         checks = {
             "toolbox MCP tools listed": bool(tool_names),
-            "Foundry skill resource read": bool(skill_content),
+            "Foundry skill resources read": all(skill_contents.get(name) for name in SPECIALIST_SKILLS),
             "Orchestrator used MCP-loaded /pathforward skill": route_ok,
+            "Specialist skills loaded": all(skill_contents.get(name) for name in SPECIALIST_SKILLS[1:]),
             "Evidence Gate verified": result.loop.status == "verified",
             "credential spine intact": spine_ok,
             "insights returned": result.insights is not None,

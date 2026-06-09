@@ -37,8 +37,20 @@ CURATOR_SCHEMA = {
 
 
 class Curator:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, skill_instructions: str = ""):
         self.client = client
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self) -> str:
+        if not self.skill_instructions:
+            return CUR_INSTRUCTIONS
+        return (
+            f"{CUR_INSTRUCTIONS}\n\n"
+            "Loaded Foundry Skill `/pathforward-curate`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the loaded skill, but the structured output schema and deterministic admissible "
+            "set remain authoritative."
+        )
 
     def curate(self, worker: Worker, role: Role, onto: Ontology) -> CuratorDecision:
         # Deterministic source of truth: the assessable CertGap skills, in the role's required
@@ -64,7 +76,7 @@ class Curator:
                 for s in admissible
             ],
         }
-        resp = self.client.respond(CUR_INSTRUCTIONS, json.dumps(payload), schema=CURATOR_SCHEMA)
+        resp = self.client.respond(self._instructions(), json.dumps(payload), schema=CURATOR_SCHEMA)
         parsed = resp.parsed or {}
         raw_ranking = list(parsed.get("ranking", []))
         admissible_set = set(admissible)

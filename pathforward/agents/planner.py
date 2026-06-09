@@ -65,9 +65,22 @@ def canonical_hours(skill_id: str, onto: Ontology) -> tuple[int, str]:
 
 
 class Planner:
-    def __init__(self, client: LLMClient, numeric_checker: NumericChecker):
+    def __init__(self, client: LLMClient, numeric_checker: NumericChecker,
+                 skill_instructions: str = ""):
         self.client = client
         self.numeric_checker = numeric_checker
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self) -> str:
+        if not self.skill_instructions:
+            return PLAN_INSTRUCTIONS
+        return (
+            f"{PLAN_INSTRUCTIONS}\n\n"
+            "Loaded Foundry Skill `/pathforward-plan`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the loaded skill, but code-owned hours, capacity phasing, arithmetic, and "
+            "accessibility vocabulary remain authoritative."
+        )
 
     def plan(self, worker: Worker, ranked_skill_ids: tuple[str, ...],
              onto: Ontology) -> LearningPlan:
@@ -93,7 +106,7 @@ class Planner:
             "accessibility_needs": list(worker.accessibility_needs),
             "gap_skills": [{"id": s, "hours": h, "cert_id": c} for s, h, c in derived],
         }
-        resp = self.client.respond(PLAN_INSTRUCTIONS, json.dumps(payload), schema=PLANNER_SCHEMA)
+        resp = self.client.respond(self._instructions(), json.dumps(payload), schema=PLANNER_SCHEMA)
         parsed = resp.parsed or {}
         proposed_weekly = float(parsed.get("weekly_hours", capacity) or 0.0)
         rationale = str(parsed.get("rationale", ""))

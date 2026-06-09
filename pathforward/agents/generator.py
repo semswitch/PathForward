@@ -31,8 +31,20 @@ ITEM_SCHEMA = {
 
 
 class Generator:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, skill_instructions: str = ""):
         self.client = client
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self) -> str:
+        if not self.skill_instructions:
+            return GEN_INSTRUCTIONS
+        return (
+            f"{GEN_INSTRUCTIONS}\n\n"
+            "Loaded Foundry Skill `/pathforward-assess`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the Generator contract in the loaded skill. The Evidence Gate and structured "
+            "schema remain authoritative."
+        )
 
     def generate(self, edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ...],
                  attempt: int, previous_response_id: str | None = None,
@@ -49,7 +61,7 @@ class Generator:
             "feedback": feedback,
             "difficulty_band": difficulty_band,
         }
-        resp = self.client.respond(GEN_INSTRUCTIONS, json.dumps(payload),
+        resp = self.client.respond(self._instructions(), json.dumps(payload),
                                    previous_response_id=previous_response_id, schema=ITEM_SCHEMA)
         d = resp.parsed or {}
         return AssessmentItem(

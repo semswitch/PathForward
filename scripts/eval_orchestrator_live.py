@@ -1,9 +1,9 @@
 """Live safety re-measure for the skill-loaded Orchestrator control surface.
 
-This is checklist #2. It does not reuse the older loop-only safety numbers. It loads the
-`/pathforward` skill from Foundry Toolbox MCP resources, routes every legit eval case through a
-Foundry-backed Orchestrator plan, and runs route-level adversarial probes that target the
-Orchestrator/validator boundary.
+This is checklist #2 and #4. It does not reuse the older loop-only safety numbers. It loads the
+`/pathforward` runtime skill plus specialist Skills from Foundry Toolbox MCP resources, routes every
+legit eval case through a Foundry-backed Orchestrator plan, and runs route-level adversarial probes
+that target the Orchestrator/validator boundary.
 
 Outputs:
   eval/orchestrator-groundedness.{json,md}
@@ -38,10 +38,17 @@ from pathforward.eval.runner import CaseResult, Scorecard  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import mirror  # noqa: E402
 from pathforward.iq.seed import build_seed  # noqa: E402
-from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
+from pathforward.toolbox_mcp import read_skills_from_toolbox  # noqa: E402
 
 TOOLBOX_NAME = "pathforward-toolbox"
 SKILL_NAME = "pathforward"
+SPECIALIST_SKILLS = (
+    "pathforward",
+    "pathforward-curate",
+    "pathforward-assess",
+    "pathforward-plan",
+    "pathforward-insights",
+)
 
 
 def _content_by_ref(onto, edges) -> dict[str, str]:
@@ -182,9 +189,10 @@ def main() -> int:
         print("SKIP: live Orchestrator eval requires AZURE_AI_PROJECT_ENDPOINT and AZURE_SEARCH_ENDPOINT")
         return 0
 
-    skill_content, mcp = read_skill_from_toolbox(settings.foundry_project_endpoint,
-                                                 TOOLBOX_NAME, SKILL_NAME)
-    print(f"skill: {mcp['skill_uri']} chars={mcp['skill_chars']} tools={mcp['tools']}")
+    skill_contents, mcp = read_skills_from_toolbox(settings.foundry_project_endpoint,
+                                                   TOOLBOX_NAME, SPECIALIST_SKILLS)
+    skill_content = skill_contents[SKILL_NAME]
+    print(f"skills: {mcp['skill_uris']} chars={mcp['skill_chars']} tools={mcp['tools']}")
 
     onto = build_seed()
     edges = dv.build_all_edges(onto)
@@ -210,8 +218,8 @@ def main() -> int:
                                            model=settings.model_deployment)
     try:
         orchestrator = Orchestrator(orch_client, skill_instructions=skill_content)
-        generator = Generator(gen_client)
-        critic = Critic(critic_client)
+        generator = Generator(gen_client, skill_instructions=skill_contents["pathforward-assess"])
+        critic = Critic(critic_client, skill_instructions=skill_contents["pathforward-assess"])
         print(f"running {len(cases)} Orchestrator groundedness cases...")
         grounded_results = []
         for case in cases:
@@ -238,7 +246,8 @@ def main() -> int:
                                                   model=settings.model_deployment)
     model_attack_results = []
     try:
-        critic = Critic(attack_critic_client)
+        critic = Critic(attack_critic_client,
+                        skill_instructions=skill_contents["pathforward-assess"])
         print(f"\nrunning {len(attacks)} model-side attacks against live loop + Critic...")
         for atk in attacks:
             r = run_live_attack(atk, attack_client, onto, edges, critic=critic)

@@ -92,19 +92,7 @@ class ToolboxMcpClient:
         return init.result
 
 
-def read_skill_from_toolbox(endpoint: str, toolbox_name: str, skill_name: str) -> tuple[str, dict]:
-    """Return `(skill_body, evidence)` for `skill://{skill_name}/SKILL.md` from the toolbox MCP endpoint."""
-    mcp = ToolboxMcpClient(endpoint, toolbox_name)
-    init = mcp.initialize()
-    tools = mcp.call("tools/list").result.get("tools") or []
-    resources = mcp.call("resources/list").result.get("resources") or []
-    resource_uris = [r.get("uri") for r in resources if isinstance(r, dict)]
-    expected = f"skill://{skill_name}"
-    skill_uri = next((uri for uri in resource_uris
-                      if uri == expected or uri == f"{expected}/SKILL.md"), "")
-    if not skill_uri:
-        raise RuntimeError(f"no {expected} resource listed by toolbox MCP resources")
-    read = mcp.call("resources/read", {"uri": skill_uri}).result
+def _body_from_read(read: dict[str, Any], skill_uri: str) -> str:
     parts: list[str] = []
     for item in read.get("contents") or []:
         text = item.get("text") if isinstance(item, dict) else None
@@ -113,11 +101,48 @@ def read_skill_from_toolbox(endpoint: str, toolbox_name: str, skill_name: str) -
     body = "\n\n".join(parts).strip()
     if not body:
         raise RuntimeError(f"resources/read returned no text for {skill_uri}")
-    return body, {
+    return body
+
+
+def read_skills_from_toolbox(endpoint: str, toolbox_name: str,
+                             skill_names: tuple[str, ...]) -> tuple[dict[str, str], dict]:
+    """Return skill bodies keyed by name plus MCP evidence from one toolbox session."""
+    mcp = ToolboxMcpClient(endpoint, toolbox_name)
+    init = mcp.initialize()
+    tools = mcp.call("tools/list").result.get("tools") or []
+    resources = mcp.call("resources/list").result.get("resources") or []
+    resource_uris = [r.get("uri") for r in resources if isinstance(r, dict)]
+
+    bodies: dict[str, str] = {}
+    skill_uris: dict[str, str] = {}
+    skill_chars: dict[str, int] = {}
+    for skill_name in skill_names:
+        expected = f"skill://{skill_name}"
+        skill_uri = next((uri for uri in resource_uris
+                          if uri == expected or uri == f"{expected}/SKILL.md"), "")
+        if not skill_uri:
+            raise RuntimeError(f"no {expected} resource listed by toolbox MCP resources")
+        body = _body_from_read(mcp.call("resources/read", {"uri": skill_uri}).result, skill_uri)
+        bodies[skill_name] = body
+        skill_uris[skill_name] = skill_uri
+        skill_chars[skill_name] = len(body)
+
+    evidence = {
         "protocol": init.get("protocolVersion"),
         "tools": [t.get("name") or t.get("type") or "(unnamed)"
                   for t in tools if isinstance(t, dict)],
         "resources": resource_uris,
-        "skill_uri": skill_uri,
-        "skill_chars": len(body),
+        "skill_uris": skill_uris,
+        "skill_chars": skill_chars,
     }
+    if len(skill_names) == 1:
+        only = skill_names[0]
+        evidence["skill_uri"] = skill_uris[only]
+        evidence["skill_chars"] = skill_chars[only]
+    return bodies, evidence
+
+
+def read_skill_from_toolbox(endpoint: str, toolbox_name: str, skill_name: str) -> tuple[str, dict]:
+    """Return `(skill_body, evidence)` for `skill://{skill_name}/SKILL.md` from the toolbox MCP endpoint."""
+    bodies, evidence = read_skills_from_toolbox(endpoint, toolbox_name, (skill_name,))
+    return bodies[skill_name], evidence

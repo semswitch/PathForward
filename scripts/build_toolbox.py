@@ -1,15 +1,15 @@
 """Provision the governed seam: a Foundry Skill + Toolbox.
 
-Registers the repo-local agentskills.io source file `skills/pathforward/SKILL.md` as the versioned
-Foundry Skill named `pathforward`, then attaches it to `pathforward-toolbox` alongside the governed
-Azure AI Search tool. The toolbox MCP endpoint is the intended load-bearing skill/tool seam for the
-Orchestrator path; direct-attached tools remain fallback/test seams.
+Registers the repo-local agentskills.io source files under `skills/*/SKILL.md` as versioned Foundry
+Skills, then attaches them to `pathforward-toolbox` alongside the governed Azure AI Search tool. The
+toolbox MCP endpoint is the intended load-bearing skill/tool seam for the Orchestrator and
+specialist-agent paths; direct-attached tools remain fallback/test seams.
 
 Source-verified against azure-ai-projects 2.2.0 (see .agents/decisions/003-foundry-toolbox-
 governance.md): beta.skills.create / beta.toolboxes.create_version, with the preview header
 (Foundry-Features: {Skills,Toolboxes}=V1Preview) auto-injected by the SDK.
 
-    python scripts/build_toolbox.py --dry-run                 # construct objects offline, NO Azure
+    python scripts/build_toolbox.py --dry-run                 # validate local Skill files, NO Azure
     python scripts/build_toolbox.py                           # live: create skill + toolbox v1 (no toolbox RAI)
     python scripts/build_toolbox.py --rai-policy pathforward-rai   # explicitly attach an EXISTING toolbox RAI policy
     python scripts/build_toolbox.py --recreate               # delete skill+toolbox first, rebuild clean
@@ -31,15 +31,20 @@ sys.path.insert(0, _ROOT)
 from pathforward.config import load_settings   # noqa: E402
 from pathforward.skills import read_skill_file  # noqa: E402
 
-SKILL_NAME = "pathforward"
 TOOLBOX_NAME = "pathforward-toolbox"
 CONNECTION = "pathforward-search"
-SKILL_PATH = os.path.join(_ROOT, "skills", "pathforward", "SKILL.md")
+SKILLS = (
+    ("pathforward", os.path.join(_ROOT, "skills", "pathforward", "SKILL.md")),
+    ("pathforward-curate", os.path.join(_ROOT, "skills", "pathforward-curate", "SKILL.md")),
+    ("pathforward-assess", os.path.join(_ROOT, "skills", "pathforward-assess", "SKILL.md")),
+    ("pathforward-plan", os.path.join(_ROOT, "skills", "pathforward-plan", "SKILL.md")),
+    ("pathforward-insights", os.path.join(_ROOT, "skills", "pathforward-insights", "SKILL.md")),
+)
 
 
-def build_skill_content():
+def build_skill_content(path: str):
     from azure.ai.projects.models import SkillInlineContent
-    skill = read_skill_file(SKILL_PATH)
+    skill = read_skill_file(path)
     return SkillInlineContent(
         description=skill.description,
         instructions=skill.instructions,
@@ -47,7 +52,7 @@ def build_skill_content():
         metadata={
             "domain": "workforce-development",
             "ontology": "certgap-edge-driven",
-            "source_path": "skills/pathforward/SKILL.md",
+            "source_path": os.path.relpath(path, _ROOT).replace("\\", "/"),
             **(skill.metadata or {}),
         },
     )
@@ -95,23 +100,21 @@ def main() -> int:
     index_name = (settings.search_index or "").strip()
     rai_policy = args.rai_policy or None
 
-    # Construct everything offline first so a model/schema error surfaces even in --dry-run.
-    skill_file = read_skill_file(SKILL_PATH)
-    if skill_file.name != SKILL_NAME:
-        print(f"FAIL: {SKILL_PATH} declares name={skill_file.name!r}; expected {SKILL_NAME!r}")
-        return 1
-    skill_content = build_skill_content()
-    placeholder_tool = build_search_tool(conn_id="<resolved-at-runtime>", index_name=index_name)
-    policies = build_policies(rai_policy)
-    from azure.ai.projects.models import ToolboxSkillReference
-    skill_ref = ToolboxSkillReference(name=SKILL_NAME)  # version filled after the skill is created
-    print(f"constructed: skill '{SKILL_NAME}' from skills/pathforward/SKILL.md "
-          f"+ azure_ai_search tool over index '{index_name}' + skill_ref "
-          f"+ policies={'RAI:' + rai_policy if policies else 'none'}")
-    _ = (skill_content, placeholder_tool, skill_ref)
+    # Validate local Skill files first so --dry-run works on machines without Azure SDK packages.
+    skill_files = []
+    for expected_name, path in SKILLS:
+        skill_file = read_skill_file(path)
+        if skill_file.name != expected_name:
+            print(f"FAIL: {path} declares name={skill_file.name!r}; expected {expected_name!r}")
+            return 1
+        skill_files.append(skill_file)
+    skill_names = [s.name for s in skill_files]
+    print(f"validated: skills {skill_names} "
+          f"+ azure_ai_search tool over index '{index_name}' "
+          f"+ policies={'RAI:' + rai_policy if rai_policy else 'none'}")
 
     if args.dry_run:
-        print("DRY RUN: objects construct cleanly; no Azure calls made.")
+        print("DRY RUN: local Skill files validate cleanly; no Azure SDK imports or calls made.")
         return 0
 
     if not endpoint:
@@ -119,7 +122,16 @@ def main() -> int:
         return 1
 
     from azure.ai.projects import AIProjectClient
+    from azure.ai.projects.models import ToolboxSkillReference
     from azure.identity import DefaultAzureCredential
+
+    # Construct SDK objects only for a live build. This preserves offline portability while still
+    # failing fast on SDK/model-shape errors before making create calls.
+    skill_contents = {name: build_skill_content(path) for name, path in SKILLS}
+    placeholder_tool = build_search_tool(conn_id="<resolved-at-runtime>", index_name=index_name)
+    policies = build_policies(rai_policy)
+    skill_refs = [ToolboxSkillReference(name=name) for name, _ in SKILLS]
+    _ = (placeholder_tool, skill_refs)
 
     project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
@@ -131,30 +143,38 @@ def main() -> int:
     print(f"resolved connection '{CONNECTION}' -> {conn_id}")
 
     if args.recreate:
-        for label, fn in (("toolbox", lambda: project.beta.toolboxes.delete(TOOLBOX_NAME)),
-                          ("skill", lambda: project.beta.skills.delete(SKILL_NAME))):
+        delete_ops = [("toolbox", lambda: project.beta.toolboxes.delete(TOOLBOX_NAME))]
+        delete_ops += [(f"skill {name}", lambda n=name: project.beta.skills.delete(n))
+                       for name, _ in SKILLS]
+        for label, fn in delete_ops:
             try:
                 fn()
                 print(f"deleted existing {label} (recreate)")
             except Exception as exc:  # noqa: BLE001
                 print(f"(no existing {label} to delete: {type(exc).__name__})")
 
-    # 1) the 'pathforward' Skill (default=True -> this version is the one a reference resolves to)
-    try:
-        skill = project.beta.skills.create(name=SKILL_NAME, inline_content=skill_content, default=True)
-    except Exception as exc:  # noqa: BLE001
-        _rbac_hint(exc)
-        return 1
-    print(f"SKILL  '{skill.name}' v{skill.version} id={skill.skill_id}")
+    # 1) each Skill (default=True -> this version is the one a reference resolves to)
+    created_skills = []
+    for name, _ in SKILLS:
+        try:
+            skill = project.beta.skills.create(name=name, inline_content=skill_contents[name],
+                                               default=True)
+        except Exception as exc:  # noqa: BLE001
+            _rbac_hint(exc)
+            return 1
+        created_skills.append(skill)
+        print(f"SKILL  '{skill.name}' v{skill.version} id={skill.skill_id}")
 
     # 2) the toolbox version: GA search tool + the skill reference (+ optional RAI policy)
     tool = build_search_tool(conn_id=conn_id, index_name=index_name)
-    skills = [ToolboxSkillReference(name=SKILL_NAME, version=skill.version)]
+    created_by_name = {skill.name: skill for skill in created_skills}
+    skills = [ToolboxSkillReference(name=name, version=created_by_name[name].version)
+              for name, _ in SKILLS]
     try:
         tb = project.beta.toolboxes.create_version(
             TOOLBOX_NAME,
             tools=[tool],
-            description="PathForward Phase 2 governed seam: agentic search + the pathforward skill.",
+            description="PathForward governed seam: agentic search + PathForward skill family.",
             metadata={"phase": "2", "search_index": index_name},
             skills=skills,
             policies=policies,
@@ -178,8 +198,11 @@ def main() -> int:
     skl = [f"{s.name}" for s in project.beta.skills.list()]
     print(f"registry toolboxes: {tbs}")
     print(f"registry skills:    {skl}")
-    if TOOLBOX_NAME not in tbs or SKILL_NAME not in skl:
+    missing_skills = [name for name, _ in SKILLS if name not in skl]
+    if TOOLBOX_NAME not in tbs or missing_skills:
         print("FAIL: created artifact not visible in the registry listing")
+        if missing_skills:
+            print(f"missing skills: {missing_skills}")
         return 1
     print("done. governed seam registered.")
     return 0

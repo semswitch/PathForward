@@ -59,9 +59,21 @@ CRITIC_SCHEMA = {
 
 
 class Critic:
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, skill_instructions: str = ""):
         # ONLY an LLMClient — no handle to the gate, mint, Verdict, or LoopResult (trust invariant).
         self.client = client
+        self.skill_instructions = skill_instructions.strip()
+
+    def _instructions(self) -> str:
+        if not self.skill_instructions:
+            return CRIT_INSTRUCTIONS
+        return (
+            f"{CRIT_INSTRUCTIONS}\n\n"
+            "Loaded Foundry Skill `/pathforward-assess`:\n"
+            f"{self.skill_instructions}\n\n"
+            "Follow the Critic contract in the loaded skill. You advise only; deterministic code "
+            "still owns the Evidence Gate and mint boundary."
+        )
 
     def review(self, item: AssessmentItem, allowed_ref_ids: tuple[str, ...],
                skill: Skill, edge: Edge) -> CriticReview:
@@ -75,7 +87,7 @@ class Critic:
             "allowed_ref_ids": list(allowed_ref_ids),   # same grounding basis the gate uses
             "dimensions": list(CRITIC_DIMENSIONS),
         }
-        resp = self.client.respond(CRIT_INSTRUCTIONS, json.dumps(payload), schema=CRITIC_SCHEMA)
+        resp = self.client.respond(self._instructions(), json.dumps(payload), schema=CRITIC_SCHEMA)
         d = resp.parsed or {}
         rec = d.get("recommendation", "pass")
         if rec not in _RECOMMENDATIONS:

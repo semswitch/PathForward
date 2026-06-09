@@ -48,8 +48,11 @@ class TestCritic(unittest.TestCase):
         self.skill = self.onto.skills[self.driving.target_id]
         self.allowed = traversal.approved_refs(self.worker, self.skill, self.onto)
 
-    def test_critic_constructed_with_only_an_llm_client(self):
-        self.assertEqual(list(inspect.signature(Critic.__init__).parameters), ["self", "client"])
+    def test_critic_constructed_with_only_an_llm_client_as_required_dependency(self):
+        params = inspect.signature(Critic.__init__).parameters
+        self.assertEqual(list(params)[:2], ["self", "client"])
+        self.assertEqual(params["client"].default, inspect._empty)
+        self.assertEqual(params["skill_instructions"].default, "")
 
     def test_critic_cannot_pass_an_ungrounded_item(self):
         # An always-"pass" Critic must NOT be able to push an ungrounded item past the gate.
