@@ -33,6 +33,7 @@ from .credential.approval import (
 )
 from .iq import derivation as dv
 from .iq.seed import HERO_WORKER_ID, build_seed
+from .obs import tracing
 from .skills import read_skill_file
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -185,76 +186,108 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
     """Run the PathForward hosted Orchestrator route and return a JSON-safe document."""
     settings = load_settings(str(_ROOT / ".env"))
     mode = _resolve_mode(settings, request.mode or os.getenv("PATHFORWARD_HOSTED_MODE", "auto"))
+    if mode == "live" and settings.azure_monitor_connection_string:
+        tracing.configure_tracing(azure_connection_string=settings.azure_monitor_connection_string,
+                                  service_name="pathforward-hosted")
 
-    if mode == "live":
-        skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
-    else:
-        skill_bodies = _local_skill_bodies()
-        skill_evidence = {"source": "local-skill-files", "skills": list(skill_bodies)}
+    with tracing.span("hosted.request",
+                      **{"pf.surface": "foundry-hosted-agent",
+                         "pf.mode": mode,
+                         "pf.worker": request.worker_id,
+                         "pf.approve_mint": request.approve_mint}) as hosted_span:
+        if mode == "live":
+            skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
+        else:
+            skill_bodies = _local_skill_bodies()
+            skill_evidence = {"source": "local-skill-files", "skills": list(skill_bodies)}
+        hosted_span.set(**{"pf.skill_source": skill_evidence.get("source")})
 
-    clients, closeables = _build_clients(settings, mode, skill_bodies)
-    try:
-        onto = build_seed()
-        worker = onto.workers.get(request.worker_id)
-        if worker is None:
-            raise ValueError(f"unknown worker_id: {request.worker_id}")
-        role = onto.roles[worker.target_role_id]
-        edges = dv.build_all_edges(onto)
+        clients, closeables = _build_clients(settings, mode, skill_bodies)
+        try:
+            doc = _run_hosted_orchestrator_inner(request, mode, skill_bodies,
+                                                skill_evidence, clients)
+            loop = (doc.get("result") or {}).get("loop") or {}
+            insights = (doc.get("result") or {}).get("insights") or {}
+            hosted_span.set(**{"pf.status": loop.get("status"),
+                               "pf.attempts": loop.get("attempts"),
+                               "pf.insights_source": insights.get("source"),
+                               "pf.approval_requested": bool(doc.get("approval_request")),
+                               "pf.credential_issued": bool(doc.get("credential"))})
+            return doc
+        except Exception as exc:  # noqa: BLE001
+            hosted_span.event("hosted.request_failed",
+                              **{"pf.error_type": type(exc).__name__,
+                                 "pf.error": str(exc)[:500]})
+            raise
+        finally:
+            for client in closeables:
+                client.close()
+            tracing.flush()
 
-        # Imported lazily so importing the hosted module does not depend on scripts at test discovery.
-        from scripts.generate_data import _learner_responses
 
-        adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
-        result = run_orchestrated_multiagent(
-            worker, onto, edges,
-            Orchestrator(clients["orchestrator"], skill_instructions=skill_bodies["pathforward"]),
-            Curator(clients["curator"], skill_instructions=skill_bodies["pathforward-curate"]),
-            Generator(clients["generator"], skill_instructions=skill_bodies["pathforward-assess"]),
-            EvidenceGate(LocalNumericChecker()),
-            Planner(clients["planner"], LocalNumericChecker(),
-                    skill_instructions=skill_bodies["pathforward-plan"]),
-            critic=Critic(clients["critic"], skill_instructions=skill_bodies["pathforward-assess"]),
-            adaptive=adaptive,
-            insights=_build_insights_agent(
-                clients["insights"],
-                skill_instructions=skill_bodies["pathforward-insights"],
-            ),
-        )
+def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
+                                   skill_bodies: dict[str, str],
+                                   skill_evidence: dict[str, Any],
+                                   clients: dict[str, Any]) -> dict[str, Any]:
+    """Implementation body split out so the public entrypoint can own tracing/cleanup."""
+    onto = build_seed()
+    worker = onto.workers.get(request.worker_id)
+    if worker is None:
+        raise ValueError(f"unknown worker_id: {request.worker_id}")
+    role = onto.roles[worker.target_role_id]
+    edges = dv.build_all_edges(onto)
 
-        approval = None
-        credential = None
-        mint_error = ""
-        if result.loop.status == "verified":
-            approval_request = request_mint_approval(worker, role, result.loop.driving_edge_id,
-                                                     result.loop.targeted_skill_id, result.loop)
-            approval = approval_request.to_doc()
-            if request.approve_mint:
-                try:
-                    decision = MintApprovalDecision(approval_request.request_id, True,
-                                                    request.approver,
-                                                    "approved by hosted-agent approval surface")
-                    cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
-                                              result.loop.targeted_skill_id, result.loop, decision)
-                    credential = cred.to_doc()
-                except MintApprovalError as exc:
-                    mint_error = str(exc)
+    # Imported lazily so importing the hosted module does not depend on scripts at test discovery.
+    from scripts.generate_data import _learner_responses
 
-        return {
-            "agent": "pathforward-orchestrator",
-            "surface": "foundry-hosted-agent",
-            "mode": mode,
-            "message": request.message,
-            "worker_id": worker.id,
-            "target_role_id": role.id,
-            "skill_evidence": skill_evidence,
-            "result": result.to_doc(),
-            "approval_request": approval,
-            "credential": credential,
-            "mint_error": mint_error,
-        }
-    finally:
-        for client in closeables:
-            client.close()
+    adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
+    result = run_orchestrated_multiagent(
+        worker, onto, edges,
+        Orchestrator(clients["orchestrator"], skill_instructions=skill_bodies["pathforward"]),
+        Curator(clients["curator"], skill_instructions=skill_bodies["pathforward-curate"]),
+        Generator(clients["generator"], skill_instructions=skill_bodies["pathforward-assess"]),
+        EvidenceGate(LocalNumericChecker()),
+        Planner(clients["planner"], LocalNumericChecker(),
+                skill_instructions=skill_bodies["pathforward-plan"]),
+        critic=Critic(clients["critic"], skill_instructions=skill_bodies["pathforward-assess"]),
+        adaptive=adaptive,
+        insights=_build_insights_agent(
+            clients["insights"],
+            skill_instructions=skill_bodies["pathforward-insights"],
+        ),
+    )
+
+    approval = None
+    credential = None
+    mint_error = ""
+    if result.loop.status == "verified":
+        approval_request = request_mint_approval(worker, role, result.loop.driving_edge_id,
+                                                 result.loop.targeted_skill_id, result.loop)
+        approval = approval_request.to_doc()
+        if request.approve_mint:
+            try:
+                decision = MintApprovalDecision(approval_request.request_id, True,
+                                                request.approver,
+                                                "approved by hosted-agent approval surface")
+                cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
+                                          result.loop.targeted_skill_id, result.loop, decision)
+                credential = cred.to_doc()
+            except MintApprovalError as exc:
+                mint_error = str(exc)
+
+    return {
+        "agent": "pathforward-orchestrator",
+        "surface": "foundry-hosted-agent",
+        "mode": mode,
+        "message": request.message,
+        "worker_id": worker.id,
+        "target_role_id": role.id,
+        "skill_evidence": skill_evidence,
+        "result": result.to_doc(),
+        "approval_request": approval,
+        "credential": credential,
+        "mint_error": mint_error,
+    }
 
 
 def summarize_hosted_response(doc: dict[str, Any]) -> str:

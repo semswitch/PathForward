@@ -35,6 +35,8 @@ environment_variables:
     value: pathforward-toolbox
   - name: PATHFORWARD_INSIGHTS_TIER
     value: fabric-live
+  - name: AZURE_MONITOR_CONNECTION_STRING
+    value: ${AZURE_MONITOR_CONNECTION_STRING}
   - name: FABRIC_CONNECTION_NAME
     value: ${FABRIC_CONNECTION_NAME}
   - name: FABRIC_DATA_AGENT_OPENAI_BASE

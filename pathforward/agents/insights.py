@@ -63,6 +63,27 @@ INSIGHTS_SCHEMA = {
 }
 
 
+def derivation_floor_insights(worker: Worker, role: Role, onto: Ontology, *,
+                              reason: str = "") -> ProgramInsights:
+    """Deterministic advisory fallback when a live Fabric narrative is unavailable."""
+    rc = cohort.role_cohort(onto, role.id)
+    wc = cohort.worker_vs_cohort(onto, worker.id)
+    prog = cohort.program_aggregates(onto)
+    bottlenecks = rc.to_doc().get("bottleneck_skills", [])
+    names = ", ".join(str(b.get("name", b.get("skill_id", ""))) for b in bottlenecks[:3])
+    reason_note = f" Fabric-live was unavailable ({reason});" if reason else ""
+    narrative = (
+        f"{reason_note} using derivation-floor cohort facts instead. Worker {worker.id} has "
+        f"readiness {wc.worker_readiness} for {role.name} versus a cohort mean of "
+        f"{wc.cohort_mean_readiness}. Top cohort bottlenecks: {names or 'none'}."
+    ).strip()
+    return ProgramInsights(
+        worker_id=worker.id, role_id=role.id,
+        role_cohort=rc.to_doc(), worker_comparison=wc.to_doc(), program=prog.to_doc(),
+        narrative=narrative, source="derivation-floor",
+    )
+
+
 class ProgramInsightsAgent:
     def __init__(self, client: LLMClient, skill_instructions: str = ""):
         self.client = client

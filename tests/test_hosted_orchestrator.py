@@ -38,6 +38,11 @@ class HostedOrchestratorTests(unittest.TestCase):
         for name in forbidden:
             self.assertNotIn(f"name: {name}", manifest)
 
+    def test_agent_yaml_passes_azure_monitor_connection_string(self):
+        manifest = Path("agent.yaml").read_text(encoding="utf-8")
+        self.assertIn("name: AZURE_MONITOR_CONNECTION_STRING", manifest)
+        self.assertIn("value: ${AZURE_MONITOR_CONNECTION_STRING}", manifest)
+
     def test_config_accepts_hosted_runtime_env_names(self):
         old_project = os.environ.get("FOUNDRY_PROJECT_ENDPOINT")
         old_model = os.environ.get("AZURE_AI_MODEL_DEPLOYMENT_NAME")

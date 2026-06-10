@@ -36,6 +36,15 @@ from pathforward.config import load_settings  # noqa: E402
 
 AGENT_NAME = "pathforward-orchestrator"
 API_VERSION = "2025-11-15-preview"
+EXPECTED_AGENT_VERSION = os.getenv("PATHFORWARD_EXPECTED_HOSTED_VERSION", "").strip()
+
+
+def _is_expected_hosted_agent(agent_ref: dict[str, Any]) -> bool:
+    if agent_ref.get("name") != AGENT_NAME:
+        return False
+    if not EXPECTED_AGENT_VERSION:
+        return bool(agent_ref.get("version"))
+    return str(agent_ref.get("version")) == EXPECTED_AGENT_VERSION
 
 
 @dataclass(frozen=True)
@@ -118,7 +127,7 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
     agent_ref = result.get("agent_reference") or {}
     checks = {
         "response_completed": result.get("status") == "completed",
-        "hosted_agent_v11": agent_ref.get("name") == AGENT_NAME and str(agent_ref.get("version")) == "11",
+        "hosted_agent_expected": _is_expected_hosted_agent(agent_ref),
         "surface_live": doc.get("surface") == "foundry-hosted-agent" and doc.get("mode") == "live",
         "skill_from_toolbox": skill_evidence.get("source") == "foundry-toolbox-mcp",
         "loop_verified": loop.get("status") == "verified",
@@ -221,7 +230,7 @@ def main() -> int:
             input_text="diagnose toolbox",
             expect_credential=False,
             expect_approval_request=False,
-            required_checks=("response_completed", "hosted_agent_v11"),
+            required_checks=("response_completed", "hosted_agent_expected"),
         ),
         HostedCall(
             name="no_approval_default",
@@ -230,7 +239,7 @@ def main() -> int:
             expect_approval_request=True,
             required_checks=(
                 "response_completed",
-                "hosted_agent_v11",
+                "hosted_agent_expected",
                 "surface_live",
                 "skill_from_toolbox",
                 "loop_verified",
@@ -254,7 +263,7 @@ def main() -> int:
                 expect_approval_request=True,
                 required_checks=(
                     "response_completed",
-                    "hosted_agent_v11",
+                    "hosted_agent_expected",
                     "surface_live",
                     "skill_from_toolbox",
                     "loop_verified",

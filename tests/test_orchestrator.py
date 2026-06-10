@@ -16,6 +16,7 @@ from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.orchestrator import run_multiagent
 from pathforward.agents.planner import Planner
 from pathforward.agents.evidence_gate import EvidenceGate
+from pathforward.agents.insights import ProgramInsightsAgent
 from pathforward.credential.mint import mint
 from pathforward.credential.schema import CredentialIntegrityError
 from pathforward.iq import derivation as dv
@@ -84,6 +85,24 @@ class TestOrchestrator(unittest.TestCase):
         self.assertEqual(res.loop.citations, ())
         with self.assertRaises(CredentialIntegrityError):
             mint(worker, role, "", "", res.loop)
+
+    def test_insights_failure_falls_back_to_derivation_floor(self):
+        class FailingInsights(ProgramInsightsAgent):
+            def __init__(self):
+                pass
+
+            def analyze(self, worker, role, onto):
+                raise RuntimeError("Fabric transient")
+
+        worker = self.onto.workers[HERO_WORKER_ID]
+        cur, gen, gate, plan, critic = _agents()
+        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan,
+                             critic=critic, insights=FailingInsights())
+
+        self.assertIsNotNone(res.insights)
+        self.assertEqual(res.insights.source, "derivation-floor")
+        self.assertIn("Fabric-live was unavailable", res.insights.narrative)
+        self.assertEqual(res.loop.status, "verified")
 
 
 if __name__ == "__main__":
