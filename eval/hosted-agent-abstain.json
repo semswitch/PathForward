@@ -1,0 +1,36 @@
+{
+  "title": "PathForward - Hosted Agent Semantic ABSTAIN Proof (live)",
+  "metric": "hosted route returns fail-closed ABSTAIN, no approval request, and no credential when no assessable gap exists",
+  "n": 1,
+  "n_passed": 1,
+  "rate": 1.0,
+  "results": [
+    {
+      "case_id": "hosted_semantic_abstain_no_assessable_gap",
+      "passed": true,
+      "headline": "worker=EMP-ABSTAIN status=abstained approval=False credential=False",
+      "detail": {
+        "response_id": "caresp_f803fb08b1363ad200namZQVmTm7mMgEHchlezUUzHhckDXX20",
+        "agent_reference": {
+          "type": "agent_reference",
+          "name": "pathforward-orchestrator",
+          "version": "18"
+        },
+        "worker_id": "EMP-ABSTAIN",
+        "loop_status": "abstained",
+        "chosen_skill_id": "",
+        "failure_excerpt": "",
+        "checks": {
+          "response_completed": true,
+          "hosted_agent_expected": true,
+          "surface_live": true,
+          "worker_is_probe": true,
+          "abstained": true,
+          "no_assessable_target": true,
+          "no_approval_request": true,
+          "no_credential": true
+        }
+      }
+    }
+  ]
+}

@@ -178,7 +178,7 @@ def _write_evidence(out_base: Path, summaries: list[dict[str, Any]], raw: dict[s
     }
     out_base.with_suffix(".json").write_text(json.dumps(data, indent=2), encoding="utf-8")
     lines = [
-        "# Hosted Agent Live Proof - 2026-06-09",
+        "# Hosted Agent Live Proof",
         "",
         f"Generated: `{stamp}`",
         "",
@@ -216,7 +216,7 @@ def _write_evidence(out_base: Path, summaries: list[dict[str, Any]], raw: dict[s
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Live smoke for the Foundry Hosted Agent route.")
-    ap.add_argument("--output-base", default=".agents/evidence/hosted-agent-live-proof-2026-06-09",
+    ap.add_argument("--output-base", default=".agents/evidence/hosted-agent-live-proof",
                     help="Evidence path without extension.")
     ap.add_argument("--skip-approved", action="store_true",
                     help="Skip the explicit approval case that mints a synthetic credential.")

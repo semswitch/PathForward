@@ -38,9 +38,9 @@ PathForward is built around a real agentic workflow:
 ## Current Proof Status
 
 The project has live proof for the main Foundry multi-agent path, the skill-loaded Orchestrator path,
-Fabric-backed Program Insights, and Hosted Agent invocation. The newest hosted hardening adds
-semantic ABSTAIN, explicit denied approval, and controlled Fabric fallback/retry behavior; those paths
-are locally proven and ready for the next Hosted Agent redeploy and live scorecard run.
+Fabric-backed Program Insights, and Hosted Agent invocation. Hosted Agent version 18 proves the latest
+hardening: semantic ABSTAIN, explicit denied approval, governed approval mint, and a broader hosted
+scorecard with 4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
 
 Offline regression suite:
 
