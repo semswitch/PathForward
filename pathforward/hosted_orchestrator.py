@@ -33,6 +33,7 @@ from .credential.approval import (
 )
 from .iq import derivation as dv
 from .iq.seed import HERO_WORKER_ID, build_seed
+from .obs.appinsights import emit_custom_event
 from .obs import tracing
 from .skills import read_skill_file
 
@@ -213,11 +214,38 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                                "pf.insights_source": insights.get("source"),
                                "pf.approval_requested": bool(doc.get("approval_request")),
                                "pf.credential_issued": bool(doc.get("credential"))})
+            emit_custom_event(
+                settings.azure_monitor_connection_string,
+                "pathforward.hosted.request",
+                properties={
+                    "service.name": "pathforward-hosted",
+                    "pf.surface": "foundry-hosted-agent",
+                    "pf.mode": mode,
+                    "pf.worker": request.worker_id,
+                    "pf.status": loop.get("status"),
+                    "pf.skill_id": loop.get("targeted_skill_id"),
+                    "pf.insights_source": insights.get("source"),
+                    "pf.approval_requested": bool(doc.get("approval_request")),
+                    "pf.credential_issued": bool(doc.get("credential")),
+                },
+                measurements={"pf.attempts": loop.get("attempts") or 0},
+            )
             return doc
         except Exception as exc:  # noqa: BLE001
             hosted_span.event("hosted.request_failed",
                               **{"pf.error_type": type(exc).__name__,
                                  "pf.error": str(exc)[:500]})
+            emit_custom_event(
+                settings.azure_monitor_connection_string,
+                "pathforward.hosted.request_failed",
+                properties={
+                    "service.name": "pathforward-hosted",
+                    "pf.surface": "foundry-hosted-agent",
+                    "pf.mode": mode,
+                    "pf.worker": request.worker_id,
+                    "pf.error_type": type(exc).__name__,
+                },
+            )
             raise
         finally:
             for client in closeables:

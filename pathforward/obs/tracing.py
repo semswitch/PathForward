@@ -36,16 +36,23 @@ def configure_tracing(*, console: bool = False, azure_connection_string: Optiona
         _TRACER = None
         return False
 
-    provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
+    from opentelemetry import trace as otel_trace
+
+    global_provider = otel_trace.get_tracer_provider()
+    using_global_provider = (
+        global_provider.__class__.__name__ != "ProxyTracerProvider"
+        and hasattr(global_provider, "add_span_processor")
+    )
+    provider = (global_provider if using_global_provider else
+                TracerProvider(resource=Resource.create({"service.name": service_name})))
     if console:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     if exporter is not None:
         provider.add_span_processor(SimpleSpanProcessor(exporter))
     if azure_connection_string:
         try:
-            from opentelemetry import trace as otel_trace
             from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
-            if otel_trace.get_tracer_provider().__class__.__name__ == "ProxyTracerProvider":
+            if not using_global_provider and global_provider.__class__.__name__ == "ProxyTracerProvider":
                 otel_trace.set_tracer_provider(provider)
             provider.add_span_processor(BatchSpanProcessor(
                 AzureMonitorTraceExporter(connection_string=azure_connection_string)))
