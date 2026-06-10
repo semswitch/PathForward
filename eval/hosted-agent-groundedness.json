@@ -1,0 +1,133 @@
+{
+  "title": "PathForward - Hosted Agent Groundedness & Approval Hold (live)",
+  "metric": "hosted response verified, grounded, skill-loaded, fabric-live, no credential without approval",
+  "n": 3,
+  "n_passed": 2,
+  "rate": 0.6666666666666666,
+  "results": [
+    {
+      "case_id": "hosted_grounded_EMP-001",
+      "passed": true,
+      "headline": "worker=EMP-001 status=verified retrieved=8 cited=4 approval=True",
+      "detail": {
+        "response_id": "caresp_894069ba0777c513008fVXrzaHI4W9p0MIEoi2503gJqz4c2lJ",
+        "agent_reference": {
+          "type": "agent_reference",
+          "name": "pathforward-orchestrator",
+          "version": "11"
+        },
+        "worker_id": "EMP-001",
+        "selected_skill_id": "S02",
+        "loop_status": "verified",
+        "retrieved_ref_ids": [
+          "certgap::EMP-001::S02",
+          "certifies::AZ-204::S01",
+          "certifies::AZ-204::S02",
+          "certifies::AZ-204::S04",
+          "certifies::AZ-204::S05",
+          "corpus::AZ-204",
+          "path::EMP-001",
+          "requires::R-CLOUD::S02"
+        ],
+        "citations": [
+          "certgap::EMP-001::S02",
+          "certifies::AZ-204::S02",
+          "corpus::AZ-204",
+          "requires::R-CLOUD::S02"
+        ],
+        "checks": {
+          "response_completed": true,
+          "hosted_agent_v11": true,
+          "surface_live": true,
+          "worker_matched": true,
+          "toolbox_skill_loaded": true,
+          "verified": true,
+          "retrieved_nonempty": true,
+          "citations_subset_retrieved": true,
+          "fabric_live": true,
+          "approval_requested": true,
+          "no_credential_without_approval": true
+        }
+      }
+    },
+    {
+      "case_id": "hosted_grounded_EMP-004",
+      "passed": false,
+      "headline": "worker=EMP-004 status=None retrieved=0 cited=0 approval=False",
+      "detail": {
+        "response_id": "caresp_7d0572f8c5f28f0800p6yt29Fvc0h4d9e8W1mcjF5JztRRhvOj",
+        "agent_reference": {
+          "type": "agent_reference",
+          "name": "pathforward-orchestrator",
+          "version": "11"
+        },
+        "worker_id": "",
+        "selected_skill_id": "",
+          "loop_status": "",
+          "retrieved_ref_ids": [],
+          "citations": [],
+          "failure_excerpt": "PathForward hosted request failed: Fabric data-agent run ended with status failed: LastError(code='server_error', message='An attempt was made to transition a task to a final state when it had already completed.')",
+          "checks": {
+          "response_completed": true,
+          "hosted_agent_v11": true,
+          "surface_live": false,
+          "worker_matched": false,
+          "toolbox_skill_loaded": false,
+          "verified": false,
+          "retrieved_nonempty": false,
+          "citations_subset_retrieved": false,
+          "fabric_live": false,
+          "approval_requested": false,
+          "no_credential_without_approval": true
+        }
+      }
+    },
+    {
+      "case_id": "hosted_grounded_EMP-006",
+      "passed": true,
+      "headline": "worker=EMP-006 status=verified retrieved=10 cited=4 approval=True",
+      "detail": {
+        "response_id": "caresp_8cfe3f092bca580000OPgFAtUQjMMJhnCtVA5JbLxPQxd5MC8P",
+        "agent_reference": {
+          "type": "agent_reference",
+          "name": "pathforward-orchestrator",
+          "version": "11"
+        },
+        "worker_id": "EMP-006",
+        "selected_skill_id": "S21",
+        "loop_status": "verified",
+        "retrieved_ref_ids": [
+          "certgap::EMP-006::S21",
+          "certifies::AI-102::S21",
+          "certifies::AI-102::S23",
+          "certifies::AI-102::S24",
+          "certifies::AI-102::S25",
+          "corpus::AI-102",
+          "path::EMP-006",
+          "readiness::EMP-006::R-AI",
+          "requires::R-AI::S21",
+          "targets::EMP-006::R-AI"
+        ],
+        "citations": [
+          "certgap::EMP-006::S21",
+          "certifies::AI-102::S21",
+          "corpus::AI-102",
+          "requires::R-AI::S21"
+        ],
+        "checks": {
+          "response_completed": true,
+          "hosted_agent_v11": true,
+          "surface_live": true,
+          "worker_matched": true,
+          "toolbox_skill_loaded": true,
+          "verified": true,
+          "retrieved_nonempty": true,
+          "citations_subset_retrieved": true,
+          "fabric_live": true,
+          "approval_requested": true,
+          "no_credential_without_approval": true
+        }
+      }
+    }
+  ]
+}

@@ -22,9 +22,11 @@ Claude-specific reminders (the substance lives in `AGENTS.md`):
   `FakeLLMClient` stub. The chosen top-level architecture is now the versioned Foundry Hosted Agent
   `pathforward-orchestrator`, loading the `/pathforward` Skill and running the bounded Orchestrator
   route. Agent Framework Workflow is locked out unless the user explicitly re-authorizes it. Do not
-  call the full architecture complete until the Hosted Agent is deployed, invoked, and evaluated in
-  Foundry. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the deterministic Evidence
-  Gate (never let an LLM judge its own grounding).
+  call the full architecture complete merely because Hosted Agent v11 is deployed and invoked:
+  hosted approval/no-approval is proven, and initial hosted-target scorecards exist, but broader
+  hosted eval coverage, semantic ABSTAIN proof, and Fabric data-agent reliability hardening remain
+  open. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the deterministic Evidence Gate
+  (never let an LLM judge its own grounding).
 - Telemetry is available and should be used before inventing stream-output captures or local
   observability workarounds. Use `scripts/trace_full_flow.py` for the Orchestrator-driven proof
   trace and `scripts/trace_demo.py` for the focused assessment-loop trace; both export to Azure

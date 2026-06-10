@@ -86,7 +86,8 @@ Hosted Agent surface:
 ```powershell
 python -m unittest tests.test_hosted_orchestrator -v
 python -m py_compile pathforward\hosted_orchestrator.py hosted\pathforward_orchestrator\main.py
-# Deploy next from agent.yaml/Dockerfile once the local hosted package is ready for Azure.
+.venv\Scripts\python.exe scripts\smoke_hosted_agent_live.py
+.venv\Scripts\python.exe scripts\eval_hosted_agent_live.py --limit 3 --attack-limit 3
 ```
 
 ## Layout
@@ -109,11 +110,13 @@ python -m py_compile pathforward\hosted_orchestrator.py hosted\pathforward_orche
 
 ## Status
 
-✅ Hosted Agent top-level Orchestrator scaffold is implemented: `agent.yaml`, `Dockerfile`,
-`hosted/pathforward_orchestrator/main.py`, and `pathforward/hosted_orchestrator.py` package the
-existing `/pathforward` route as a Foundry `responses`-protocol Hosted Agent. Local proof
-(`tests/test_hosted_orchestrator.py`) verifies the route requests mint approval and only mints with
-explicit runtime approval. Live Foundry deployment/invocation/evals are still pending. ✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
+✅ Hosted Agent top-level Orchestrator is deployed and live-proven on Foundry Hosted Agent version 11:
+`agent.yaml`, `Dockerfile`, `hosted/pathforward_orchestrator/main.py`, and
+`pathforward/hosted_orchestrator.py` package the existing `/pathforward` route as a Foundry
+`responses`-protocol Hosted Agent. Local proof (`tests/test_hosted_orchestrator.py`) verifies the
+route requests mint approval and only mints with explicit runtime approval. Live hosted proof
+(`scripts/smoke_hosted_agent_live.py`) verifies Toolbox MCP Skill loading, Azure AI Search retrieval,
+Fabric-live Program Insights, default no-approval/no-mint, and explicit approval mint. ✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
 run through `scripts/smoke_multiagent_live.py`; the deterministic Evidence Gate and mint remain the
 trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_live.py` using the
 Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a live mode
@@ -136,8 +139,10 @@ it exports to Azure Monitor when `AZURE_MONITOR_CONNECTION_STRING` is set. ✅ O
 The non-gating `CodeInterpreterAnalyst` (Code Interpreter — advisory, never the numeric oracle; see
 ADR 008) is wired but still needs its live smoke before it should be called live-proven. The Workflow
 decision is locked: PathForward is not using Agent Framework Workflow as an architecture surface.
-Hosted Agent live deployment, invocation smoke, and Foundry evals are the next proof step; do not
-call the hosted route live-proven until that happens.
+Hosted-target scorecards are now started (`scripts/eval_hosted_agent_live.py --limit 3 --attack-limit
+3`): 2/3 hosted groundedness cases passed, 3/3 hosted prompt-surface attacks held. Remaining hosted
+hardening is broader eval coverage, semantic ABSTAIN proof, and Fabric data-agent reliability after
+one hosted EMP-004 run failed inside Fabric before returning proof JSON.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 
