@@ -69,10 +69,14 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   2026-06-09: the Foundry `responses` endpoint completed `Run /pathforward for EMP-001` with
   Foundry Toolbox Skill evidence, Azure AI Search retrieval, Fabric-live Program Insights, and
   governed mint approval requested. `scripts/smoke_hosted_agent_live.py` also proves default
-  no-approval/no-mint and explicit approval mint on Hosted Agent version 11. Hosted-route eval
-  scorecards have started but are not full parity yet: `scripts/eval_hosted_agent_live.py --limit 3
+  no-approval/no-mint and explicit approval mint on Hosted Agent version 11. The local hosted core
+  now also proves explicit denied approval and a semantic ABSTAIN probe, and hosted eval/smoke scripts
+  are wired to capture those live after the next Hosted Agent redeploy. Hosted-route eval scorecards
+  have started but are not full parity yet: `scripts/eval_hosted_agent_live.py --limit 3
   --attack-limit 3` passed 2/3 hosted groundedness cases and 3/3 hosted prompt-surface attacks; one
-  EMP-004 run failed inside the live Fabric data agent before proof JSON was returned.
+  EMP-004 run failed inside the live Fabric data agent before proof JSON was returned. The current
+  code catches Fabric advisory failures as structured `derivation-floor` fallback and retries narrow
+  transient Fabric failed-run statuses; this still needs redeploy + live hosted eval proof.
 - **Five code-orchestrated reasoning agents** — Curator, Generator, Critic, Planner, and the
   read-only Program Insights agent (`pathforward/agents/`), all live-capable on gpt-5.5
   (Generator search-grounded via `FoundryLLMClient`; the rest tool-less via
@@ -162,8 +166,9 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   `pathforward-orchestrator`, not a prompt-agent smoke script. Keep hardening the bounded
   Conductor/Orchestrator route inside that hosted surface. The older Orchestrator-specific safety
   re-measure is complete for the skill-loaded prompt-agent route. The Hosted Agent route is now
-  invoked and has an initial hosted-target scorecard, but broader hosted eval coverage, semantic
-  ABSTAIN proof, and Fabric reliability hardening remain pending.
+  invoked and has an initial hosted-target scorecard. The code now includes hosted semantic ABSTAIN,
+  explicit denied approval, and Fabric advisory fallback/retry hardening; broader hosted eval
+  coverage and live proof of those new hosted paths remain pending after redeploy.
 - **Foundry tools and skills:** keep expanding the `/pathforward` Skill/Toolbox route. The
   Orchestrator now consumes the MCP-loaded Foundry Skill, and specialist Skill files are
   live-registered/read from Foundry and wired for runtime injection. The current tool-surface
@@ -177,7 +182,8 @@ verify. The differentiator is honesty: it would rather say "not yet" than issue 
   mint. The Hosted Agent wrapper must route every credential request through this wrapper and then
   through `credential.mint.mint()`; a natural-language model response must never directly approve or
   issue a credential. Live Hosted Agent v11 now proves no-approval/no-mint and approval-approved
-  mint. Explicit denial remains local-only unless a live denial input is added.
+  mint. A hosted explicit-denial input now exists and is locally tested; it must be redeployed and
+  exercised live before it is called live-proven.
 - Keep the **live `FoundryLLMClient` / `ReasoningFoundryClient` / `FabricInsightsClient` /
   `FabricDataAgentClient`** demo and
   web fixture export path working (`scripts/run_demo.py --live`, `scripts/export_web_fixture.py

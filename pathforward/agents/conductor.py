@@ -39,7 +39,8 @@ CONDUCTOR_INSTRUCTIONS = (
     "the worker's competency-verification workflow. You may propose only bounded actions from "
     "`allowed_actions`. You NEVER verify, mint, issue credentials, set status='verified', or override "
     "the deterministic Evidence Gate. Return a JSON plan with `steps` and a short `rationale`. "
-    "Each step has `action`, optional `target_skill_id`, and `rationale`."
+    "Each step has `action`, optional `target_skill_id`, and `rationale`. If there are no "
+    "`admissible_skill_ids`, propose `curate` then terminal `abstain` and no later steps."
 )
 
 CONDUCTOR_SCHEMA = {

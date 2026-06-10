@@ -484,6 +484,29 @@ class FabricDataAgentClient:
         return last
 
     @staticmethod
+    def _run_failure_text(run) -> str:
+        detail = getattr(run, "last_error", None) or getattr(run, "incomplete_details", None)
+        if detail is None:
+            return ""
+        code = getattr(detail, "code", "")
+        message = getattr(detail, "message", "")
+        if isinstance(detail, dict):
+            code = detail.get("code", code)
+            message = detail.get("message", message)
+        return f"{code} {message} {detail}".strip()
+
+    @classmethod
+    def _is_transient_run_failure(cls, run) -> bool:
+        text = cls._run_failure_text(run).lower()
+        return (
+            "server_error" in text
+            or "internal server" in text
+            or "temporar" in text
+            or "already completed" in text
+            or "timeout" in text
+        )
+
+    @staticmethod
     def _message_text(message) -> str:
         parts: list[str] = []
         for item in getattr(message, "content", []) or []:
@@ -524,8 +547,13 @@ class FabricDataAgentClient:
                 run = self._poll_run(thread_id, run_id)
                 status = getattr(run, "status", "")
                 if status != "completed":
-                    detail = getattr(run, "last_error", None) or getattr(run, "incomplete_details", None)
-                    raise RuntimeError(f"Fabric data-agent run ended with status {status}: {detail}")
+                    detail = self._run_failure_text(run)
+                    err = RuntimeError(f"Fabric data-agent run ended with status {status}: {detail}")
+                    if status == "failed" and self._is_transient_run_failure(run):
+                        last = err
+                        time.sleep(8 * (attempt + 1))
+                        continue
+                    raise err
                 output = self._latest_assistant_text(thread_id)
                 parsed = {"narrative": output} if output else {}
                 return LLMResponse(run_id, output, parsed, previous_response_id,

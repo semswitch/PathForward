@@ -114,9 +114,12 @@ python -m py_compile pathforward\hosted_orchestrator.py hosted\pathforward_orche
 `agent.yaml`, `Dockerfile`, `hosted/pathforward_orchestrator/main.py`, and
 `pathforward/hosted_orchestrator.py` package the existing `/pathforward` route as a Foundry
 `responses`-protocol Hosted Agent. Local proof (`tests/test_hosted_orchestrator.py`) verifies the
-route requests mint approval and only mints with explicit runtime approval. Live hosted proof
+route requests mint approval, refuses denied approval, returns a structured semantic ABSTAIN probe,
+and only mints with explicit runtime approval. Live hosted proof
 (`scripts/smoke_hosted_agent_live.py`) verifies Toolbox MCP Skill loading, Azure AI Search retrieval,
-Fabric-live Program Insights, default no-approval/no-mint, and explicit approval mint. ✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
+Fabric-live Program Insights, default no-approval/no-mint, and explicit approval mint; the smoke
+script is now wired to capture denied mint and semantic ABSTAIN after the next Hosted Agent redeploy.
+✅ Multi-agent Foundry path live-proven: Curator, Generator, Critic, Planner, and Program Insights
 run through `scripts/smoke_multiagent_live.py`; the deterministic Evidence Gate and mint remain the
 trust boundary. ✅ Fabric live read path proven through `scripts/smoke_fabric_live.py` using the
 Microsoft Fabric data-agent tool. ✅ Demo and web fixture export now support a live mode
@@ -141,8 +144,9 @@ ADR 008) is wired but still needs its live smoke before it should be called live
 decision is locked: PathForward is not using Agent Framework Workflow as an architecture surface.
 Hosted-target scorecards are now started (`scripts/eval_hosted_agent_live.py --limit 3 --attack-limit
 3`): 2/3 hosted groundedness cases passed, 3/3 hosted prompt-surface attacks held. Remaining hosted
-hardening is broader eval coverage, semantic ABSTAIN proof, and Fabric data-agent reliability after
-one hosted EMP-004 run failed inside Fabric before returning proof JSON.
+hardening is redeploying and re-running broader hosted eval coverage, including the new semantic
+ABSTAIN case, explicit denied approval, and controlled Fabric fallback/retry behavior after one hosted
+EMP-004 run failed inside Fabric before returning proof JSON.
 
 ## Microsoft IQ integration (submission requirement: ≥1; we use 2)
 

@@ -32,6 +32,7 @@ from .credential.approval import (
     request_mint_approval,
 )
 from .iq import derivation as dv
+from .iq.models import Worker
 from .iq.seed import HERO_WORKER_ID, build_seed
 from .obs.appinsights import emit_custom_event
 from .obs import tracing
@@ -60,8 +61,10 @@ class HostedRequest:
     message: str
     worker_id: str = HERO_WORKER_ID
     approve_mint: bool = False
+    deny_mint: bool = False
     approver: str = "hosted-agent-runtime"
     mode: str = "auto"  # auto | live | offline
+    abstain_probe: bool = False
 
 
 class _FabricProgramInsightsAgent(ProgramInsightsAgent):
@@ -259,9 +262,19 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
                                    clients: dict[str, Any]) -> dict[str, Any]:
     """Implementation body split out so the public entrypoint can own tracing/cleanup."""
     onto = build_seed()
-    worker = onto.workers.get(request.worker_id)
+    worker_id = request.worker_id
+    if request.abstain_probe:
+        worker_id = "EMP-ABSTAIN"
+        # Synthetic hosted proof case: the worker is missing only S09 for R-DEVOPS. S09 has no
+        # certification corpus in the seed, so the Curator has no assessable gap and the route must
+        # return a normal fail-closed ABSTAIN document with no approval request or credential.
+        onto.workers[worker_id] = Worker(
+            worker_id, "Worker EMP-ABSTAIN", "Synthetic ABSTAIN proof worker", "R-DEVOPS",
+            ("S06", "S07", "S08", "S11"), 5.0, (),
+        )
+    worker = onto.workers.get(worker_id)
     if worker is None:
-        raise ValueError(f"unknown worker_id: {request.worker_id}")
+        raise ValueError(f"unknown worker_id: {worker_id}")
     role = onto.roles[worker.target_role_id]
     edges = dv.build_all_edges(onto)
 
@@ -292,11 +305,13 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
         approval_request = request_mint_approval(worker, role, result.loop.driving_edge_id,
                                                  result.loop.targeted_skill_id, result.loop)
         approval = approval_request.to_doc()
-        if request.approve_mint:
+        if request.approve_mint or request.deny_mint:
             try:
-                decision = MintApprovalDecision(approval_request.request_id, True,
+                decision = MintApprovalDecision(approval_request.request_id, request.approve_mint,
                                                 request.approver,
-                                                "approved by hosted-agent approval surface")
+                                                "approved by hosted-agent approval surface"
+                                                if request.approve_mint
+                                                else "denied by hosted-agent approval surface")
                 cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
                                           result.loop.targeted_skill_id, result.loop, decision)
                 credential = cred.to_doc()

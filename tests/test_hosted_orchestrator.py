@@ -31,6 +31,33 @@ class HostedOrchestratorTests(unittest.TestCase):
         subject = doc["credential"]["credentialSubject"]
         self.assertEqual(subject["cited_edge_id"], doc["result"]["loop"]["driving_edge_id"])
 
+    def test_offline_hosted_route_denied_approval_fails_closed(self):
+        doc = run_hosted_orchestrator(HostedRequest(
+            message="Run /pathforward for EMP-001 with denied mint",
+            mode="offline",
+            deny_mint=True,
+            approver="unit-test",
+        ))
+        self.assertEqual(doc["result"]["loop"]["status"], "verified")
+        self.assertIsNotNone(doc["approval_request"])
+        self.assertIsNone(doc["credential"])
+        self.assertIn("denied", doc["mint_error"].lower())
+
+    def test_offline_hosted_route_abstain_probe_never_requests_mint(self):
+        doc = run_hosted_orchestrator(HostedRequest(
+            message="Run /pathforward semantic ABSTAIN proof",
+            mode="offline",
+            abstain_probe=True,
+            approve_mint=True,
+            approver="unit-test",
+        ))
+        self.assertEqual(doc["worker_id"], "EMP-ABSTAIN")
+        self.assertEqual(doc["result"]["loop"]["status"], "abstained")
+        self.assertEqual(doc["result"]["curator"]["chosen_skill_id"], "")
+        self.assertIsNone(doc["approval_request"])
+        self.assertIsNone(doc["credential"])
+        self.assertEqual(doc["mint_error"], "")
+
     def test_agent_yaml_does_not_set_foundry_reserved_environment(self):
         manifest = Path("agent.yaml").read_text(encoding="utf-8")
         forbidden = ("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_AGENT_NAME", "FOUNDRY_TOOLBOX_ENDPOINT",
@@ -150,6 +177,44 @@ class HostedOrchestratorTests(unittest.TestCase):
 
             self.assertEqual(insights.source, "fabric-live")
             self.assertEqual(insights.narrative, "fabric answer")
+        finally:
+            if old is None:
+                os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
+            else:
+                os.environ["PATHFORWARD_INSIGHTS_TIER"] = old
+
+    def test_hosted_fabric_failure_returns_structured_derivation_fallback(self):
+        old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
+        try:
+            os.environ["PATHFORWARD_INSIGHTS_TIER"] = "fabric-live"
+            from pathforward.agents.client import FakeLLMClient
+            from pathforward.hosted_orchestrator import _SKILL_NAMES, _run_hosted_orchestrator_inner
+
+            class FailingFabricClient:
+                def respond(self, instructions, input, *, previous_response_id=None, schema=None):
+                    raise RuntimeError("Fabric data-agent run ended with status failed: server_error")
+
+            clients = {
+                "orchestrator": FakeLLMClient(),
+                "curator": FakeLLMClient(),
+                "generator": FakeLLMClient(),
+                "critic": FakeLLMClient(),
+                "planner": FakeLLMClient(),
+                "insights": FailingFabricClient(),
+            }
+            doc = _run_hosted_orchestrator_inner(
+                HostedRequest(message="Run /pathforward for EMP-001", mode="offline"),
+                "offline",
+                {name: "" for name in _SKILL_NAMES},
+                {"source": "unit-test"},
+                clients,
+            )
+
+            self.assertEqual(doc["result"]["loop"]["status"], "verified")
+            self.assertEqual(doc["result"]["insights"]["source"], "derivation-floor")
+            self.assertIn("Fabric-live was unavailable", doc["result"]["insights"]["narrative"])
+            self.assertIsNotNone(doc["approval_request"])
+            self.assertIsNone(doc["credential"])
         finally:
             if old is None:
                 os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)

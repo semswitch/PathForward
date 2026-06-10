@@ -131,10 +131,15 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
         "surface_live": doc.get("surface") == "foundry-hosted-agent" and doc.get("mode") == "live",
         "skill_from_toolbox": skill_evidence.get("source") == "foundry-toolbox-mcp",
         "loop_verified": loop.get("status") == "verified",
+        "loop_abstained": loop.get("status") == "abstained",
         "fabric_live": insights.get("source") == "fabric-live",
         "approval_request_present": bool(approval_request),
+        "approval_request_absent": not bool(approval_request),
         "credential_presence_expected": bool(credential) == call.expect_credential,
         "approval_presence_expected": bool(approval_request) == call.expect_approval_request,
+        "denied_mint_refused": call.name != "denied_mint" or (
+            not bool(credential) and "denied" in str(doc.get("mint_error", "")).lower()
+        ),
     }
     return {
         "name": call.name,
@@ -248,30 +253,73 @@ def main() -> int:
                 "credential_presence_expected",
             ),
         ),
+        HostedCall(
+            name="semantic_abstain",
+            input_text=json.dumps({
+                "message": "Run /pathforward semantic ABSTAIN proof",
+                "abstain_probe": True,
+            }),
+            expect_credential=False,
+            expect_approval_request=False,
+            required_checks=(
+                "response_completed",
+                "hosted_agent_expected",
+                "surface_live",
+                "skill_from_toolbox",
+                "loop_abstained",
+                "approval_request_absent",
+                "credential_presence_expected",
+                "approval_presence_expected",
+            ),
+        ),
     ]
     if not args.skip_approved:
-        calls.append(
-            HostedCall(
-                name="approved_mint",
-                input_text=json.dumps({
-                    "message": "Run /pathforward for EMP-001",
-                    "worker_id": "EMP-001",
-                    "approve_mint": True,
-                    "approver": "hosted-live-proof",
-                }),
-                expect_credential=True,
-                expect_approval_request=True,
-                required_checks=(
-                    "response_completed",
-                    "hosted_agent_expected",
-                    "surface_live",
-                    "skill_from_toolbox",
-                    "loop_verified",
-                    "fabric_live",
-                    "approval_request_present",
-                    "credential_presence_expected",
+        calls.extend(
+            [
+                HostedCall(
+                    name="approved_mint",
+                    input_text=json.dumps({
+                        "message": "Run /pathforward for EMP-001",
+                        "worker_id": "EMP-001",
+                        "approve_mint": True,
+                        "approver": "hosted-live-proof",
+                    }),
+                    expect_credential=True,
+                    expect_approval_request=True,
+                    required_checks=(
+                        "response_completed",
+                        "hosted_agent_expected",
+                        "surface_live",
+                        "skill_from_toolbox",
+                        "loop_verified",
+                        "fabric_live",
+                        "approval_request_present",
+                        "credential_presence_expected",
+                    ),
                 ),
-            )
+                HostedCall(
+                    name="denied_mint",
+                    input_text=json.dumps({
+                        "message": "Run /pathforward for EMP-001 with denied mint",
+                        "worker_id": "EMP-001",
+                        "deny_mint": True,
+                        "approver": "hosted-live-proof",
+                    }),
+                    expect_credential=False,
+                    expect_approval_request=True,
+                    required_checks=(
+                        "response_completed",
+                        "hosted_agent_expected",
+                        "surface_live",
+                        "skill_from_toolbox",
+                        "loop_verified",
+                        "fabric_live",
+                        "approval_request_present",
+                        "credential_presence_expected",
+                        "denied_mint_refused",
+                    ),
+                ),
+            ]
         )
 
     raw: dict[str, Any] = {}

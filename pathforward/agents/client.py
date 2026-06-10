@@ -192,13 +192,12 @@ class FakeLLMClient:
         if target:
             steps.append({"action": "assess", "target_skill_id": target,
                           "rationale": "assess the highest-priority admissible gap"})
-        else:
-            steps.append({"action": "abstain", "rationale": "no assessable gap is available"})
-        steps.append({"action": "plan", "rationale": "produce advisory learning plan"})
-        steps.append({"action": "insights", "rationale": "add read-only cohort/program context"})
-        if target:
+            steps.append({"action": "plan", "rationale": "produce advisory learning plan"})
+            steps.append({"action": "insights", "rationale": "add read-only cohort/program context"})
             steps.append({"action": "mint_if_verified",
                           "rationale": "request deterministic mint only after gate verification"})
+        else:
+            steps.append({"action": "abstain", "rationale": "no assessable gap is available"})
         return {
             "steps": steps,
             "rationale": "Use agents for route reasoning; deterministic code validates and notarizes.",
