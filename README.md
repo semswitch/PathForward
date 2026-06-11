@@ -65,5 +65,3 @@ The system is designed to fail closed:
 - no grounded evidence means no verified assessment;
 - no verified assessment means no credential;
 - denied or missing mint authorization means no credential.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for deeper details.

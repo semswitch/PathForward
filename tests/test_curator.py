@@ -60,7 +60,7 @@ class TestCurator(unittest.TestCase):
         d = Curator(FakeLLMClient()).curate(worker, role, self.onto)
         self.assertEqual(d.chosen_skill_id, "S01")                 # pins the demo invariant
         self.assertEqual(d.chosen_edge_id, "certgap::EMP-001::S01")
-        self.assertTrue(d.corrected)                               # fake over-reaches -> gate struck it
+        self.assertTrue(d.corrected)                               # code-test client over-reaches
         self.assertEqual(d.admissible_skill_ids, ("S01", "S02", "S08"))
 
     def test_inadmissible_pick_is_corrected_and_falls_back(self):

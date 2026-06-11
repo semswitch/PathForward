@@ -1,8 +1,8 @@
 """Bounded Orchestrator/Conductor contract.
 
-Checklist #1 requires a real Orchestrator agent, not just a Workflow smoke. These tests prove the
-offline-safe contract: the agent may propose a route, but deterministic code validates every route
-before execution and the Evidence Gate / mint trust boundary stays unchanged.
+These tests validate code contracts for the Foundry Hosted Agent Orchestrator route: the agent may
+propose a route, but deterministic code validates every route before execution and the Evidence Gate
+/ mint trust boundary stays unchanged.
 """
 import json
 import os
@@ -46,7 +46,7 @@ class TestOrchestratorValidator(unittest.TestCase):
         self.worker = self.onto.workers[HERO_WORKER_ID]
         self.role = self.onto.roles[self.worker.target_role_id]
 
-    def test_valid_fake_orchestrator_plan_is_bounded(self):
+    def test_valid_code_test_orchestrator_plan_is_bounded(self):
         plan = Orchestrator(FakeLLMClient()).plan(self.worker, self.role, self.onto)
         self.assertEqual(plan.worker_id, HERO_WORKER_ID)
         self.assertEqual(plan.steps[0].action, "curate")

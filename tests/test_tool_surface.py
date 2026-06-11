@@ -32,15 +32,15 @@ class TestToolSurfaceContract(unittest.TestCase):
 
     def test_approval_architecture_is_not_declared_by_tool_surface(self):
         decisions = decisions_by_capability()
-        workflow = decisions["agent-framework-workflow"]
+        unauthorized_surface = decisions["agent-framework-workflow"]
         self.assertNotIn("credential-approval", decisions)
-        self.assertEqual(workflow.status, "locked-out-not-used")
-        self.assertIn("Locked-out", workflow.surface)
+        self.assertEqual(unauthorized_surface.status, "locked-out-not-used")
+        self.assertIn("Locked-out", unauthorized_surface.surface)
 
-    def test_default_requirements_do_not_pull_in_workflow_projection(self):
+    def test_root_requirements_file_is_absent(self):
         self.assertFalse(os.path.exists(os.path.join(ROOT, "requirements.txt")))
 
-    def test_pyproject_does_not_advertise_workflow_extra(self):
+    def test_pyproject_does_not_advertise_unauthorized_agent_framework_extra(self):
         with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as fh:
             pyproject = fh.read()
         self.assertNotIn("workflow = [", pyproject)

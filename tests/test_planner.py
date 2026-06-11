@@ -71,7 +71,7 @@ class TestPlanner(unittest.TestCase):
         self.assertEqual(plan.weeks, 17)                          # ceil(65 / 4)
 
     def test_capacity_violating_llm_plan_is_corrected(self):
-        # FakeLLMClient proposes 3x capacity; the gate clamps to real capacity and flags it.
+        # The code-test client proposes 3x capacity; the gate clamps to real capacity and flags it.
         worker, plan = self._plan("EMP-001")
         self.assertTrue(plan.corrected)
         self.assertTrue(plan.capacity_respected)

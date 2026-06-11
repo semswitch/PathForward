@@ -1,7 +1,7 @@
-"""The eval harness itself is deterministically verified offline.
+"""The eval harness itself is verified as code before live validation.
 
-With the FakeLLMClient (attempt 0 ungrounded -> attempt 1 grounded), every legit hero case must
-score grounded + spine-intact. This proves the scoring code BEFORE we trust it on live Azure.
+With the code-test client (attempt 0 ungrounded -> attempt 1 grounded), every legit hero case must
+score grounded + spine-intact. This proves the scoring code before live Azure validation.
 """
 import os
 import sys
@@ -36,18 +36,18 @@ class EvalHarnessTest(unittest.TestCase):
         emp1_skills = {c.skill.id for c in self.cases if c.worker.id == "EMP-001"}
         self.assertEqual(emp1_skills, {"S01", "S02", "S08"})
 
-    def test_every_legit_case_scores_grounded_and_spine_intact_offline(self):
+    def test_every_legit_case_scores_grounded_and_spine_intact_for_code_contract(self):
         gen = Generator(FakeLLMClient())
         ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
         failed = [r.headline for r in results if not r.passed]
-        self.assertTrue(all(r.passed for r in results), f"offline eval regressions: {failed}")
+        self.assertTrue(all(r.passed for r in results), f"code-contract eval regressions: {failed}")
 
     def test_scorecard_reports_full_pass_rate(self):
         gen = Generator(FakeLLMClient())
         ver = EvidenceGate(LocalNumericChecker())
         results = [run_eval_case(c, gen, ver, self.onto) for c in self.cases]
-        card = Scorecard("offline eval", "grounded + spine-intact", results)
+        card = Scorecard("code-contract eval", "grounded + spine-intact", results)
         self.assertEqual(card.n_passed, card.n)
         self.assertEqual(card.rate, 1.0)
         self.assertIn("grounded + spine-intact", card.to_markdown())
@@ -59,21 +59,21 @@ class EvalHarnessTest(unittest.TestCase):
         results = [run_eval_case(c, gen, ver, self.onto, critic=critic) for c in self.cases]
         self.assertTrue(all(r.passed for r in results))
 
-    def test_red_team_harness_runs_the_full_post_p2_flow_offline(self):
+    def test_red_team_harness_runs_the_full_code_contract_flow(self):
         # Drives run_live_attack -> the loop with Critic + bounded reflection. This locks the
         # AdversarialGenerator signature against the loop's feedback/difficulty_band kwargs (a
-        # regression TypeErrors here) and exercises the new reflection-injection family. With the
-        # FakeLLMClient (which ignores the injection) every 'clean'-expect attack must hold.
+        # regression TypeErrors here) and exercises the reflection-injection family. With the
+        # code-test client every 'clean'-expect attack must hold.
         critic = Critic(FakeLLMClient())
         clean = [a for a in LIVE_ATTACKS if a.expect == "clean"]
         for atk in clean:
             r = run_live_attack(atk, FakeLLMClient(), self.onto, self.edges, critic=critic)
-            self.assertTrue(r.passed, f"{atk.id} should hold offline: {r.headline}")
+            self.assertTrue(r.passed, f"{atk.id} should hold in code-contract tests: {r.headline}")
         ids = {a.id for a in LIVE_ATTACKS}
         self.assertTrue({"reflection_exfil", "reflection_answer_smuggle",
                          "reflection_gate_teaching"} <= ids)
 
-    def test_orchestrator_route_attacks_fail_closed_offline(self):
+    def test_orchestrator_route_attacks_fail_closed_for_code_contract(self):
         results = _orchestrator_route_attacks(self.onto, "# PathForward Orchestrator Skill\n")
         self.assertTrue(all(r.passed for r in results), [r.headline for r in results])
         self.assertEqual(len(results), 4)

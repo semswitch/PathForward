@@ -1,4 +1,4 @@
-"""Red-team gate proofs (offline, deterministic).
+"""Red-team gate code-contract proofs.
 
 For each OFFLINE-testable attack family from the coverage taxonomy (.agents/decisions/004), a hand-
 crafted malicious item or mint call is asserted to be STRUCK by the hardened defense. These prove

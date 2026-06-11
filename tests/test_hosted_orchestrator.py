@@ -6,7 +6,7 @@ from pathforward.hosted_orchestrator import HostedRequest, run_hosted_orchestrat
 
 
 class HostedOrchestratorTests(unittest.TestCase):
-    def test_offline_hosted_route_requests_approval_without_minting(self):
+    def test_code_contract_hosted_route_requests_approval_without_minting(self):
         doc = run_hosted_orchestrator(HostedRequest(
             message="Run /pathforward for EMP-001",
             mode="offline",
@@ -19,7 +19,7 @@ class HostedOrchestratorTests(unittest.TestCase):
         self.assertIsNotNone(doc["approval_request"])
         self.assertIsNone(doc["credential"])
 
-    def test_offline_hosted_route_mints_only_with_explicit_approval(self):
+    def test_code_contract_hosted_route_mints_only_with_explicit_approval(self):
         doc = run_hosted_orchestrator(HostedRequest(
             message="Run /pathforward for EMP-001 with approved mint",
             mode="offline",
@@ -31,7 +31,7 @@ class HostedOrchestratorTests(unittest.TestCase):
         subject = doc["credential"]["credentialSubject"]
         self.assertEqual(subject["cited_edge_id"], doc["result"]["loop"]["driving_edge_id"])
 
-    def test_offline_hosted_route_denied_approval_fails_closed(self):
+    def test_code_contract_hosted_route_denied_approval_fails_closed(self):
         doc = run_hosted_orchestrator(HostedRequest(
             message="Run /pathforward for EMP-001 with denied mint",
             mode="offline",
@@ -43,7 +43,7 @@ class HostedOrchestratorTests(unittest.TestCase):
         self.assertIsNone(doc["credential"])
         self.assertIn("denied", doc["mint_error"].lower())
 
-    def test_offline_hosted_route_abstain_probe_never_requests_mint(self):
+    def test_code_contract_hosted_route_abstain_probe_never_requests_mint(self):
         doc = run_hosted_orchestrator(HostedRequest(
             message="Run /pathforward semantic ABSTAIN proof",
             mode="offline",
@@ -71,9 +71,11 @@ class HostedOrchestratorTests(unittest.TestCase):
         self.assertIn("value: ${AZURE_MONITOR_CONNECTION_STRING}", manifest)
 
     def test_config_accepts_hosted_runtime_env_names(self):
+        old_azure_project = os.environ.get("AZURE_AI_PROJECT_ENDPOINT")
         old_project = os.environ.get("FOUNDRY_PROJECT_ENDPOINT")
         old_model = os.environ.get("AZURE_AI_MODEL_DEPLOYMENT_NAME")
         try:
+            os.environ.pop("AZURE_AI_PROJECT_ENDPOINT", None)
             os.environ["FOUNDRY_PROJECT_ENDPOINT"] = "https://example.services.ai.azure.com/api/projects/p"
             os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"] = "reasoning"
             from pathforward.config import load_settings
@@ -82,6 +84,10 @@ class HostedOrchestratorTests(unittest.TestCase):
                              "https://example.services.ai.azure.com/api/projects/p")
             self.assertEqual(settings.model_deployment, "reasoning")
         finally:
+            if old_azure_project is None:
+                os.environ.pop("AZURE_AI_PROJECT_ENDPOINT", None)
+            else:
+                os.environ["AZURE_AI_PROJECT_ENDPOINT"] = old_azure_project
             if old_project is None:
                 os.environ.pop("FOUNDRY_PROJECT_ENDPOINT", None)
             else:
@@ -167,7 +173,7 @@ class HostedOrchestratorTests(unittest.TestCase):
 
             class StubFabricClient:
                 def respond(self, instructions, input, *, previous_response_id=None, schema=None):
-                    return LLMResponse("resp_stub", "fabric answer", {}, None)
+                    return LLMResponse("resp_test", "fabric answer", {}, None)
 
             onto = build_seed()
             worker = onto.workers[HERO_WORKER_ID]

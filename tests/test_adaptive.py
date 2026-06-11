@@ -1,6 +1,6 @@
 """Adaptive difficulty: a PURE-CODE controller maps cold-start calibration to a difficulty BAND that
 is a Generator HINT only. It must never change the gate's verdict, never enter mint(), and must be
-observable offline (the fake generator authors a materially different item per band)."""
+observable in code-contract tests."""
 import os
 import sys
 import unittest
@@ -14,7 +14,7 @@ from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.types import AssessmentItem
 
 
-def _fake_item(band, attempt=1):
+def _code_test_item(band, attempt=1):
     return FakeLLMClient._generate({"skill_name": "X", "driving_edge_id": "certgap::EMP-001::S01",
                                     "allowed_ref_ids": ["certgap::EMP-001::S01"], "attempt": attempt,
                                     "difficulty_band": band})
@@ -38,20 +38,20 @@ class TestAdaptiveController(unittest.TestCase):
         self.assertIn(c.band_for("anything"), BANDS)
 
     def test_band_varies_the_generated_item(self):
-        f, s = _fake_item("foundational"), _fake_item("stretch")
+        f, s = _code_test_item("foundational"), _code_test_item("stretch")
         self.assertNotEqual(f["stem"], s["stem"])
         self.assertNotEqual(f["numeric_claim"], s["numeric_claim"])
 
     def test_core_band_reproduces_the_canonical_item(self):
-        self.assertEqual(_fake_item("core")["numeric_claim"], "18 + 6 == 24")
-        self.assertEqual(_fake_item(None)["numeric_claim"], "18 + 6 == 24")   # default == core
+        self.assertEqual(_code_test_item("core")["numeric_claim"], "18 + 6 == 24")
+        self.assertEqual(_code_test_item(None)["numeric_claim"], "18 + 6 == 24")   # default == core
 
     def test_every_band_item_passes_the_gate_identically(self):
         # The gate applies the SAME criteria regardless of band — the band changes the item, not the
         # judgment. Each grounded band item passes cleanly.
         gate = EvidenceGate(LocalNumericChecker())
         for band in BANDS:
-            d = _fake_item(band)
+            d = _code_test_item(band)
             item = AssessmentItem(id="i", targeted_skill_id="S01",
                                   driving_edge_id="certgap::EMP-001::S01",
                                   stem=d["stem"], options=tuple(d["options"]),

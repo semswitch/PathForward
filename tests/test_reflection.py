@@ -22,8 +22,7 @@ from pathforward.iq.seed import build_seed, HERO_WORKER_ID
 
 
 class _RecordingGen:
-    """Generator-side client that records what each turn received, then behaves like the fake
-    generator (ungrounded @0 -> grounded @1)."""
+    """Generator-side client that records each turn, then returns ungrounded @0 and grounded @1."""
     def __init__(self):
         self.calls = []
 

@@ -65,7 +65,7 @@ class TestAnalystIsStructurallyNonGating(unittest.TestCase):
         self.assertTrue(isinstance(LocalNumericChecker(), NumericChecker))
         self.assertFalse(hasattr(LocalAnalyst, "check"))
 
-    def test_code_interpreter_stub_was_retired(self):
+    def test_code_interpreter_gate_oracle_was_retired(self):
         # The old CodeInterpreterChecker class (which conformed to NumericChecker) must be gone.
         # AST check (a docstring/comment may still NAME it when explaining the retirement).
         tree = ast.parse(_read("agents/numeric.py"))
@@ -130,7 +130,7 @@ class TestSecondOpinionAdvisory(unittest.TestCase):
     def test_local_analyst_agrees_with_the_gate_on_a_real_item(self):
         # The maker-checker concord: on the gate's verified item, the independent recompute agrees.
         item, verdict = self._verified_item()
-        self.assertTrue(item.numeric_claim)                       # the FakeLLMClient item carries one
+        self.assertTrue(item.numeric_claim)                       # the code-test item carries one
         rep = LocalAnalyst().second_opinion(item.numeric_claim)
         self.assertTrue(rep.agrees)
         self.assertTrue(verdict.criteria.get("numeric_valid", True))

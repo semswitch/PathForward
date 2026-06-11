@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
     _OTEL = True
-except ImportError:  # the offline core runs stdlib-only; tracing is an optional layer
+except ImportError:  # code-contract tests can run without optional tracing dependencies
     _OTEL = False
 
 from pathforward.agents.client import FakeLLMClient
@@ -69,7 +69,7 @@ class TracingTest(unittest.TestCase):
         tracing.flush()
 
         spans = {s.name: s for s in exporter.get_finished_spans()}
-        # FakeLLM: attempt 0 ungrounded -> struck, attempt 1 grounded -> verified
+        # Code-test client: attempt 0 ungrounded -> struck, attempt 1 grounded -> verified
         for name in ("assessment.loop", "generate.attempt.0", "critic.attempt.0",
                      "verify.attempt.0", "generate.attempt.1", "critic.attempt.1",
                      "verify.attempt.1", "mint"):
@@ -116,17 +116,17 @@ class TracingTest(unittest.TestCase):
         exporter = InMemorySpanExporter()
         tracing.reset_tracing()
         tracing.configure_tracing(exporter=exporter)
-        fake = FakeLLMClient()
+        code_test_client = FakeLLMClient()
         result = run_orchestrated_multiagent(
             self.worker, self.onto, dv.build_all_edges(self.onto),
-            Orchestrator(fake, skill_instructions="# PathForward Orchestrator Skill\nRun it."),
-            Curator(fake),
-            Generator(fake),
+            Orchestrator(code_test_client, skill_instructions="# PathForward Orchestrator Skill\nRun it."),
+            Curator(code_test_client),
+            Generator(code_test_client),
             EvidenceGate(LocalNumericChecker()),
-            Planner(fake, LocalNumericChecker()),
-            critic=Critic(fake),
+            Planner(code_test_client, LocalNumericChecker()),
+            critic=Critic(code_test_client),
             adaptive=self._adaptive(),
-            insights=ProgramInsightsAgent(fake),
+            insights=ProgramInsightsAgent(code_test_client),
         )
         tracing.flush()
 
