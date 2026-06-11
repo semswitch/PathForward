@@ -34,7 +34,7 @@ from pathforward.config import load_settings  # noqa: E402
 
 
 AGENT_NAME = "pathforward-orchestrator"
-API_VERSION = "2025-11-15-preview"
+API_VERSION = "v1"
 EXPECTED_AGENT_VERSION = os.getenv("PATHFORWARD_EXPECTED_HOSTED_VERSION", "").strip()
 
 

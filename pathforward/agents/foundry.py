@@ -182,16 +182,31 @@ class PersistentFoundryLLMClient:
         self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
         self._openai = self._project.get_openai_client()
 
+    def _create_with_backoff(self, input: str):
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            try:
+                return self._openai.responses.create(
+                    input=input,
+                    tool_choice="auto",
+                    extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+                )
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
     def respond(self, instructions: str, input: str, *,
                 previous_response_id: Optional[str] = None,
                 schema: Optional[dict] = None) -> LLMResponse:
         self._ensure()
         try:
-            resp = self._openai.responses.create(
-                input=input,
-                tool_choice="auto",
-                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
-            )
+            resp = self._create_with_backoff(input)
         except Exception as exc:  # noqa: BLE001
             if _is_content_filter(exc):
                 return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
@@ -330,15 +345,30 @@ class PersistentReasoningFoundryClient:
         self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
         self._openai = self._project.get_openai_client()
 
+    def _create_with_backoff(self, input: str):
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            try:
+                return self._openai.responses.create(
+                    input=input,
+                    extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+                )
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
     def respond(self, instructions: str, input: str, *,
                 previous_response_id: Optional[str] = None,
                 schema: Optional[dict] = None) -> LLMResponse:
         self._ensure()
         try:
-            resp = self._openai.responses.create(
-                input=input,
-                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
-            )
+            resp = self._create_with_backoff(input)
         except Exception as exc:  # noqa: BLE001
             if _is_content_filter(exc):
                 return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
@@ -489,16 +519,31 @@ class PersistentFabricInsightsClient:
         self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
         self._openai = self._project.get_openai_client()
 
+    def _create_with_backoff(self, input: str):
+        last: Optional[Exception] = None
+        for attempt in range(_RATE_LIMIT_RETRIES):
+            try:
+                return self._openai.responses.create(
+                    input=input,
+                    tool_choice="required" if self.force_tool else "auto",
+                    extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+                )
+            except Exception as exc:  # noqa: BLE001
+                status = getattr(exc, "status_code", None) or getattr(
+                    getattr(exc, "response", None), "status_code", None)
+                if status == 429 or "rate limit" in str(exc).lower():
+                    last = exc
+                    time.sleep(8 * (attempt + 1))
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
     def respond(self, instructions: str, input: str, *,
                 previous_response_id: Optional[str] = None,
                 schema: Optional[dict] = None) -> LLMResponse:
         self._ensure()
         try:
-            resp = self._openai.responses.create(
-                input=input,
-                tool_choice="required" if self.force_tool else "auto",
-                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
-            )
+            resp = self._create_with_backoff(input)
         except Exception as exc:  # noqa: BLE001
             if _is_content_filter(exc):
                 return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
