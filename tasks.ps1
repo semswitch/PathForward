@@ -17,7 +17,7 @@ switch ($Task) {
         python -m unittest discover -s "$root\tests" -t "$root"
         python "$root\scripts\run_demo.py"
     }
-    "azure" { pip install -r "$root\requirements.txt" }
+    "azure" { pip install -e "$($root)[azure]" }
     default {
         Write-Output "PathForward tasks:"
         Write-Output "  ./tasks.ps1 test     run the unit suite"

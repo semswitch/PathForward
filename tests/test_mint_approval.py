@@ -1,4 +1,4 @@
-"""Governed mint approval: approval is required before mint, but mint still owns the spine."""
+"""Local mint authorization: authorization is required before mint, but mint still owns the spine."""
 import os
 import sys
 import unittest

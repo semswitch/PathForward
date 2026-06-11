@@ -74,19 +74,20 @@ flowchart TB
 | Fabric | Ontology authored as a **non-Power BI Fabric item** on a **paid F2+** (or Power BI Premium **P1+**) capacity (Trial can't run the data agent). The **Search mirror** remains the runtime grounding path for item generation; the **Fabric data agent** is now a live, read-only Program Insights path over OneLake (`source="fabric-live"`), advisory and off the mint path. |
 | Mirror | Pre-materializes base + **derived** edges (provenance + validity-time) + traversal paths as first-class docs; build-time non-empty guard. |
 | Region | **East US 2** — our chosen co-location for Foundry + gpt-5.5 + Fabric. *Not the only viable region* (gpt-5.5 spans ~6 regions, Voice Live agent mode ~17; e.g. **Sweden Central** also satisfies all four). **Azure AI Search runs in East US** — note **both East US and East US 2 carry the Search capacity-constraint footnote**, so this is an operational placement, not a capacity workaround. Cross-region Search↔model is fine — only the Fabric data agent needs co-location. |
-| Hosted Agent | The top-level product surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` (`agent.yaml`, `Dockerfile`, `hosted/pathforward_orchestrator/main.py`). It exposes the `responses` protocol, loads the `/pathforward` Skill from Foundry Toolbox MCP, runs the bounded Orchestrator route, and preserves the deterministic Evidence Gate / mint spine. Live proof exists on Hosted Agent version 18 (2026-06-10): the hosted route completed with live Foundry agents, Azure AI Search retrieval, Fabric-live Program Insights, governed mint approval requested, explicit approval mint, explicit denied approval/no-mint, and semantic ABSTAIN/no-mint. |
-| Reliability | Loop hard-capped **N=3 → fail-closed abstain**; the credential mint refuses abstained results and asserts `cited_edge_id == driving CertGap edge`. A governed approval wrapper now emits a `require_approval="always"` mint request and fails closed on denial/replay/mismatch before delegating to `mint()`; the Hosted Agent wrapper uses this path and only mints with explicit runtime approval. |
+| Hosted Agent | The top-level product surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` (`agent.yaml`, `Dockerfile`, `hosted/pathforward_orchestrator/main.py`). It exposes the `responses` protocol, loads the `/pathforward` Skill from Foundry Toolbox MCP, runs the bounded Orchestrator route, and preserves the deterministic Evidence Gate / mint spine. Live proof exists on Hosted Agent version 18 (2026-06-10): the hosted route completed with live Foundry agents, Azure AI Search retrieval, Fabric-live Program Insights, mint authorization requested, authorized mint, denied authorization/no-mint, and semantic ABSTAIN/no-mint. |
+| Reliability | Loop hard-capped **N=3 → fail-closed abstain**; the credential mint refuses abstained results and asserts `cited_edge_id == driving CertGap edge`. Mint/approval architecture claims are governed by `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`; the current hosted proof uses local mint authorization code before delegating to `mint()`. |
 | Observability | **OpenTelemetry tracing** (`pathforward/obs/tracing.py`) makes the reasoning flow a timed **span tree**. `scripts/trace_demo.py` shows the focused propose→verify→(reject→regenerate)→mint loop; `scripts/trace_full_flow.py` shows Skill load, Orchestrator routing, Curator, Generator, Critic, adaptive band, bounded reflection, Evidence Gate, Planner, Program Insights/Fabric, mint, and fail-closed ABSTAIN. `gate.struck`, `reflection.prepared`, `reflection.applied`, `adaptive.band_selected`, and `abstained.fail_closed` are real span events; grounding/retrieval/readiness are span attributes. Optional/no-op unless configured, exporting to Console and **Azure Monitor / Application Insights** when `AZURE_MONITOR_CONNECTION_STRING` is set. Azure Monitor export was live-verified on 2026-06-09 (`azure_export=on`); span metadata only (no raw-model-call capture); `opentelemetry-sdk` pinned to 1.37 for exporter compat. |
 | Eval / Safety | A **deterministic eval + red-team pack** (`pathforward/eval/`, `scripts/eval_groundedness.py`, `scripts/redteam_live.py`, `scripts/eval_orchestrator_live.py`, `scripts/eval_hosted_agent_live.py`) — pass/fail decided in code, never an LLM judge. A 22-family adversarial taxonomy hardened the trust boundary (cross-worker mint contamination, derived-not-supplied readiness, homoglyph leakage, numeric tie-back, uncorpused-skill refusal). Older loop numbers remain recorded separately; the **skill-loaded prompt-agent Orchestrator path** has its own live scorecards (2026-06-09): **16/16 grounded + spine-intact** and **0.0% ASR — 16/16 defenses held**, including reflection-channel and Orchestrator route attacks. The **Hosted Agent endpoint** has a version 18 hosted-target scorecard (2026-06-10): **4/4 groundedness/approval-hold cases passed**, **4/4 prompt-surface attacks held**, **ASR 0.0%**, and **1/1 semantic ABSTAIN case passed**. Microsoft Foundry's GroundednessEvaluator is a corroborating second opinion when enabled. Known LLM-judgment limitations are documented, not hidden. |
 | Governance / Skills | A real **Foundry Skill** (`pathforward`) is sourced from `skills/pathforward/SKILL.md` in the `agentskills.io` shape, registered by `scripts/build_toolbox.py`, attached to **Foundry Toolbox** `pathforward-toolbox`, and exposed through the toolbox MCP endpoint. Live proof (`scripts/smoke_toolbox_skill_live.py`, 2026-06-09) calls `tools/list`, `resources/list`, and `resources/read` for `/pathforward` and specialist Skills (`/pathforward-curate`, `/pathforward-assess`, `/pathforward-plan`, `/pathforward-insights`), then injects the MCP-loaded Skills before running the gate/mint spine. This makes the Orchestrator and specialist Skill path load-bearing, not merely registry evidence. Toolbox-level RAI policy `pathforward-rai` was accepted by create-version but rejected by the MCP consume endpoint, so the toolbox now omits toolbox-level RAI by default; model/deployment RAI remains separate. `pathforward/tool_surface.py` records the accepted mainline seams: top-level Hosted Orchestrator, Toolbox-loaded Skills, direct Foundry prompt-agent Azure AI Search for Generator/Search because the Evidence Gate needs the retrieval trace, and direct Fabric prompt-agent tool because it is advisory and reconciled against code-owned aggregates. |
 
-## Multi-agent reasoning loop (implemented)
+## Specialist reasoning loop (implemented inside the Hosted Orchestrator path)
 
-The Foundry/Agent control-surface box is realized in code as `run_multiagent`
-(`pathforward/agents/orchestrator.py`):
-**Curator → Generator → Critic → Evidence Gate (deterministic notary) → Planner → Program Insights**,
-agents doing the reasoning and code notarizing the trust boundary; the Critic agent before the gate
-is implemented and advisory-only (see ADR 006).
+The Foundry/Agent control-surface box is realized through the Hosted Orchestrator route:
+**Orchestrator → Curator → Generator → Critic → Evidence Gate (deterministic notary) → Planner →
+Program Insights**. Agents do the reasoning and code notarizes the trust boundary; the Critic agent
+before the gate is implemented and advisory-only (see ADR 006). `run_multiagent` is no longer an
+approved runtime, demo, live-smoke, fallback, or submission path; it may remain only for tests that
+validate deterministic code contracts and legacy behavior.
 Each LLM step is paired with a code-owned gate (the project thesis — *reasoning proposes, code verifies*):
 the **Curator** (`curator.py`) ranks the CertGap skills but the choice is restricted to the derivation's
 *assessable* gap set; the **Planner** (`planner.py`) proposes a pace/plan but the hours (cert blueprint),
@@ -115,7 +116,7 @@ smoke script. The scaffold is implemented in `agent.yaml`, `Dockerfile`,
 `hosted/pathforward_orchestrator/main.py`, and `pathforward/hosted_orchestrator.py`. The Hosted Agent
 uses the `responses` protocol and packages the existing bounded Orchestrator route: it loads
 `/pathforward` and specialist Skills, runs Curator/Generator/Critic/Evidence Gate/Planner/Insights,
-creates a governed mint approval request, and only mints when explicit runtime approval is supplied.
+creates a mint authorization request, and only mints when explicit runtime authorization is supplied.
 Local proof is `tests/test_hosted_orchestrator.py`. Live proof is `scripts/smoke_hosted_agent_live.py`
 against Hosted Agent version 18: toolbox diagnostics, default no-approval/no-mint, semantic ABSTAIN,
 explicit approval mint, and explicit denied approval all passed through the dedicated hosted-agent
@@ -130,9 +131,8 @@ architecture surface. The mainline architecture is the Foundry Hosted Agent `pat
 loading the `/pathforward` Orchestrator Skill, with specialist Skills and direct Foundry prompt-agent
 Search/Fabric seams documented in `pathforward/tool_surface.py`.
 
-Historical Workflow files may remain in the repository as archived reference/proof code, but they are
-not product architecture, not a dependency target, and not the next parity item. Do not build on them
-unless the user explicitly re-authorizes Workflow.
+Agent Framework Workflow is not product architecture, not a dependency target, and not the next
+parity item. Do not build on it unless the user explicitly re-authorizes Workflow.
 
 ## Offline ↔ Azure boundary
 

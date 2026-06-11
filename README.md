@@ -24,14 +24,14 @@ PathForward is built around a real agentic workflow:
 - Foundry Skills define the agent behavior and are loaded through the Foundry Toolbox surface.
 - Azure AI Search grounds assessment generation in cited evidence.
 - Microsoft Fabric provides live cohort/program insights over the reskilling ontology.
-- A deterministic Evidence Gate and governed approval step prevent unsafe credential issuance.
+- A deterministic Evidence Gate and governed mint boundary prevent unsafe credential issuance.
 
 ## What It Demonstrates
 
 - **Multi-agent reasoning:** agents plan, critique, adapt, and explain the reskilling path.
 - **Grounded verification:** assessment items must cite retrieved evidence before they can pass.
 - **Honest refusal:** failed or ungrounded attempts end in ABSTAIN, not a fake pass.
-- **Human-governed credentialing:** minting requires explicit approval and re-checks the causal spine.
+- **Governed credentialing:** minting re-checks the causal spine and fails closed when proof is missing.
 - **Microsoft-native architecture:** Foundry Hosted Agent, Foundry Skills/Toolbox, Azure AI Search,
   Fabric data agent, Azure Monitor telemetry, and Foundry evals.
 
@@ -39,8 +39,8 @@ PathForward is built around a real agentic workflow:
 
 The project has live proof for the main Foundry multi-agent path, the skill-loaded Orchestrator path,
 Fabric-backed Program Insights, and Hosted Agent invocation. Hosted Agent version 18 proves the latest
-hardening: semantic ABSTAIN, explicit denied approval, governed approval mint, and a broader hosted
-scorecard with 4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
+hardening: semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
+4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
 
 Offline regression suite:
 
@@ -56,7 +56,7 @@ python scripts/run_demo.py
 
 Live proof scripts require the configured Azure/Fabric environment and project `.env`.
 
-## Responsible AI
+## Safety
 
 PathForward uses synthetic data only. No real workers, employee records, or PII are included.
 
@@ -64,7 +64,6 @@ The system is designed to fail closed:
 
 - no grounded evidence means no verified assessment;
 - no verified assessment means no credential;
-- no explicit approval means no mint;
-- denied approval remains denied.
+- denied or missing mint authorization means no credential.
 
-See [RESPONSIBLE-AI.md](RESPONSIBLE-AI.md) and [ARCHITECTURE.md](ARCHITECTURE.md) for deeper details.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for deeper details.

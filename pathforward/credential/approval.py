@@ -1,13 +1,9 @@
-"""Governed credential mint approval.
+"""Local mint authorization guard.
 
-This is the local trust surface for checklist item 5. It models the same shape Microsoft documents
-for MCP/Toolbox approval: sensitive tool execution must be approved by the runtime before the call is
-made; the endpoint/tool itself is not the enforcement boundary. Here, approval is explicit data that
-must match the mint request before `credential.mint.mint()` is called.
-
-This module does not replace `mint()` and does not weaken it. `mint_with_approval()` checks the
-approval, then delegates to `mint()`, so the existing loop-status, citation, causal-spine, and
-readiness re-derivation checks still run at the final step.
+This module is not an architecture decision and is not an MCP mint implementation. Approval/mint
+architecture claims must point to `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`.
+The code here only validates explicit authorization data before delegating to `credential.mint.mint()`,
+so the existing loop-status, citation, causal-spine, and readiness checks still run at the final step.
 """
 from __future__ import annotations
 
@@ -23,7 +19,7 @@ from .schema import CredentialIntegrityError, ProofCredential
 
 
 class MintApprovalError(CredentialIntegrityError):
-    """Raised when credential mint approval is missing, denied, or does not match the request."""
+    """Raised when mint authorization is missing, denied, or does not match the request."""
 
 
 @dataclass(frozen=True)

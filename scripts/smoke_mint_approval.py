@@ -1,8 +1,7 @@
-"""Offline proof for the governed mint approval surface.
+"""Offline proof for the local mint authorization guard.
 
-This proves checklist item 5's local trust behavior: a verified loop produces a reviewable approval
-request, denial fails closed, approval mints through the existing `credential.mint.mint()` spine.
-It is not an MCP server proof; live MCP/HITL hosting remains a follow-up.
+This proves local trust behavior around `credential.mint.mint()`. Architecture claims for
+mint/approval belong in `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`.
 
     python scripts/smoke_mint_approval.py
 """

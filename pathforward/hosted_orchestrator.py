@@ -53,9 +53,8 @@ _SKILL_NAMES = (
 class HostedRequest:
     """A single hosted Orchestrator request.
 
-    `approve_mint` is runtime/user approval, not model approval. Natural-language prompts should
-    request an approval packet first; callers may explicitly set this flag only when they are acting
-    as the approval surface.
+    `approve_mint` / `deny_mint` are runtime authorization flags, not model decisions. Architecture
+    claims for mint/approval belong in `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`.
     """
 
     message: str
@@ -309,9 +308,9 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
             try:
                 decision = MintApprovalDecision(approval_request.request_id, request.approve_mint,
                                                 request.approver,
-                                                "approved by hosted-agent approval surface"
+                                                "approved by hosted-agent runtime"
                                                 if request.approve_mint
-                                                else "denied by hosted-agent approval surface")
+                                                else "denied by hosted-agent runtime")
                 cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
                                           result.loop.targeted_skill_id, result.loop, decision)
                 credential = cred.to_doc()

@@ -1,38 +1,73 @@
-# CLAUDE.md
+# PathForward Non-Negotiable Agentic Architecture Contract
 
-This repository uses **[`AGENTS.md`](./AGENTS.md)** as the single source of truth for AI-agent
-guidance. **Read `AGENTS.md` first** — it defines the project intent, the prime directives, the
-trust hierarchy, the verification protocol, the current-vs-target state, and the invariants.
+## Required Architecture Shape
 
-Then read **`.agents/plans/000-non-negotiable-agentic-architecture-contract.md`** before any
-architecture, workflow, agent, Foundry-tooling, demo-proof, or scope decision. That contract
-supersedes older plans, ADR interpretations, and summaries where they conflict. No workaround is
-permitted unless the user explicitly authorizes it or a documented critical infrastructure blocker
-prevents the required shape.
+```text
+Foundry Hosted Agent: pathforward-orchestrator
+  loads /pathforward from Foundry Skill / Toolbox
+  Orchestrator / Conductor reasoning over the allowed route
+  Curator agent
+  Generator agent with Foundry grounded retrieval
+  Critic agent
+  deterministic Evidence Gate
+  bounded reflection / adaptive retry
+  Planner agent
+  Program Insights / Fabric agent
+  human approval where applicable
+  deterministic mint
+```
 
-Claude-specific reminders (the substance lives in `AGENTS.md`):
+`run_multiagent` is not to be used for anything ever, except tests that validate that code works.
 
-- **Ground platform facts with the Microsoft Learn MCP** (`microsoft_docs_search` /
-  `microsoft_docs_fetch`) before asserting any Azure / Foundry / SDK specifics. Do not rely on
-  training data for version, feature, or GA-vs-preview details — verify, then cite source + date.
-- Treat **`.agents/docs/current-state-assessment.md`** as the maintained ground-truth snapshot;
-  its §10 lists repo claims that have already drifted from live docs (proof that assumptions are
-  unsafe here).
-- The end goal is the **real multi-agent reasoning loop**, not the one-off GPT call and not the
-  `FakeLLMClient` stub. The chosen top-level architecture is now the versioned Foundry Hosted Agent
-  `pathforward-orchestrator`, loading the `/pathforward` Skill and running the bounded Orchestrator
-  route. Agent Framework Workflow is locked out unless the user explicitly re-authorizes it. Do not
-  call the full architecture complete merely because Hosted Agent v11 is deployed and invoked:
-  hosted approval/no-approval is proven, and initial hosted-target scorecards exist, but broader
-  hosted eval coverage, semantic ABSTAIN proof, and Fabric data-agent reliability hardening remain
-  open. Preserve the `LLMClient` / `NumericChecker` swap-in seams and the deterministic Evidence Gate
-  (never let an LLM judge its own grounding).
-- Telemetry is available and should be used before inventing stream-output captures or local
-  observability workarounds. Use `scripts/trace_full_flow.py` for the Orchestrator-driven proof
-  trace and `scripts/trace_demo.py` for the focused assessment-loop trace; both export to Azure
-  Monitor when configured. Azure-side query access was verified with the service principal identity
-  from `.env` on
-  2026-06-09. If a normal user CLI login gets `InsufficientAccessError`, switch to the service
-  principal before concluding telemetry is blocked.
+## Non-Negotiable Requirements
 
-> Keep this file thin. Put substantive guidance in `AGENTS.md` so the two never drift.
+1. **Code does not equal agent.**
+   `EvidenceGate`, `LocalNumericChecker`, readiness derivation, mint, and deterministic orchestration
+   are code. They are not agents.
+
+2. **Use the Foundry Hosted Agent Orchestrator surface.**
+   The architecture surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` loading
+   the `/pathforward` Foundry Skill and appropriate specialist agent Skills. Agent Framework
+   Workflow, `PF_WORKFLOW`, Workflow HITL, and Workflow graph work are unauthorized for this
+   architecture unless the user explicitly re-authorizes them.
+
+3. **The Hosted Orchestrator proof must show the agentic reasoning beats in the final demo artifact.**
+   The proof surface must visibly show Orchestrator route reasoning, Curator, Generator, Critic,
+   reflection, adaptive band, Evidence Gate, Fabric, and ABSTAIN. Telemetry or nested trace views may
+   be used for the internal loop if decomposing any execution graph would duplicate trust logic.
+
+4. **Foundry Toolbox and Foundry Skill are runtime surfaces.**
+   `/pathforward` must exist as a real `agentskills.io` Skill, be registered in Foundry, be visible in
+   the portal/dashboard, and be consumed by the Hosted Orchestrator at runtime. Local-only Markdown,
+   inline prompt copies, registry-only Skills, and legacy non-Hosted shapes are unapproved.
+
+5. **Each agent must carry its Foundry runtime contract.**
+   Foundry tools, Skills, guardrails, and system prompts must be attached to the appropriate agents.
+   Evaluations must run against those attached agent contracts, not detached local prompt copies.
+
+6. **Fabric Program Insights must use the live Fabric data agent.**
+   Program Insights must return `source="fabric-live"` and at least one Fabric-derived cohort metric
+   such as cohort size, cohort rank/percentile, average readiness, or bottleneck skill counts.
+   Offline derivation-floor Program Insights is not approved for the product runtime.
+
+7. **Credential minting must be exposed through an MCP mint server.**
+   The project requires a hosted MCP mint tool with explicit approval before issuance. The MCP server
+   must call the deterministic mint code and must not let an agent bypass Evidence Gate, readiness,
+   or causal-spine checks.
+
+8. **Voice Live / Engagement is required.**
+   Azure Foundry Voice Live is available through the project's endpoint and API key. PathForward must
+   implement a Voice Live engagement path that produces the transcript artifact used by the shared
+   scoring and verification flow.
+
+9. **Telemetry must be used for live validation.**
+   Telemetry is connected through Azure Application Insights. Live runs and validations must emit and
+   use telemetry logs as part of the proof record.
+
+10. **Only live proof can mark product behavior done.**
+    Fake-agent and offline tests prove code only. A feature, agent, tool, Skill, Fabric path,
+    telemetry path, Voice Live path, or mint path is not done until it has live proof.
+
+11. **FakeLLMClient is code-test only.**
+    Do not use or refer to FakeLLMClient during implementation except to prove code works before live
+    testing.

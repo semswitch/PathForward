@@ -8,7 +8,7 @@ This targets the actual hosted-agent endpoint, not the project-level prompt-agen
 It proves the currently deployed hosted route can:
   - read `/pathforward` and specialist Skills from Foundry Toolbox MCP,
   - run the live multi-agent route with Search + Fabric-live Insights,
-  - request mint approval without minting by default,
+  - request mint authorization without minting by default,
   - mint only when the caller supplies explicit runtime approval.
 
 The output evidence intentionally avoids secrets and raw auth material.

@@ -30,20 +30,15 @@ class TestToolSurfaceContract(unittest.TestCase):
         self.assertIn("direct published Fabric", fabric.surface)
         self.assertIn("off the credential mint path", fabric.rationale)
 
-    def test_approval_is_the_remaining_mainline_surface_not_workflow(self):
+    def test_approval_architecture_is_not_declared_by_tool_surface(self):
         decisions = decisions_by_capability()
-        approval = decisions["credential-approval"]
         workflow = decisions["agent-framework-workflow"]
-        self.assertEqual(approval.status, "hosted-live-approval-request-proven")
-        self.assertIn("Hosted Agent", approval.surface)
+        self.assertNotIn("credential-approval", decisions)
         self.assertEqual(workflow.status, "locked-out-not-used")
         self.assertIn("Locked-out", workflow.surface)
 
     def test_default_requirements_do_not_pull_in_workflow_projection(self):
-        with open(os.path.join(ROOT, "requirements.txt"), encoding="utf-8") as fh:
-            requirements = fh.read()
-        self.assertNotIn("agent-framework", requirements)
-        self.assertNotIn("agent-framework-foundry", requirements)
+        self.assertFalse(os.path.exists(os.path.join(ROOT, "requirements.txt")))
 
     def test_pyproject_does_not_advertise_workflow_extra(self):
         with open(os.path.join(ROOT, "pyproject.toml"), encoding="utf-8") as fh:

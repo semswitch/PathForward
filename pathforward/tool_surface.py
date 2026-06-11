@@ -1,8 +1,8 @@
 """Mainline tool-surface contract for the Hosted `/pathforward` Orchestrator route.
 
 This module is documentation-as-code: it records which Microsoft Foundry surface each live
-capability is allowed to use. Tests lock these decisions so future work does not reopen optional
-surfaces, especially Agent Framework Workflow, as if they were required architecture work.
+capability is allowed to use. Approval/mint architecture is intentionally not decided here; follow
+`.agents/plans/000-non-negotiable-agentic-architecture-contract.md` for that boundary.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
         rationale=(
             "The user locked Hosted Agents as the top-level Orchestrator path. The hosted surface "
             "packages the existing PathForward route into a versionable Foundry Hosted Agent while "
-            "preserving the deterministic Evidence Gate and mint spine. Hosted Agent version 11 "
+            "preserving the deterministic Evidence Gate and mint spine. Hosted Agent version 18 "
             "completed the full live `/pathforward` route through the Foundry responses endpoint."
         ),
         proof=(
@@ -37,7 +37,7 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
             "Dockerfile",
             "hosted/pathforward_orchestrator/main.py",
             "pathforward/hosted_orchestrator.py",
-            "Hosted Agent pathforward-orchestrator:11",
+            "Hosted Agent pathforward-orchestrator:18",
             "tests/test_hosted_orchestrator.py",
         ),
     ),
@@ -88,42 +88,20 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
             "pathforward/agents/foundry.py:FabricInsightsClient",
             "pathforward/agents/foundry.py:FabricDataAgentClient",
             "scripts/smoke_fabric_live.py",
-            "Hosted Agent pathforward-orchestrator:11",
+            "Hosted Agent pathforward-orchestrator:18",
             "tests/test_fabric_insights.py",
         ),
     ),
     ToolSurfaceDecision(
-        capability="credential-approval",
-        surface="Hosted Agent governed approval wrapper",
-        status="hosted-live-approval-request-proven",
-        rationale=(
-            "`credential.approval` correctly fails closed before mint. The Hosted Orchestrator now "
-            "creates a mint approval request and mints only with explicit runtime approval. Hosted "
-            "Agent version 11 proved the live approval-request path; hosted evals and an explicit "
-            "approval-approved live run remain separate proof work."
-        ),
-        proof=(
-            "pathforward/credential/approval.py",
-            "pathforward/hosted_orchestrator.py",
-            "Hosted Agent pathforward-orchestrator:11",
-            "scripts/smoke_mint_approval.py",
-            "tests/test_hosted_orchestrator.py",
-            "tests/test_mint_approval.py",
-        ),
-    ),
-    ToolSurfaceDecision(
         capability="agent-framework-workflow",
-        surface="Locked-out historical reference only",
+        surface="Locked-out architecture surface",
         status="locked-out-not-used",
         rationale=(
             "The user locked the decision on 2026-06-09: PathForward is not using Agent Framework "
-            "Workflow as an architecture surface. Keep old graph proof code only as historical "
-            "reference; do not build on it without explicit re-authorization."
+            "Workflow as an architecture surface. Do not build on it without explicit "
+            "re-authorization."
         ),
-        proof=(
-            "pathforward/agents/workflow.py",
-            "scripts/smoke_workflow_live.py",
-        ),
+        proof=("architecture contract",),
     ),
 )
 

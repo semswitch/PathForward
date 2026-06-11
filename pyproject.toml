@@ -5,7 +5,7 @@ description = "A multi-agent reskilling system for displaced/at-risk workers —
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-# Offline core has no runtime deps; the Azure layer is listed in requirements.txt.
+# Offline core has no runtime deps; the Azure layer is available as the `azure` extra.
 dependencies = []
 
 [project.optional-dependencies]

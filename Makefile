@@ -23,4 +23,4 @@ demo:
 all: data mirror fixture test demo
 
 azure:
-	pip install -r requirements.txt
+	pip install -e .[azure]
