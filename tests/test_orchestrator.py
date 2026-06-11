@@ -8,12 +8,12 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pathforward.agents.client import FakeLLMClient
+from tests.fakes import FakeLLMClient
 from pathforward.agents.critic import Critic
 from pathforward.agents.curator import Curator
 from pathforward.agents.generator import Generator
 from pathforward.agents.numeric import LocalNumericChecker
-from pathforward.agents.orchestrator import run_multiagent
+from tests.code_contract_flow import run_multiagent_code_contract
 from pathforward.agents.planner import Planner
 from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.agents.insights import ProgramInsightsAgent
@@ -40,7 +40,7 @@ class TestOrchestrator(unittest.TestCase):
         worker = self.onto.workers[HERO_WORKER_ID]
         role = self.onto.roles[worker.target_role_id]
         cur, gen, gate, plan, critic = _agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
+        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
 
         # Curator chose S01 (demo invariant); loop verified the item.
         self.assertEqual(res.curator.chosen_skill_id, "S01")
@@ -59,7 +59,7 @@ class TestOrchestrator(unittest.TestCase):
     def test_to_doc_round_trips_through_json(self):
         worker = self.onto.workers[HERO_WORKER_ID]
         cur, gen, gate, plan, critic = _agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
+        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
         doc = res.to_doc()
         # insights is an additive key (None here — no Insights agent wired in this test).
         self.assertEqual(set(doc), {"orchestrator", "curator", "loop", "plan", "insights"})
@@ -78,7 +78,7 @@ class TestOrchestrator(unittest.TestCase):
         role = self.onto.roles["R-DEVOPS"]
         edges = dv.build_all_edges(self.onto)
         cur, gen, gate, plan, critic = _agents()
-        res = run_multiagent(worker, self.onto, edges, cur, gen, gate, plan, critic=critic)
+        res = run_multiagent_code_contract(worker, self.onto, edges, cur, gen, gate, plan, critic=critic)
 
         self.assertEqual(res.curator.chosen_skill_id, "")
         self.assertEqual(res.loop.status, "abstained")
@@ -96,7 +96,7 @@ class TestOrchestrator(unittest.TestCase):
 
         worker = self.onto.workers[HERO_WORKER_ID]
         cur, gen, gate, plan, critic = _agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan,
+        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan,
                              critic=critic, insights=FailingInsights())
 
         self.assertIsNotNone(res.insights)

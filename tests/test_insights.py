@@ -18,13 +18,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PKG = os.path.join(ROOT, "pathforward")
 
-from pathforward.agents.client import FakeLLMClient, LLMResponse           # noqa: E402
+from pathforward.agents.client import LLMResponse
+from tests.fakes import FakeLLMClient           # noqa: E402
 from pathforward.agents.critic import Critic                               # noqa: E402
 from pathforward.agents.curator import Curator                             # noqa: E402
 from pathforward.agents.generator import Generator                        # noqa: E402
 from pathforward.agents.insights import ProgramInsightsAgent              # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker               # noqa: E402
-from pathforward.agents.orchestrator import run_multiagent               # noqa: E402
+from tests.code_contract_flow import run_multiagent_code_contract               # noqa: E402
 from pathforward.agents.planner import Planner                            # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate                 # noqa: E402
 from pathforward.iq import cohort                                         # noqa: E402
@@ -204,7 +205,7 @@ class TestOrchestratorThreadsInsights(unittest.TestCase):
     def test_insights_populated_when_agent_wired(self):
         worker = self.onto.workers[HERO_WORKER_ID]
         cur, gen, gate, plan, critic, ins = self._agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan,
+        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan,
                              critic=critic, insights=ins)
         self.assertIsNotNone(res.insights)
         self.assertEqual(res.insights.worker_id, worker.id)
@@ -216,7 +217,7 @@ class TestOrchestratorThreadsInsights(unittest.TestCase):
     def test_insights_none_when_not_wired(self):
         worker = self.onto.workers[HERO_WORKER_ID]
         cur, gen, gate, plan, critic, _ = self._agents()
-        res = run_multiagent(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
+        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan, critic=critic)
         self.assertIsNone(res.insights)
         self.assertIsNone(res.to_doc()["insights"])
 

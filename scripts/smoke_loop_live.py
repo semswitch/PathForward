@@ -3,7 +3,7 @@ first CertGap.
 
 Proves end to end on live Azure: gpt-5.5 autonomously retrieves, produces a grounded structured
 item that passes the Evidence Gate's corpus-INTERSECT-retrieved gate, and mints a citation-backed
-credential whose cited_edge_id is the driving CertGap edge. The offline core (FakeLLMClient) is
+credential whose cited_edge_id is the driving CertGap edge. The code-test path is
 untouched; this is the Azure swap-in.
 
     python scripts/smoke_loop_live.py

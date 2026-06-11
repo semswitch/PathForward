@@ -15,7 +15,7 @@ the cross-worker aggregates this agent reasons over.
 
 Two tiers (verified facts + scope in `.agents/decisions/007-program-insights-fabric-readpath.md`):
   - FLOOR (`analyze`, source="derivation-floor"): the agent NARRATES code-computed aggregates over a
-    tool-less reasoning client (`FakeLLMClient` offline / `ReasoningFoundryClient` live). Zero Fabric.
+    tool-less reasoning client. Zero Fabric.
   - FABRIC-LIVE (`analyze_via_fabric`, source="fabric-live"): the agent ANSWERS the cohort question by
     querying a published Fabric data agent over OneLake (NL2SQL, OBO) via `FabricInsightsClient`
     (`MicrosoftFabricPreviewTool` on a `PromptAgentDefinition`, same Responses-API `agent_reference`

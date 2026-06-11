@@ -1,7 +1,6 @@
 """Live Orchestrator smoke for checklist #1.
 
-This proves the Orchestrator/Conductor is a real Foundry-backed reasoning agent, not just the
-offline FakeLLMClient branch:
+This proves the Orchestrator/Conductor is a real Foundry-backed reasoning agent:
 
   - Orchestrator runs on a TOOL-LESS Foundry reasoning agent (`pathforward-orchestrator`).
   - Curator / Planner / Critic / Insights run on tool-less Foundry reasoning agents.

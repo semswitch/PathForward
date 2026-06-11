@@ -12,7 +12,7 @@ GEN_INSTRUCTIONS = (
     "be independently checked. Exactly one option is correct; never embed the answer in the stem."
 )
 
-# Documented schema (the FakeLLMClient ignores it; the real Responses agent enforces it).
+# Documented schema for the real Responses agent.
 ITEM_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -24,7 +24,7 @@ ITEM_SCHEMA = {
         "numeric_claim": {"type": ["string", "null"]},
     },
     # strict json_schema (the live Foundry agent enforces it): every property must be listed in
-    # `required` and `numeric_claim` is nullable. The FakeLLMClient ignores this; the Evidence Gate
+    # `required` and `numeric_claim` is nullable. The Evidence Gate
     # enforces the >=2-option rule in code.
     "required": ["stem", "options", "answer_index", "cited_ref_ids", "numeric_claim"],
 }

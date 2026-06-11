@@ -1,4 +1,4 @@
-// TypeScript contracts mirroring the Python fixture (scripts/export_web_fixture.py).
+// TypeScript contracts for the UI fixture shape.
 // Keep in sync with pathforward/iq/models.py and pathforward/agents/types.py.
 
 export interface GlassBoxEdge {

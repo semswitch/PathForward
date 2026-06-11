@@ -15,7 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PKG = os.path.join(ROOT, "pathforward")
 
 from pathforward.agents.analyst import Analyst, AnalystReport, LocalAnalyst   # noqa: E402
-from pathforward.agents.client import FakeLLMClient                           # noqa: E402
+from tests.fakes import FakeLLMClient  # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate                     # noqa: E402
 from pathforward.agents.generator import Generator                          # noqa: E402
 from pathforward.agents.loop import run_assessment_loop                       # noqa: E402
@@ -164,7 +164,7 @@ class TestLocalAnalyst(unittest.TestCase):
         hard = a.calibration_report({"item-S01": {"n": 10, "difficulty": 0.08, "discrimination": 0.2}})
         self.assertIn("S01", str(hard.detail["hard"]))
         self.assertEqual(hard.detail["easy"], [])
-        # the empty-stats path that run_demo's chart loop relies on: one (empty) figure, no error
+        # the empty-stats chart path: one empty figure, no error
         empty = a.calibration_report({})
         self.assertEqual(empty.kind, "calibration")
         self.assertEqual(len(empty.figures), 1)

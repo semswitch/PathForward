@@ -5,13 +5,11 @@ This is the demo/proof artifact for the "agents reason, code notarizes" architec
   Foundry Skill load -> Orchestrator route -> Curator -> Generator/Critic/Evidence Gate with
   adaptive + reflection -> Planner -> Program Insights/Fabric -> mint, plus an explicit ABSTAIN.
 
-Offline default uses deterministic fakes and the local Skill files. `--live` loads `/pathforward`
-plus the specialist Skills through the Foundry Toolbox MCP endpoint and runs the live Foundry
-prompt-agent clients.
+This script loads `/pathforward` plus the specialist Skills through the Foundry Toolbox MCP endpoint
+and runs live Foundry prompt-agent clients.
 
     python scripts/trace_full_flow.py
-    python scripts/trace_full_flow.py --live
-    python scripts/trace_full_flow.py --live --fabric
+    python scripts/trace_full_flow.py --fabric
 """
 from __future__ import annotations
 
@@ -23,7 +21,6 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
 from pathforward.agents.adaptive import AdaptiveController  # noqa: E402
-from pathforward.agents.client import FakeLLMClient  # noqa: E402
 from pathforward.agents.conductor import Orchestrator  # noqa: E402
 from pathforward.agents.critic import Critic  # noqa: E402
 from pathforward.agents.curator import Curator  # noqa: E402
@@ -40,7 +37,6 @@ from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
 from pathforward.obs import tracing  # noqa: E402
-from pathforward.skills import read_skill_file  # noqa: E402
 
 TOOLBOX_NAME = "pathforward-toolbox"
 SKILL_NAME = "pathforward"
@@ -60,48 +56,17 @@ class FabricProgramInsightsAgent(ProgramInsightsAgent):
         return self.analyze_via_fabric(worker, role, onto)
 
 
-def _load_skills(settings, live: bool) -> tuple[dict[str, str], str, dict]:
-    if live:
-        from pathforward.toolbox_mcp import read_skills_from_toolbox
+def _load_skills(settings) -> tuple[dict[str, str], str, dict]:
+    from pathforward.toolbox_mcp import read_skills_from_toolbox
 
-        if not settings.foundry_project_endpoint:
-            raise RuntimeError("live skill load requires AZURE_AI_PROJECT_ENDPOINT")
-        bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
-                                                    TOOLBOX_NAME, SPECIALIST_SKILLS)
-        return bodies, "foundry-toolbox-mcp", evidence
-
-    bodies: dict[str, str] = {}
-    uris: dict[str, str] = {}
-    chars: dict[str, int] = {}
-    for name in SPECIALIST_SKILLS:
-        path = os.path.join(_ROOT, "skills", name, "SKILL.md")
-        skill = read_skill_file(path)
-        bodies[name] = skill.instructions
-        uris[name] = os.path.relpath(path, _ROOT).replace("\\", "/")
-        chars[name] = len(skill.instructions)
-    return bodies, "local-skill-file", {
-        "skill_uris": uris,
-        "skill_chars": chars,
-        "skill_uri": uris[SKILL_NAME],
-        "skill_chars_total": sum(chars.values()),
-        "tools": [],
-    }
+    if not settings.foundry_project_endpoint:
+        raise RuntimeError("live skill load requires AZURE_AI_PROJECT_ENDPOINT")
+    bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
+                                                TOOLBOX_NAME, SPECIALIST_SKILLS)
+    return bodies, "foundry-toolbox-mcp", evidence
 
 
-def _clients(settings, live: bool, fabric: bool):
-    if not live:
-        fake = FakeLLMClient()
-        return {
-            "orchestrator": fake,
-            "curator": fake,
-            "generator": fake,
-            "critic": fake,
-            "planner": fake,
-            "insights_client": fake,
-            "insights_cls": ProgramInsightsAgent,
-            "close": lambda: None,
-        }
-
+def _clients(settings, fabric: bool):
     from pathforward.agents.foundry import (
         FabricInsightsClient,
         FoundryLLMClient,
@@ -161,7 +126,6 @@ def main() -> int:
         pass
 
     ap = argparse.ArgumentParser(description="Trace the full PathForward agentic flow.")
-    ap.add_argument("--live", action="store_true", help="run live Foundry prompt agents")
     ap.add_argument("--fabric", action="store_true", help="use Fabric-live Program Insights")
     ap.add_argument("--skip-abstain", action="store_true",
                     help="skip the explicit fail-closed ABSTAIN proof segment")
@@ -171,14 +135,14 @@ def main() -> int:
     active = tracing.configure_tracing(
         console=True, azure_connection_string=(settings.azure_monitor_connection_string or None))
     print(f"tracing active={active}  azure_export={'on' if settings.azure_monitor_connection_string else 'off'}")
-    print(f"mode={'live' if args.live else 'offline'}  fabric={'on' if args.fabric else 'off'}")
+    print(f"mode=live  fabric={'on' if args.fabric else 'off'}")
 
     onto = build_seed()
     edges = dv.build_all_edges(onto)
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
-    skill_bodies, skill_source, skill_evidence = _load_skills(settings, args.live)
-    clients = _clients(settings, args.live, args.fabric)
+    skill_bodies, skill_source, skill_evidence = _load_skills(settings)
+    clients = _clients(settings, args.fabric)
 
     # Deterministic cold-start signal for the hero path: S01 selects stretch, so adaptive is visible.
     adaptive = AdaptiveController(calibration={"item-S01": {"difficulty": 0.9}})

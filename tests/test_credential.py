@@ -5,7 +5,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pathforward.agents.client import FakeLLMClient
+from tests.fakes import FakeLLMClient
 from pathforward.agents.generator import Generator
 from pathforward.agents.loop import run_assessment_loop
 from pathforward.agents.numeric import LocalNumericChecker

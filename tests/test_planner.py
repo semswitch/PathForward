@@ -8,7 +8,8 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pathforward.agents.client import FakeLLMClient, LLMResponse
+from pathforward.agents.client import LLMResponse
+from tests.fakes import FakeLLMClient
 from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.planner import A11Y_ADAPTATIONS, Planner, canonical_hours
 from pathforward.iq import derivation as dv

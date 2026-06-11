@@ -12,7 +12,7 @@ try:
 except ImportError:  # code-contract tests can run without optional tracing dependencies
     _OTEL = False
 
-from pathforward.agents.client import FakeLLMClient
+from tests.fakes import FakeLLMClient
 from pathforward.agents.adaptive import AdaptiveController
 from pathforward.agents.conductor import Orchestrator
 from pathforward.agents.critic import Critic

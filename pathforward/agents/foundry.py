@@ -1,5 +1,4 @@
-"""Live Foundry generator: gpt-5.5 + the GA Azure AI Search tool, behind the same LLMClient
-seam as FakeLLMClient.
+"""Live Foundry generator: gpt-5.5 + the GA Azure AI Search tool, behind the LLMClient seam.
 
 The model AUTONOMOUSLY retrieves (tool_choice='auto') and returns a STRUCTURED assessment item.
 The json_schema output format must live on the agent DEFINITION (`PromptAgentDefinition.text`) —
@@ -171,7 +170,7 @@ class ReasoningFoundryClient:
     nor cites a corpus, so `retrieved_ref_ids` is always (). Each instance lazily creates and caches
     ONE prompt-agent version under `agent_name` (with the caller's json_schema response format) on
     first respond(); call close() to delete it. Keyless via DefaultAzureCredential. This is the
-    live swap-in for the offline FakeLLMClient on the Curator/Planner seam — the deterministic gates
+    live client for the Curator/Planner seam — the deterministic gates
     in curator.py / planner.py remain the trust boundary regardless of what the model returns.
 
     Foundry facts verified via the Microsoft Learn MCP (2026-06-07):

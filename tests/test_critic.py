@@ -9,7 +9,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pathforward.agents.client import FakeLLMClient, LLMResponse
+from pathforward.agents.client import LLMResponse
+from tests.fakes import FakeLLMClient
 from pathforward.agents.critic import Critic
 from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.agents.generator import Generator

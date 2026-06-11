@@ -2,14 +2,12 @@
 
 Skeleton for the three hero surfaces: **Glass-Box Graph**, **Assessment Arena**, **Trust Console**.
 Built with `@fluentui/react-components` (Fluent UI v9), styled entirely with Griffel `makeStyles` +
-design tokens (no ad-hoc CSS). Renders a real fixture exported from the offline Python run.
+design tokens (no ad-hoc CSS). It currently renders a static fixture; product execution belongs to
+the live Hosted Orchestrator path.
 
 ## Run
 
 ```bash
-# from the repo root, first export the demo fixture the UI reads:
-python scripts/export_web_fixture.py        # writes web/src/lib/fixture.json
-
 cd web
 npm install
 npm run dev        # dev server on http://localhost:9711
@@ -31,4 +29,4 @@ npm run preview    # serve the production build on http://localhost:9711
   (longhand CSS props, top-level styles, `use`-prefixed hooks). No `*.css` files.
 - **Accessibility:** `@microsoft/eslint-plugin-fluentui-jsx-a11y` lints Fluent v9 components for a11y.
 - **Local port:** dev server and `vite preview` both bind to **9711** (`strictPort`).
-- `fixture.json` is git-ignored (regenerate with `python scripts/export_web_fixture.py`).
+- `fixture.json` is git-ignored; do not regenerate it through the archived local exporter path.

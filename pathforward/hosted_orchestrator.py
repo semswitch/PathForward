@@ -14,7 +14,6 @@ from typing import Any
 
 from .agents.adaptive import AdaptiveController
 from .agents.calibration import cold_start_calibrate
-from .agents.client import FakeLLMClient
 from .agents.conductor import Orchestrator
 from .agents.critic import Critic
 from .agents.curator import Curator
@@ -36,7 +35,6 @@ from .iq.models import Worker
 from .iq.seed import HERO_WORKER_ID, build_seed
 from .obs.appinsights import emit_custom_event
 from .obs import tracing
-from .skills import read_skill_file
 
 _ROOT = Path(__file__).resolve().parent.parent
 _TOOLBOX_NAME = "pathforward-toolbox"
@@ -62,7 +60,7 @@ class HostedRequest:
     approve_mint: bool = False
     deny_mint: bool = False
     approver: str = "hosted-agent-runtime"
-    mode: str = "auto"  # auto | live | offline
+    mode: str = "live"
     abstain_probe: bool = False
 
 
@@ -73,22 +71,13 @@ class _FabricProgramInsightsAgent(ProgramInsightsAgent):
         return self.analyze_via_fabric(worker, role, onto)
 
 
-def _local_skill_bodies() -> dict[str, str]:
-    bodies: dict[str, str] = {}
-    for name in _SKILL_NAMES:
-        bodies[name] = read_skill_file(_ROOT / "skills" / name / "SKILL.md").instructions
-    return bodies
-
-
 def _resolve_mode(settings: Settings, requested: str) -> str:
     mode = (requested or "auto").strip().lower()
-    if mode not in {"auto", "live", "offline"}:
+    if mode not in {"auto", "live"}:
         raise ValueError(f"unsupported hosted mode: {requested!r}")
-    if mode == "auto":
-        return "live" if settings.foundry_project_endpoint else "offline"
-    if mode == "live" and not settings.foundry_project_endpoint:
-        raise RuntimeError("PATHFORWARD_HOSTED_MODE=live requires FOUNDRY_PROJECT_ENDPOINT")
-    return mode
+    if not settings.foundry_project_endpoint:
+        raise RuntimeError("Hosted Orchestrator requires FOUNDRY_PROJECT_ENDPOINT")
+    return "live"
 
 
 def _load_live_skill_bodies(settings: Settings) -> tuple[dict[str, str], dict[str, Any]]:
@@ -116,18 +105,7 @@ def diagnose_live_toolbox(settings: Settings) -> dict[str, Any]:
     }
 
 
-def _build_clients(settings: Settings, mode: str, skill_bodies: dict[str, str]):
-    if mode == "offline":
-        fake = FakeLLMClient()
-        return {
-            "orchestrator": fake,
-            "curator": fake,
-            "generator": fake,
-            "critic": fake,
-            "planner": fake,
-            "insights": fake,
-        }, ()
-
+def _build_clients(settings: Settings, skill_bodies: dict[str, str]):
     from .agents.foundry import (
         FabricDataAgentClient,
         FabricInsightsClient,
@@ -198,14 +176,10 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                          "pf.mode": mode,
                          "pf.worker": request.worker_id,
                          "pf.approve_mint": request.approve_mint}) as hosted_span:
-        if mode == "live":
-            skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
-        else:
-            skill_bodies = _local_skill_bodies()
-            skill_evidence = {"source": "local-skill-files", "skills": list(skill_bodies)}
+        skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
         hosted_span.set(**{"pf.skill_source": skill_evidence.get("source")})
 
-        clients, closeables = _build_clients(settings, mode, skill_bodies)
+        clients, closeables = _build_clients(settings, skill_bodies)
         try:
             doc = _run_hosted_orchestrator_inner(request, mode, skill_bodies,
                                                 skill_evidence, clients)

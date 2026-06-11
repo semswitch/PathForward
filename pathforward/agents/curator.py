@@ -24,7 +24,7 @@ CUR_INSTRUCTIONS = (
     "`rationale` per skill. You MAY ONLY rank skills from the provided candidate_skill_ids."
 )
 
-# Documented strict schema (the FakeLLMClient ignores it; a live reasoning agent enforces it).
+# Documented strict schema for live reasoning agents.
 CURATOR_SCHEMA = {
     "type": "object",
     "additionalProperties": False,

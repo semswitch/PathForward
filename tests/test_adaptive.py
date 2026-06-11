@@ -8,7 +8,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from pathforward.agents.adaptive import AdaptiveController, BANDS
-from pathforward.agents.client import FakeLLMClient
+from tests.fakes import FakeLLMClient
 from pathforward.agents.evidence_gate import EvidenceGate
 from pathforward.agents.numeric import LocalNumericChecker
 from pathforward.agents.types import AssessmentItem

@@ -48,12 +48,6 @@ Offline regression suite:
 python -m unittest discover -s tests -t .
 ```
 
-Local demo:
-
-```powershell
-python scripts/run_demo.py
-```
-
 Live proof scripts require the configured Azure/Fabric environment and project `.env`.
 
 ## Safety

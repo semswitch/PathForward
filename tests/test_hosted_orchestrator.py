@@ -2,27 +2,59 @@ import os
 import unittest
 from pathlib import Path
 
-from pathforward.hosted_orchestrator import HostedRequest, run_hosted_orchestrator
+from pathforward.hosted_orchestrator import HostedRequest, _SKILL_NAMES, _run_hosted_orchestrator_inner
+from pathforward.skills import read_skill_file
+from tests.fakes import FakeLLMClient
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _skill_bodies() -> dict[str, str]:
+    return {
+        name: read_skill_file(ROOT / "skills" / name / "SKILL.md").instructions
+        for name in _SKILL_NAMES
+    }
+
+
+def _code_test_clients(insights=None) -> dict:
+    client = FakeLLMClient()
+    return {
+        "orchestrator": client,
+        "curator": client,
+        "generator": client,
+        "critic": client,
+        "planner": client,
+        "insights": insights or client,
+    }
+
+
+def _run_code_contract(request: HostedRequest, clients: dict | None = None) -> dict:
+    return _run_hosted_orchestrator_inner(
+        request,
+        "code-test",
+        _skill_bodies(),
+        {"source": "unit-test"},
+        clients or _code_test_clients(),
+    )
 
 
 class HostedOrchestratorTests(unittest.TestCase):
     def test_code_contract_hosted_route_requests_approval_without_minting(self):
-        doc = run_hosted_orchestrator(HostedRequest(
+        doc = _run_code_contract(HostedRequest(
             message="Run /pathforward for EMP-001",
-            mode="offline",
             approve_mint=False,
         ))
         self.assertEqual(doc["surface"], "foundry-hosted-agent")
-        self.assertEqual(doc["mode"], "offline")
-        self.assertEqual(doc["skill_evidence"]["source"], "local-skill-files")
+        self.assertEqual(doc["mode"], "code-test")
+        self.assertEqual(doc["skill_evidence"]["source"], "unit-test")
         self.assertEqual(doc["result"]["loop"]["status"], "verified")
         self.assertIsNotNone(doc["approval_request"])
         self.assertIsNone(doc["credential"])
 
     def test_code_contract_hosted_route_mints_only_with_explicit_approval(self):
-        doc = run_hosted_orchestrator(HostedRequest(
+        doc = _run_code_contract(HostedRequest(
             message="Run /pathforward for EMP-001 with approved mint",
-            mode="offline",
             approve_mint=True,
             approver="unit-test",
         ))
@@ -32,9 +64,8 @@ class HostedOrchestratorTests(unittest.TestCase):
         self.assertEqual(subject["cited_edge_id"], doc["result"]["loop"]["driving_edge_id"])
 
     def test_code_contract_hosted_route_denied_approval_fails_closed(self):
-        doc = run_hosted_orchestrator(HostedRequest(
+        doc = _run_code_contract(HostedRequest(
             message="Run /pathforward for EMP-001 with denied mint",
-            mode="offline",
             deny_mint=True,
             approver="unit-test",
         ))
@@ -44,9 +75,8 @@ class HostedOrchestratorTests(unittest.TestCase):
         self.assertIn("denied", doc["mint_error"].lower())
 
     def test_code_contract_hosted_route_abstain_probe_never_requests_mint(self):
-        doc = run_hosted_orchestrator(HostedRequest(
+        doc = _run_code_contract(HostedRequest(
             message="Run /pathforward semantic ABSTAIN proof",
-            mode="offline",
             abstain_probe=True,
             approve_mint=True,
             approver="unit-test",
@@ -149,7 +179,7 @@ class HostedOrchestratorTests(unittest.TestCase):
                     "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/"
                 ),
             )
-            clients, closeables = _build_clients(settings, "live", {})
+            clients, closeables = _build_clients(settings, {})
 
             self.assertEqual(clients["insights"].__class__.__name__, "FabricDataAgentClient")
             self.assertEqual(clients["insights"].base_url,
@@ -193,27 +223,13 @@ class HostedOrchestratorTests(unittest.TestCase):
         old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
         try:
             os.environ["PATHFORWARD_INSIGHTS_TIER"] = "fabric-live"
-            from pathforward.agents.client import FakeLLMClient
-            from pathforward.hosted_orchestrator import _SKILL_NAMES, _run_hosted_orchestrator_inner
-
             class FailingFabricClient:
                 def respond(self, instructions, input, *, previous_response_id=None, schema=None):
                     raise RuntimeError("Fabric data-agent run ended with status failed: server_error")
 
-            clients = {
-                "orchestrator": FakeLLMClient(),
-                "curator": FakeLLMClient(),
-                "generator": FakeLLMClient(),
-                "critic": FakeLLMClient(),
-                "planner": FakeLLMClient(),
-                "insights": FailingFabricClient(),
-            }
-            doc = _run_hosted_orchestrator_inner(
-                HostedRequest(message="Run /pathforward for EMP-001", mode="offline"),
-                "offline",
-                {name: "" for name in _SKILL_NAMES},
-                {"source": "unit-test"},
-                clients,
+            doc = _run_code_contract(
+                HostedRequest(message="Run /pathforward for EMP-001"),
+                clients=_code_test_clients(FailingFabricClient()),
             )
 
             self.assertEqual(doc["result"]["loop"]["status"], "verified")
