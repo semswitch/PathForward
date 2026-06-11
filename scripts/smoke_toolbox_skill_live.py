@@ -1,12 +1,11 @@
-"""Live Foundry Skill/Toolbox smoke.
+"""Live Foundry scoped Skill/Toolbox smoke.
 
 This is the checklist #4 proof path:
 
-  - `skills/pathforward/SKILL.md` has been registered as the Foundry Skill `pathforward`.
-  - `pathforward-toolbox` exposes that Skill through its MCP endpoint as
-    `skill://pathforward/SKILL.md`.
-  - The toolbox also exposes specialist skills for Curator, Assessment, Planner, and Insights.
-  - The smoke calls `tools/list`, `resources/list`, and `resources/read`.
+  - each product agent has its own scoped toolbox.
+  - each scoped toolbox exposes exactly that agent's Skill through its MCP endpoint.
+  - generator toolbox exposes Azure AI Search.
+  - insights toolbox exposes Fabric IQ.
   - Versioned specialist agents already contain those Skills in their Foundry definitions.
 
 It intentionally does NOT fall back to the local file for the live proof. Local files are source;
@@ -41,22 +40,14 @@ from pathforward.agents.orchestrator import run_orchestrated_multiagent  # noqa:
 from pathforward.agents.planner import Planner  # noqa: E402
 from pathforward.config import load_settings  # noqa: E402
 from pathforward.credential.mint import mint  # noqa: E402
-from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE  # noqa: E402
+from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE, VERSIONED_AGENT_SPECS  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
 from pathforward.toolbox_mcp import read_skills_from_toolbox  # noqa: E402
 from generate_data import _learner_responses  # noqa: E402
 
-TOOLBOX_NAME = "pathforward-toolbox"
-SKILL_NAME = "pathforward"
-SPECIALIST_SKILLS = (
-    "pathforward",
-    "pathforward-curate",
-    "pathforward-assess",
-    "pathforward-plan",
-    "pathforward-insights",
-)
+
 class FabricProgramInsightsAgent(ProgramInsightsAgent):
     """Smoke adapter: make the standard orchestration seam call the Fabric-live method."""
 
@@ -70,20 +61,27 @@ def main() -> int:
         print("SKIP: AZURE_AI_PROJECT_ENDPOINT is blank")
         return 0
 
-    print(f"toolbox={TOOLBOX_NAME} skill={SKILL_NAME}")
-    skill_contents, mcp_evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
-                                                            TOOLBOX_NAME, SPECIALIST_SKILLS)
-    skill_content = skill_contents[SKILL_NAME]
-    print(f"initialized: protocol={mcp_evidence.get('protocol') or '(unspecified)'}")
-    tool_names = mcp_evidence["tools"]
-    print(f"tools/list: {tool_names}")
-    print(f"resources/list: {mcp_evidence['resources']}")
-    if "PathForward Orchestrator Skill" not in skill_content:
-        print("FAIL: resources/read did not return the expected /pathforward skill body")
-        return 1
-    for name in SPECIALIST_SKILLS:
-        print(f"resources/read: {mcp_evidence['skill_uris'][name]} "
-              f"chars={mcp_evidence['skill_chars'][name]}")
+    toolbox_evidence = {}
+    tool_names_by_role = {}
+    skill_contents = {}
+    for spec in VERSIONED_AGENT_SPECS:
+        print(f"toolbox={spec.toolbox_name} role={spec.role} skill=/{spec.skill_name}")
+        bodies, mcp_evidence = read_skills_from_toolbox(
+            settings.foundry_project_endpoint,
+            spec.toolbox_name,
+            (spec.skill_name,),
+        )
+        body = bodies[spec.skill_name]
+        if f"name: {spec.skill_name}" not in body:
+            print(f"FAIL: resources/read did not return expected /{spec.skill_name} body")
+            return 1
+        toolbox_evidence[spec.role] = mcp_evidence
+        tool_names_by_role[spec.role] = mcp_evidence["tools"]
+        skill_contents[spec.role] = body
+        print(f"  initialized: protocol={mcp_evidence.get('protocol') or '(unspecified)'}")
+        print(f"  tools/list: {mcp_evidence['tools']}")
+        print(f"  resources/list: {mcp_evidence['resources']}")
+        print(f"  resources/read: {mcp_evidence['skill_uri']} chars={mcp_evidence['skill_chars']}")
 
     orchestrator_client = PersistentReasoningFoundryClient(
         endpoint=settings.foundry_project_endpoint,
@@ -137,8 +135,11 @@ def main() -> int:
         print(f"loop: status={result.loop.status.upper()} attempts={result.loop.attempts}")
         print(f"mint spine: {spine_ok}")
         checks = {
-            "toolbox MCP tools listed": bool(tool_names),
-            "Foundry skill resources read": all(skill_contents.get(name) for name in SPECIALIST_SKILLS),
+            "scoped toolbox skill resources read": all(
+                skill_contents.get(spec.role) for spec in VERSIONED_AGENT_SPECS
+            ),
+            "generator toolbox has Search": bool(tool_names_by_role.get("generator")),
+            "insights toolbox has Fabric IQ": bool(tool_names_by_role.get("insights")),
             "Orchestrator versioned agent routed": route_ok,
             "Specialist versioned agents invoked": all(
                 VERSIONED_AGENT_BY_ROLE[role].agent_name

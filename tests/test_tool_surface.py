@@ -9,12 +9,12 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class TestToolSurfaceContract(unittest.TestCase):
-    def test_mainline_is_hosted_orchestrator_route(self):
-        self.assertEqual(MAINLINE_ROUTE, "foundry-hosted-orchestrator")
+    def test_mainline_is_prompt_orchestrator_route(self):
+        self.assertEqual(MAINLINE_ROUTE, "foundry-prompt-orchestrator")
         decisions = decisions_by_capability()
         self.assertEqual(
-            decisions["hosted-orchestrator"].status,
-            "mainline-live-proven",
+            decisions["prompt-orchestrator"].status,
+            "mainline-a2a-toolbox-live",
         )
         self.assertEqual(decisions["orchestrator-and-specialist-skills"].status,
                          "mainline-supporting-surface")
@@ -42,7 +42,7 @@ class TestToolSurfaceContract(unittest.TestCase):
         self.assertEqual(
             {spec.agent_name for spec in VERSIONED_AGENT_SPECS},
             {
-                "pathforward-specialist-orchestrator",
+                "pathforward-orchestrator",
                 "pathforward-specialist-curator",
                 "pathforward-specialist-generator",
                 "pathforward-specialist-critic",
@@ -50,6 +50,19 @@ class TestToolSurfaceContract(unittest.TestCase):
                 "pathforward-specialist-insights-fabric",
             },
         )
+        self.assertEqual(
+            {spec.toolbox_name for spec in VERSIONED_AGENT_SPECS},
+            {
+                "pathforward-orchestrator-toolbox",
+                "pathforward-curator-toolbox",
+                "pathforward-generator-toolbox",
+                "pathforward-critic-toolbox",
+                "pathforward-planner-toolbox",
+                "pathforward-insights-fabric-toolbox",
+            },
+        )
+        self.assertEqual(len({spec.toolbox_name for spec in VERSIONED_AGENT_SPECS}),
+                         len(VERSIONED_AGENT_SPECS))
 
     def test_approval_architecture_is_not_declared_by_tool_surface(self):
         decisions = decisions_by_capability()

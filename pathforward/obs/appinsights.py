@@ -1,7 +1,7 @@
 """Minimal Application Insights custom-event ingestion.
 
-This emits non-secret proof metadata for Hosted Agent runs when the platform OpenTelemetry export
-path is not visible in Application Insights.
+This emits non-secret proof metadata when the platform OpenTelemetry export path is not visible in
+Application Insights.
 """
 from __future__ import annotations
 

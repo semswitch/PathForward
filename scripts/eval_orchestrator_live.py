@@ -30,7 +30,7 @@ from pathforward.agents.loop import run_assessment_loop  # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker  # noqa: E402
 from pathforward.config import load_settings  # noqa: E402
 from pathforward.credential.mint import mint  # noqa: E402
-from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE  # noqa: E402
+from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE, VERSIONED_AGENT_SPECS  # noqa: E402
 from pathforward.eval.attacks import LIVE_ATTACKS, run_live_attack  # noqa: E402
 from pathforward.eval.cases import build_eval_cases  # noqa: E402
 from pathforward.eval.foundry_eval import FoundryGroundedness  # noqa: E402
@@ -38,17 +38,7 @@ from pathforward.eval.runner import CaseResult, Scorecard  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import mirror  # noqa: E402
 from pathforward.iq.seed import build_seed  # noqa: E402
-from pathforward.toolbox_mcp import read_skills_from_toolbox  # noqa: E402
-
-TOOLBOX_NAME = "pathforward-toolbox"
-SKILL_NAME = "pathforward"
-SPECIALIST_SKILLS = (
-    "pathforward",
-    "pathforward-curate",
-    "pathforward-assess",
-    "pathforward-plan",
-    "pathforward-insights",
-)
+from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
 
 
 def _content_by_ref(onto, edges) -> dict[str, str]:
@@ -189,9 +179,17 @@ def main() -> int:
         print("SKIP: live Orchestrator eval requires AZURE_AI_PROJECT_ENDPOINT and AZURE_SEARCH_ENDPOINT")
         return 0
 
-    skill_contents, mcp = read_skills_from_toolbox(settings.foundry_project_endpoint,
-                                                   TOOLBOX_NAME, SPECIALIST_SKILLS)
-    print(f"skills: {mcp['skill_uris']} chars={mcp['skill_chars']} tools={mcp['tools']}")
+    skill_evidence = {}
+    for spec in VERSIONED_AGENT_SPECS:
+        _, mcp = read_skill_from_toolbox(settings.foundry_project_endpoint,
+                                         spec.toolbox_name, spec.skill_name)
+        skill_evidence[spec.role] = {
+            "toolbox": spec.toolbox_name,
+            "skill_uri": mcp.get("skill_uri"),
+            "chars": mcp.get("skill_chars"),
+            "tools": mcp.get("tools"),
+        }
+    print(f"scoped skills: {skill_evidence}")
 
     onto = build_seed()
     edges = dv.build_all_edges(onto)

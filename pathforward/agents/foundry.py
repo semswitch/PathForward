@@ -93,9 +93,13 @@ class FoundryLLMClient:
         self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
         self._openai = self._project.get_openai_client()
         conn_id = self._project.connections.get(self.connection_name).id
-        tool = AzureAISearchTool(azure_ai_search=AzureAISearchToolResource(indexes=[
-            AISearchIndexResource(project_connection_id=conn_id, index_name=self.index_name,
-                                  query_type=AzureAISearchQueryType.SEMANTIC)]))
+        tool = AzureAISearchTool(
+            name="pathforward_search",
+            description="Search the PathForward IQ corpus for grounded assessment evidence.",
+            azure_ai_search=AzureAISearchToolResource(indexes=[
+                AISearchIndexResource(project_connection_id=conn_id, index_name=self.index_name,
+                                      query_type=AzureAISearchQueryType.SEMANTIC)]),
+        )
         text = None
         if schema:
             text = PromptAgentDefinitionTextOptions(format=TextResponseFormatJsonSchema(
@@ -564,9 +568,8 @@ class PersistentFabricInsightsClient:
 class FabricDataAgentClient:
     """Drop-in LLMClient for the published Fabric data-agent REST/OpenAI endpoint.
 
-    This is the hosted/background route for Program Insights. The Foundry
-    `MicrosoftFabricPreviewTool` path above is an OBO/user path; a Foundry Hosted Agent invoked as a
-    background container does not have a user token to pass through. Fabric's published data-agent
+    This is the background/service-identity route for Program Insights. The Foundry
+    `MicrosoftFabricPreviewTool` path above is an OBO/user path. Fabric's published data-agent
     endpoint supports service-principal tokens, so this client uses `ClientSecretCredential` and the
     OpenAI-compatible assistant surface directly.
 

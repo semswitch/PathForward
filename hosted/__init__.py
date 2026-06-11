@@ -1,1 +1,0 @@
-"""Hosted Agent source package."""

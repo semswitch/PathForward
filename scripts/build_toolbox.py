@@ -1,19 +1,24 @@
-"""Provision the governed seam: a Foundry Skill + Toolbox.
+"""Provision scoped Foundry Skills + per-agent Toolboxes.
 
 Registers the repo-local agentskills.io source files under `skills/*/SKILL.md` as versioned Foundry
-Skills, then attaches them to `pathforward-toolbox` alongside the governed Azure AI Search catalog
-entry. The toolbox MCP endpoint is the load-bearing Skill seam for the Orchestrator and
-specialist-agent prompts. Generator/Search and Fabric remain deliberate direct Foundry prompt-agent
-tool seams (see `pathforward/tool_surface.py`), not accidental architecture drift.
+Skills, then creates one toolbox per product agent. Each toolbox carries only the Skill and tool
+surface that its matching agent is allowed to consume:
+
+  - orchestrator: /pathforward
+  - curator: /pathforward-curate
+  - generator: /pathforward-assess + Azure AI Search
+  - critic: /pathforward-assess
+  - planner: /pathforward-plan
+  - insights: /pathforward-insights + Fabric IQ
 
 Source-verified against azure-ai-projects 2.2.0 (see .agents/decisions/003-foundry-toolbox-
 governance.md): beta.skills.create / beta.toolboxes.create_version, with the preview header
 (Foundry-Features: {Skills,Toolboxes}=V1Preview) auto-injected by the SDK.
 
-    python scripts/build_toolbox.py --dry-run                 # validate local Skill files, NO Azure
-    python scripts/build_toolbox.py                           # live: create skill + toolbox v1 (no toolbox RAI)
-    python scripts/build_toolbox.py --rai-policy pathforward-rai   # explicitly attach an EXISTING toolbox RAI policy
-    python scripts/build_toolbox.py --recreate               # delete skill+toolbox first, rebuild clean
+    python scripts/build_toolbox.py --dry-run
+    python scripts/build_toolbox.py
+    python scripts/build_toolbox.py --rai-policy pathforward-rai
+    python scripts/build_toolbox.py --recreate
 
 The RAI policy named by --rai-policy must ALREADY exist and be valid for toolbox consumption;
 create_version references it, it does not create it. Default build omits toolbox-level RAI so the
@@ -29,17 +34,22 @@ import sys
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
+from pathforward.agents.versioned import VERSIONED_AGENT_SPECS  # noqa: E402
 from pathforward.config import load_settings   # noqa: E402
 from pathforward.skills import read_skill_file  # noqa: E402
 
-TOOLBOX_NAME = "pathforward-toolbox"
 CONNECTION = "pathforward-search"
-SKILLS = (
-    ("pathforward", os.path.join(_ROOT, "skills", "pathforward", "SKILL.md")),
-    ("pathforward-curate", os.path.join(_ROOT, "skills", "pathforward-curate", "SKILL.md")),
-    ("pathforward-assess", os.path.join(_ROOT, "skills", "pathforward-assess", "SKILL.md")),
-    ("pathforward-plan", os.path.join(_ROOT, "skills", "pathforward-plan", "SKILL.md")),
-    ("pathforward-insights", os.path.join(_ROOT, "skills", "pathforward-insights", "SKILL.md")),
+SKILL_PATHS = {
+    "pathforward": os.path.join(_ROOT, "skills", "pathforward", "SKILL.md"),
+    "pathforward-curate": os.path.join(_ROOT, "skills", "pathforward-curate", "SKILL.md"),
+    "pathforward-assess": os.path.join(_ROOT, "skills", "pathforward-assess", "SKILL.md"),
+    "pathforward-plan": os.path.join(_ROOT, "skills", "pathforward-plan", "SKILL.md"),
+    "pathforward-insights": os.path.join(_ROOT, "skills", "pathforward-insights", "SKILL.md"),
+}
+LEGACY_TOOLBOX_NAME = "pathforward-toolbox"
+FALLBACK_FABRIC_CONNECTIONS = (
+    "pathforward-fabric-user",
+    "pathforward-fabric-cohort",
 )
 
 
@@ -64,9 +74,30 @@ def build_search_tool(conn_id: str, index_name: str):
     from azure.ai.projects.models import (
         AISearchIndexResource, AzureAISearchQueryType, AzureAISearchTool, AzureAISearchToolResource,
     )
-    return AzureAISearchTool(azure_ai_search=AzureAISearchToolResource(indexes=[
-        AISearchIndexResource(project_connection_id=conn_id, index_name=index_name,
-                              query_type=AzureAISearchQueryType.SEMANTIC)]))
+    return AzureAISearchTool(
+        name="pathforward_search",
+        description="Search the PathForward IQ corpus for grounded assessment evidence.",
+        azure_ai_search=AzureAISearchToolResource(indexes=[
+            AISearchIndexResource(project_connection_id=conn_id, index_name=index_name,
+                                  query_type=AzureAISearchQueryType.SEMANTIC)]),
+    )
+
+
+def build_fabric_iq_tool(conn_id: str):
+    from azure.ai.projects.models import FabricIQPreviewTool
+    return FabricIQPreviewTool(
+        project_connection_id=conn_id,
+        server_label="fabriciq",
+        require_approval="never",
+    )
+
+
+def build_toolbox_search_tool(role: str):
+    from azure.ai.projects.models import ToolboxSearchPreviewTool
+    return ToolboxSearchPreviewTool(
+        name=f"pathforward_{role}_toolbox_search",
+        description=f"Search only the scoped PathForward toolbox for the {role} agent.",
+    )
 
 
 def build_policies(rai_policy_name: str | None):
@@ -85,12 +116,52 @@ def _rbac_hint(exc: Exception) -> None:
               "NOT self-assign roles (auto-mode classifier blocks it).")
 
 
+def _resolve_fabric_connection(project, configured: str) -> str:
+    toolbox_configured = os.getenv("FABRIC_TOOLBOX_CONNECTION_NAME", "").strip()
+    if toolbox_configured:
+        return toolbox_configured
+    # Fabric IQ toolbox enumeration is an OBO/user surface. Prefer the UserEntraToken connection
+    # when it exists; hosted/background Fabric execution still uses the direct data-agent SP path.
+    try:
+        project.connections.get("pathforward-fabric-user")
+        return "pathforward-fabric-user"
+    except Exception:  # noqa: BLE001
+        pass
+    if configured:
+        return configured
+    found = []
+    for name in FALLBACK_FABRIC_CONNECTIONS:
+        try:
+            project.connections.get(name)
+            found.append(name)
+        except Exception:  # noqa: BLE001
+            pass
+    if len(found) == 1:
+        return found[0]
+    if len(found) > 1:
+        return "pathforward-fabric-cohort" if "pathforward-fabric-cohort" in found else found[0]
+    return ""
+
+
+def _tools_for_surface(surface: str, *, search_conn_id: str, fabric_conn_id: str,
+                       index_name: str, role: str) -> list:
+    if surface == "azure_ai_search":
+        return [build_search_tool(conn_id=search_conn_id, index_name=index_name)]
+    if surface == "fabric_iq":
+        if not fabric_conn_id:
+            raise RuntimeError("Fabric IQ toolbox requires FABRIC_CONNECTION_NAME or an approved Fabric connection")
+        return [build_fabric_iq_tool(conn_id=fabric_conn_id)]
+    return [build_toolbox_search_tool(role)]
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Provision the PathForward Foundry Skill + Toolbox.")
+    ap = argparse.ArgumentParser(description="Provision PathForward Foundry Skills + scoped Toolboxes.")
     ap.add_argument("--dry-run", action="store_true",
                     help="construct skill/tool/toolbox objects offline; make NO Azure calls")
     ap.add_argument("--recreate", action="store_true",
-                    help="delete the existing skill + toolbox first, then rebuild clean")
+                    help="delete the existing skills + per-agent toolboxes first, then rebuild clean")
+    ap.add_argument("--include-legacy-shared", action="store_true",
+                    help="also build the old shared pathforward-toolbox compatibility version")
     ap.add_argument("--rai-policy", default=None,
                     help="name of an EXISTING toolbox-valid RAI policy to declare on the toolbox "
                          "version (default: omit toolbox-level RAI)")
@@ -103,16 +174,18 @@ def main() -> int:
 
     # Validate local Skill files first so --dry-run works on machines without Azure SDK packages.
     skill_files = []
-    for expected_name, path in SKILLS:
+    for expected_name, path in SKILL_PATHS.items():
         skill_file = read_skill_file(path)
         if skill_file.name != expected_name:
             print(f"FAIL: {path} declares name={skill_file.name!r}; expected {expected_name!r}")
             return 1
         skill_files.append(skill_file)
     skill_names = [s.name for s in skill_files]
-    print(f"validated: skills {skill_names} "
-          f"+ azure_ai_search tool over index '{index_name}' "
-          f"+ policies={'RAI:' + rai_policy if rai_policy else 'none'}")
+    print(f"validated: skills {skill_names} + scoped toolboxes "
+          f"+ search index '{index_name}' + policies={'RAI:' + rai_policy if rai_policy else 'none'}")
+    for spec in VERSIONED_AGENT_SPECS:
+        print(f"  scope: {spec.role:12s} toolbox={spec.toolbox_name} "
+              f"skill=/{spec.skill_name} tool_surface={spec.tool_surface}")
 
     if args.dry_run:
         print("DRY RUN: local Skill files validate cleanly; no Azure SDK imports or calls made.")
@@ -128,10 +201,10 @@ def main() -> int:
 
     # Construct SDK objects only for a live build. This preserves offline portability while still
     # failing fast on SDK/model-shape errors before making create calls.
-    skill_contents = {name: build_skill_content(path) for name, path in SKILLS}
+    skill_contents = {name: build_skill_content(path) for name, path in SKILL_PATHS.items()}
     placeholder_tool = build_search_tool(conn_id="<resolved-at-runtime>", index_name=index_name)
     policies = build_policies(rai_policy)
-    skill_refs = [ToolboxSkillReference(name=name) for name, _ in SKILLS]
+    skill_refs = [ToolboxSkillReference(name=name) for name in SKILL_PATHS]
     _ = (placeholder_tool, skill_refs)
 
     project = AIProjectClient(endpoint=endpoint, credential=DefaultAzureCredential())
@@ -142,11 +215,25 @@ def main() -> int:
         print(f"FAIL: could not resolve connection '{CONNECTION}': {type(exc).__name__}: {exc}")
         return 1
     print(f"resolved connection '{CONNECTION}' -> {conn_id}")
+    fabric_connection_name = _resolve_fabric_connection(project, settings.fabric_connection_name)
+    fabric_conn_id = ""
+    if fabric_connection_name:
+        try:
+            fabric_conn_id = project.connections.get(fabric_connection_name).id
+            print(f"resolved Fabric connection '{fabric_connection_name}' -> {fabric_conn_id}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL: could not resolve Fabric connection '{fabric_connection_name}': "
+                  f"{type(exc).__name__}: {exc}")
+            return 1
 
     if args.recreate:
-        delete_ops = [("toolbox", lambda: project.beta.toolboxes.delete(TOOLBOX_NAME))]
+        toolbox_names = [spec.toolbox_name for spec in VERSIONED_AGENT_SPECS]
+        if args.include_legacy_shared:
+            toolbox_names.append(LEGACY_TOOLBOX_NAME)
+        delete_ops = [(f"toolbox {name}", lambda n=name: project.beta.toolboxes.delete(n))
+                      for name in toolbox_names]
         delete_ops += [(f"skill {name}", lambda n=name: project.beta.skills.delete(n))
-                       for name, _ in SKILLS]
+                       for name in SKILL_PATHS]
         for label, fn in delete_ops:
             try:
                 fn()
@@ -156,7 +243,7 @@ def main() -> int:
 
     # 1) each Skill (default=True -> this version is the one a reference resolves to)
     created_skills = []
-    for name, _ in SKILLS:
+    for name in SKILL_PATHS:
         try:
             skill = project.beta.skills.create(name=name, inline_content=skill_contents[name],
                                                default=True)
@@ -166,46 +253,87 @@ def main() -> int:
         created_skills.append(skill)
         print(f"SKILL  '{skill.name}' v{skill.version} id={skill.skill_id}")
 
-    # 2) the toolbox version: GA search tool + the skill reference (+ optional RAI policy)
-    tool = build_search_tool(conn_id=conn_id, index_name=index_name)
     created_by_name = {skill.name: skill for skill in created_skills}
-    skills = [ToolboxSkillReference(name=name, version=created_by_name[name].version)
-              for name, _ in SKILLS]
-    try:
-        tb = project.beta.toolboxes.create_version(
-            TOOLBOX_NAME,
-            tools=[tool],
-            description="PathForward governed seam: agentic search + PathForward skill family.",
-            metadata={"phase": "2", "search_index": index_name},
-            skills=skills,
-            policies=policies,
-        )
-    except Exception as exc:  # noqa: BLE001
-        _rbac_hint(exc)
-        return 1
-    rai = (tb.policies.rai_config.rai_policy_name if tb.policies and tb.policies.rai_config else "none")
-    print(f"TOOLBOX '{tb.name}' v{tb.version} id={tb.id} tools={len(tb.tools)} "
-          f"skills={len(tb.skills or [])} rai={rai}")
+    built_toolboxes = []
+    for spec in VERSIONED_AGENT_SPECS:
+        skills = [ToolboxSkillReference(
+            name=spec.skill_name,
+            version=created_by_name[spec.skill_name].version,
+        )]
+        try:
+            tools = _tools_for_surface(
+                spec.tool_surface,
+                search_conn_id=conn_id,
+                fabric_conn_id=fabric_conn_id,
+                index_name=index_name,
+                role=spec.role,
+            )
+            tb = project.beta.toolboxes.create_version(
+                spec.toolbox_name,
+                tools=tools,
+                description=(
+                    f"PathForward scoped toolbox for {spec.role}; "
+                    f"skill=/{spec.skill_name}; tool_surface={spec.tool_surface}."
+                ),
+                metadata={
+                    "agent_role": spec.role,
+                    "agent_name": spec.agent_name,
+                    "skill": spec.skill_name,
+                    "tool_surface": spec.tool_surface,
+                },
+                skills=skills,
+                policies=policies,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _rbac_hint(exc)
+            return 1
+        rai = (tb.policies.rai_config.rai_policy_name
+               if tb.policies and tb.policies.rai_config else "none")
+        built_toolboxes.append(tb.name)
+        print(f"TOOLBOX '{tb.name}' v{tb.version} id={tb.id} tools={len(tb.tools or [])} "
+              f"skills={len(tb.skills or [])} rai={rai}")
+        try:
+            project.beta.toolboxes.update(tb.name, default_version=tb.version)
+            print(f"promoted {tb.name} default_version -> v{tb.version}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"WARN: could not promote {tb.name} default_version: {type(exc).__name__}: {exc}")
 
-    # 2b) promote the just-built version to default (build -> promote; also exercises versioning)
-    try:
-        project.beta.toolboxes.update(TOOLBOX_NAME, default_version=tb.version)
-        print(f"promoted default_version -> v{tb.version}")
-    except Exception as exc:  # noqa: BLE001
-        print(f"WARN: could not promote default_version: {type(exc).__name__}: {exc}")
+    if args.include_legacy_shared:
+        legacy_skills = [ToolboxSkillReference(name=name, version=created_by_name[name].version)
+                         for name in SKILL_PATHS]
+        try:
+            legacy_tb = project.beta.toolboxes.create_version(
+                LEGACY_TOOLBOX_NAME,
+                tools=[build_search_tool(conn_id=conn_id, index_name=index_name)],
+                description="Legacy shared PathForward toolbox. Do not use for product agent scope.",
+                metadata={"legacy": "true", "replacement": "per-agent-toolboxes"},
+                skills=legacy_skills,
+                policies=policies,
+            )
+            project.beta.toolboxes.update(LEGACY_TOOLBOX_NAME,
+                                          default_version=legacy_tb.version)
+            built_toolboxes.append(legacy_tb.name)
+            print(f"LEGACY TOOLBOX '{legacy_tb.name}' v{legacy_tb.version} id={legacy_tb.id}")
+        except Exception as exc:  # noqa: BLE001
+            _rbac_hint(exc)
+            return 1
 
     # 3) prove the central registry sees them
     tbs = [f"{t.name}" for t in project.beta.toolboxes.list()]
     skl = [f"{s.name}" for s in project.beta.skills.list()]
     print(f"registry toolboxes: {tbs}")
     print(f"registry skills:    {skl}")
-    missing_skills = [name for name, _ in SKILLS if name not in skl]
-    if TOOLBOX_NAME not in tbs or missing_skills:
+    missing_toolboxes = [spec.toolbox_name for spec in VERSIONED_AGENT_SPECS
+                         if spec.toolbox_name not in tbs]
+    missing_skills = [name for name in SKILL_PATHS if name not in skl]
+    if missing_toolboxes or missing_skills:
         print("FAIL: created artifact not visible in the registry listing")
+        if missing_toolboxes:
+            print(f"missing toolboxes: {missing_toolboxes}")
         if missing_skills:
             print(f"missing skills: {missing_skills}")
         return 1
-    print("done. governed seam registered.")
+    print("done. scoped governed seams registered.")
     return 0
 
 

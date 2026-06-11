@@ -113,7 +113,14 @@ def read_skills_from_toolbox(endpoint: str, toolbox_name: str,
     """Return skill bodies keyed by name plus MCP evidence from one toolbox session."""
     mcp = ToolboxMcpClient(endpoint, toolbox_name)
     init = mcp.initialize()
-    tools = mcp.call("tools/list").result.get("tools") or []
+    tools = []
+    tools_error = ""
+    try:
+        tools = mcp.call("tools/list").result.get("tools") or []
+    except Exception as exc:  # noqa: BLE001
+        tools_error = str(exc)
+        _LOG.warning("Toolbox MCP tools/list failed but resources will still be checked: "
+                     "toolbox=%s error=%s", toolbox_name, tools_error)
     resources = mcp.call("resources/list").result.get("resources") or []
     resource_uris = [r.get("uri") for r in resources if isinstance(r, dict)]
     _LOG.info("Toolbox MCP listed resources: toolbox=%s resources=%s",
@@ -142,6 +149,8 @@ def read_skills_from_toolbox(endpoint: str, toolbox_name: str,
         "skill_uris": skill_uris,
         "skill_chars": skill_chars,
     }
+    if tools_error:
+        evidence["tools_error"] = tools_error
     if len(skill_names) == 1:
         only = skill_names[0]
         evidence["skill_uri"] = skill_uris[only]
@@ -159,7 +168,12 @@ def diagnose_toolbox_resources(endpoint: str, toolbox_name: str) -> dict[str, An
     """Return a live Toolbox MCP diagnostic without using local skill fallbacks."""
     mcp = ToolboxMcpClient(endpoint, toolbox_name)
     init = mcp.initialize()
-    tools = mcp.call("tools/list").result.get("tools") or []
+    tools = []
+    tools_error = ""
+    try:
+        tools = mcp.call("tools/list").result.get("tools") or []
+    except Exception as exc:  # noqa: BLE001 - diagnostic keeps the resource results.
+        tools_error = str(exc)
     resources = mcp.call("resources/list").result.get("resources") or []
 
     reads: list[dict[str, Any]] = []
@@ -180,6 +194,7 @@ def diagnose_toolbox_resources(endpoint: str, toolbox_name: str) -> dict[str, An
         "protocol": init.get("protocolVersion"),
         "tools": [t.get("name") or t.get("type") or "(unnamed)"
                   for t in tools if isinstance(t, dict)],
+        "tools_error": tools_error,
         "resources": [r.get("uri") for r in resources if isinstance(r, dict)],
         "reads": reads,
     }

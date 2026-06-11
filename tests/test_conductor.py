@@ -1,6 +1,6 @@
 """Bounded Orchestrator/Conductor contract.
 
-These tests validate code contracts for the Foundry Hosted Agent Orchestrator route: the agent may
+These tests validate code contracts for the Foundry Prompt Agent Orchestrator route: the agent may
 propose a route, but deterministic code validates every route before execution and the Evidence Gate
 / mint trust boundary stays unchanged.
 """

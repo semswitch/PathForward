@@ -1,7 +1,7 @@
-"""Create durable Foundry prompt-agent versions for the PathForward specialist agents.
+"""Create durable Foundry prompt-agent versions for PathForward product agents.
 
-This replaces request-time Skill text injection with versioned Foundry agents. The script reads the
-registered Skill resources from `pathforward-toolbox`, bakes each Skill into its matching agent
+This replaces request-time Skill text injection with versioned Foundry agents. The script reads each
+registered Skill from that agent's scoped toolbox, bakes the Skill into its matching agent
 definition, attaches the required tool surface, and creates a new visible Foundry agent version.
 
 Usage:
@@ -21,9 +21,8 @@ from pathforward.agents.versioned import (  # noqa: E402
     versioned_agent_instructions,
 )
 from pathforward.config import load_settings  # noqa: E402
-from pathforward.toolbox_mcp import read_skills_from_toolbox  # noqa: E402
+from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
 
-TOOLBOX_NAME = "pathforward-toolbox"
 SEARCH_CONNECTION = "pathforward-search"
 
 
@@ -46,10 +45,14 @@ def _search_tool(project, index_name: str):
         AISearchIndexResource, AzureAISearchQueryType, AzureAISearchTool, AzureAISearchToolResource,
     )
     conn_id = project.connections.get(SEARCH_CONNECTION).id
-    return AzureAISearchTool(azure_ai_search=AzureAISearchToolResource(indexes=[
-        AISearchIndexResource(project_connection_id=conn_id, index_name=index_name,
-                              query_type=AzureAISearchQueryType.SEMANTIC)
-    ]))
+    return AzureAISearchTool(
+        name="pathforward_search",
+        description="Search the PathForward IQ corpus for grounded assessment evidence.",
+        azure_ai_search=AzureAISearchToolResource(indexes=[
+            AISearchIndexResource(project_connection_id=conn_id, index_name=index_name,
+                                  query_type=AzureAISearchQueryType.SEMANTIC)
+        ]),
+    )
 
 
 def _fabric_tool(project, connection_name: str):
@@ -98,8 +101,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Provision versioned PathForward specialist prompt agents in Foundry."
     )
-    ap.add_argument("--toolbox", default=TOOLBOX_NAME,
-                    help="Foundry Toolbox name that exposes the PathForward Skill resources.")
+    ap.add_argument("--legacy-shared-toolbox", default="",
+                    help="Optional legacy shared toolbox override. Use only for migration/debugging.")
     ap.add_argument("--roles", nargs="*", default=None,
                     help="Optional subset of roles to provision, e.g. --roles insights.")
     args = ap.parse_args()
@@ -121,16 +124,24 @@ def main() -> int:
             print(f"FAIL: unknown roles: {missing_roles}")
             return 1
 
-    skill_names = tuple(spec.skill_name for spec in specs)
-    skill_bodies, evidence = read_skills_from_toolbox(
-        settings.foundry_project_endpoint, args.toolbox, skill_names,
-    )
-    missing = [name for name in skill_names if name not in skill_bodies]
-    if missing:
-        print(f"FAIL: missing Skill resources from toolbox {args.toolbox!r}: {missing}")
-        return 1
-    print(f"loaded Skills from toolbox {args.toolbox}: {sorted(skill_bodies)}")
-    print(f"toolbox resources: {evidence.get('resources', [])}")
+    skill_bodies = {}
+    evidence_by_role = {}
+    for spec in specs:
+        toolbox_name = args.legacy_shared_toolbox or spec.toolbox_name
+        try:
+            body, evidence = read_skill_from_toolbox(
+                settings.foundry_project_endpoint,
+                toolbox_name,
+                spec.skill_name,
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"FAIL: could not load /{spec.skill_name} from toolbox {toolbox_name!r}: "
+                  f"{type(exc).__name__}: {exc}")
+            return 1
+        skill_bodies[spec.role] = body
+        evidence_by_role[spec.role] = evidence
+        print(f"loaded /{spec.skill_name} from {toolbox_name}: "
+              f"uri={evidence.get('skill_uri')} chars={evidence.get('skill_chars')}")
 
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import PromptAgentDefinition
@@ -143,7 +154,7 @@ def main() -> int:
 
     created = []
     for spec in specs:
-        instructions = versioned_agent_instructions(spec, skill_bodies[spec.skill_name])
+        instructions = versioned_agent_instructions(spec, skill_bodies[spec.role])
         text = _text_options(spec.schema, f"{spec.role}_output", spec.strict_schema)
         tools = _tools_for(spec, project, settings)
         definition = PromptAgentDefinition(
@@ -156,8 +167,9 @@ def main() -> int:
             agent_name=spec.agent_name,
             definition=definition,
             description=(
-                f"PathForward versioned specialist agent: {spec.role}; "
-                f"skill=/{spec.skill_name}; tool_surface={spec.tool_surface}."
+                f"PathForward versioned prompt agent: {spec.role}; "
+                f"skill=/{spec.skill_name}; toolbox={spec.toolbox_name}; "
+                f"tool_surface={spec.tool_surface}."
             ),
         )
         created.append(agent)
@@ -166,7 +178,7 @@ def main() -> int:
             f"skill=/{spec.skill_name} tool_surface={spec.tool_surface}"
         )
 
-    print("created versioned specialist agents:")
+    print("created versioned prompt agents:")
     for agent in created:
         print(f"- {agent.name}: v{agent.version}")
     return 0

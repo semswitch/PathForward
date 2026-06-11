@@ -1,9 +1,8 @@
-name: pathforward-hosted-v21-dashboard
+name: pathforward-prompt-dashboard
 agent:
     name: pathforward-orchestrator
-    kind: hosted
-    version: "21"
-dataset_file: eval\foundry-hosted-dashboard.jsonl
+    kind: prompt
+dataset_file: eval\foundry-prompt-dashboard.jsonl
 evaluators:
     - builtin.intent_resolution
     - builtin.task_adherence

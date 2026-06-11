@@ -3,7 +3,7 @@
 ## Required Architecture Shape
 
 ```text
-Foundry Hosted Agent: pathforward-orchestrator
+Foundry Prompt Agent: pathforward-orchestrator
   calls versioned Foundry specialist agents
   Foundry Skills / Toolbox define those agent versions
   Orchestrator / Conductor reasoning over the allowed route
@@ -26,13 +26,13 @@ Foundry Hosted Agent: pathforward-orchestrator
    `EvidenceGate`, `LocalNumericChecker`, readiness derivation, mint, and deterministic orchestration
    are code. They are not agents.
 
-2. **Use the Foundry Hosted Agent Orchestrator surface.**
-   The architecture surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` calling
+2. **Use the Foundry Prompt Agent Orchestrator surface.**
+   The architecture surface is the versioned Foundry Prompt Agent `pathforward-orchestrator` calling
    versioned Foundry specialist agents whose Skills, tools, guardrails, and system prompts are
    attached in Foundry. Agent Framework Workflow, `PF_WORKFLOW`, Workflow HITL, and Workflow graph work are unauthorized for this
    architecture unless the user explicitly re-authorizes them.
 
-3. **The Hosted Orchestrator proof must show the agentic reasoning beats in the final demo artifact.**
+3. **The Prompt Orchestrator proof must show the agentic reasoning beats in the final demo artifact.**
    The proof surface must visibly show Orchestrator route reasoning, Curator, Generator, Critic,
    reflection, adaptive band, Evidence Gate, Fabric, and ABSTAIN. Telemetry or nested trace views may
    be used for the internal loop if decomposing any execution graph would duplicate trust logic.

@@ -1,4 +1,4 @@
-"""Mainline tool-surface contract for the Hosted `/pathforward` Orchestrator route.
+"""Mainline tool-surface contract for the Prompt Agent `/pathforward` Orchestrator route.
 
 This module is documentation-as-code: it records which Microsoft Foundry surface each live
 capability is allowed to use. Approval/mint architecture is intentionally not decided here; follow
@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-MAINLINE_ROUTE = "foundry-hosted-orchestrator"
+MAINLINE_ROUTE = "foundry-prompt-orchestrator"
 
 
 @dataclass(frozen=True)
@@ -23,32 +23,30 @@ class ToolSurfaceDecision:
 
 TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ToolSurfaceDecision(
-        capability="hosted-orchestrator",
-        surface="Foundry Hosted Agent (`agent.yaml` + Dockerfile + responses protocol)",
-        status="mainline-live-proven",
+        capability="prompt-orchestrator",
+        surface="Foundry Prompt Agent (`pathforward-orchestrator`) on the `reasoning` deployment",
+        status="mainline-a2a-toolbox-live",
         rationale=(
-            "The user locked Hosted Agents as the top-level Orchestrator path. The hosted surface "
-            "packages the existing PathForward route into a versionable Foundry Hosted Agent while "
-            "preserving the deterministic Evidence Gate and mint spine. Hosted Agent version 18 "
-            "completed the full live `/pathforward` route through the Foundry responses endpoint."
+            "`pathforward-orchestrator` is a Foundry Prompt Agent connected to the existing "
+            "`reasoning` model deployment. Its orchestrator toolbox exposes Tool Search and A2A "
+            "SendMessage tools for the five specialist prompt agents."
         ),
         proof=(
-            "agent.yaml",
-            "Dockerfile",
-            "hosted/pathforward_orchestrator/main.py",
-            "pathforward/hosted_orchestrator.py",
-            "Hosted Agent pathforward-orchestrator:18",
-            "tests/test_hosted_orchestrator.py",
+            "pathforward/agents/versioned.py",
+            "scripts/provision_foundry_specialist_agents.py --roles orchestrator",
+            "scripts/provision_a2a_orchestrator_toolbox.py",
+            ".agents/evidence/orchestrator-a2a-toolbox-live-2026-06-11.md",
+            "tests/test_tool_surface.py",
         ),
     ),
     ToolSurfaceDecision(
         capability="orchestrator-and-specialist-skills",
-        surface="Versioned Foundry specialist prompt agents with Toolbox Skill content baked in",
+        surface="Versioned Foundry specialist prompt agents with scoped Toolbox Skill content baked in",
         status="mainline-supporting-surface",
         rationale=(
             "The `/pathforward` Orchestrator Skill and specialist Skill files are registered in "
-            "Foundry, attached to `pathforward-toolbox`, read through the toolbox MCP endpoint, and "
-            "baked into durable Foundry specialist-agent versions. Product runtime calls named "
+            "Foundry, attached to per-agent toolboxes, read through those toolbox MCP endpoints, "
+            "and baked into durable Foundry specialist-agent versions. Product runtime calls named "
             "agent references; it does not inject Skill text at inference time."
         ),
         proof=(
@@ -61,13 +59,14 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="generator-search-grounding",
-        surface="Direct Foundry PromptAgentDefinition Azure AI Search tool",
+        surface="Scoped generator toolbox plus Foundry PromptAgentDefinition Azure AI Search trace",
         status="accepted-mainline-seam",
         rationale=(
-            "Azure AI Search is a documented first-class Foundry prompt-agent tool. The assessment "
-            "loop needs the Search tool trace (`azure_ai_search_call_output.documents[].id`) for the "
-            "`corpus ∩ retrieved` anti-bluff gate. Moving this to toolbox MCP would require a custom "
-            "MCP tool-calling loop or Hosted Agent path and is not the chosen architecture slice."
+            "The generator has a scoped toolbox containing /pathforward-assess and Azure AI Search. "
+            "The current specialist agent definition also attaches Azure AI Search directly because "
+            "the assessment loop needs `azure_ai_search_call_output.documents[].id` for the "
+            "`corpus ∩ retrieved` anti-bluff gate. Replacing that trace with toolbox MCP output "
+            "requires a dedicated retrieval parser before it can be product-safe."
         ),
         proof=(
             "pathforward/agents/foundry.py:FoundryLLMClient",
@@ -91,7 +90,7 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
             "pathforward/agents/foundry.py:FabricInsightsClient",
             "pathforward/agents/foundry.py:FabricDataAgentClient",
             "scripts/smoke_fabric_live.py",
-            "Hosted Agent pathforward-orchestrator:18",
+            "prompt-agent migration pending live proof",
             "tests/test_fabric_insights.py",
         ),
     ),

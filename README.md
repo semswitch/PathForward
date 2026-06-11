@@ -18,11 +18,11 @@ The core product promise is simple:
 
 PathForward is built around a real agentic workflow:
 
-- A Foundry Hosted Agent acts as the top-level Orchestrator.
+- A Foundry Prompt Agent acts as the top-level Orchestrator.
 - Specialist reasoning agents handle skill-gap selection, assessment generation, critique, planning,
   and program insights.
 - Foundry Skills define the agent behavior and are baked into versioned specialist agents through
-  the Foundry Toolbox/provisioning surface.
+  scoped Foundry Toolboxes/provisioning surfaces.
 - Azure AI Search grounds assessment generation in cited evidence.
 - Microsoft Fabric provides live cohort/program insights over the reskilling ontology.
 - A deterministic Evidence Gate and governed mint boundary prevent unsafe credential issuance.
@@ -33,7 +33,7 @@ PathForward is built around a real agentic workflow:
 - **Grounded verification:** assessment items must cite retrieved evidence before they can pass.
 - **Honest refusal:** failed or ungrounded attempts end in ABSTAIN, not a fake pass.
 - **Governed credentialing:** minting re-checks the causal spine and fails closed when proof is missing.
-- **Microsoft-native architecture:** Foundry Hosted Agent, Foundry Skills/Toolbox, Azure AI Search,
+- **Microsoft-native architecture:** Foundry Prompt Agent, Foundry Skills/Toolbox, Azure AI Search,
   Fabric data agent, Azure Monitor telemetry, and Foundry evals.
 
 ## Pending Product Requirements
@@ -45,10 +45,9 @@ PathForward is built around a real agentic workflow:
 
 ## Current Proof Status
 
-The project has live proof for the main Foundry multi-agent path, versioned specialist agents,
-Fabric-backed Program Insights, and Hosted Agent invocation. The latest hosted proof covers
-semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
-4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
+The project has live proof for the Foundry multi-agent path, versioned specialist agents, and
+Fabric-backed Program Insights. The top-level Orchestrator is being migrated from the prior Hosted
+Agent wrapper to the Prompt Agent surface required by the architecture contract.
 
 Offline regression suite:
 

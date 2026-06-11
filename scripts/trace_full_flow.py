@@ -31,6 +31,7 @@ from pathforward.agents.loop import run_assessment_loop  # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker  # noqa: E402
 from pathforward.agents.orchestrator import run_orchestrated_multiagent  # noqa: E402
 from pathforward.agents.planner import Planner  # noqa: E402
+from pathforward.agents.versioned import versioned_agent_evidence  # noqa: E402
 from pathforward.config import load_settings  # noqa: E402
 from pathforward.credential.mint import mint  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
@@ -120,8 +121,7 @@ def main() -> int:
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
     clients = _clients(settings)
-    from pathforward.hosted_orchestrator import _versioned_agent_evidence  # noqa: PLC0415
-    agent_evidence = _versioned_agent_evidence()
+    agent_evidence = versioned_agent_evidence()
 
     # Deterministic cold-start signal for the hero path: S01 selects stretch, so adaptive is visible.
     adaptive = AdaptiveController(calibration={"item-S01": {"difficulty": 0.9}})
