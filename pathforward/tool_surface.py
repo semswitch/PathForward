@@ -77,13 +77,13 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ToolSurfaceDecision(
         capability="fabric-program-insights",
         surface=("Foundry MicrosoftFabricPreviewTool for OBO/user runs; direct published Fabric "
-                 "data-agent endpoint for Hosted/background runs"),
+                 "data-agent endpoint for service/background runs"),
         status="accepted-mainline-seam",
         rationale=(
             "Fabric Program Insights is advisory and off the credential mint path. User/OBO smoke "
-            "runs use the documented prompt-agent Fabric tool; Hosted/background runs use the "
+            "runs use the documented prompt-agent Fabric tool; service/background runs use the "
             "published Fabric data-agent endpoint with an isolated service-principal token because "
-            "the OBO preview tool cannot run under a background hosted container identity. "
+            "the OBO preview tool cannot run under a background service identity. "
             "`iq/cohort.py` remains the reconciliation anchor in both routes."
         ),
         proof=(

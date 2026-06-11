@@ -51,7 +51,7 @@ def emit_custom_event(connection_string: str, name: str, *,
         "time": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "iKey": ikey,
         "tags": {
-            "ai.cloud.role": safe_properties.get("service.name", "pathforward-hosted"),
+            "ai.cloud.role": safe_properties.get("service.name", "pathforward-prompt-orchestrator"),
             "ai.operation.name": name,
         },
         "data": {

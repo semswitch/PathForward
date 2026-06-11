@@ -1,6 +1,6 @@
 """Versioned Foundry specialist-agent registry.
 
-This module defines the durable Foundry prompt agents that back the hosted product route. Skills are
+This module defines the durable Foundry prompt agents that back the product agent route. Skills are
 loaded when these agents are provisioned, not at request time, so each specialist agent is visible as
 a versioned Foundry agent with its own baked instructions/schema/tool surface.
 """

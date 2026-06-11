@@ -18,7 +18,9 @@ The core product promise is simple:
 
 PathForward is built around a real agentic workflow:
 
-- A Foundry Prompt Agent acts as the top-level Orchestrator.
+- A Foundry Prompt Agent, `pathforward-orchestrator`, acts as the top-level Orchestrator.
+- Its Foundry Toolbox exposes `/pathforward`, Tool Search, and A2A calls to specialist prompt
+  agents.
 - Specialist reasoning agents handle skill-gap selection, assessment generation, critique, planning,
   and program insights.
 - Foundry Skills define the agent behavior and are baked into versioned specialist agents through
@@ -36,6 +38,21 @@ PathForward is built around a real agentic workflow:
 - **Microsoft-native architecture:** Foundry Prompt Agent, Foundry Skills/Toolbox, Azure AI Search,
   Fabric data agent, Azure Monitor telemetry, and Foundry evals.
 
+## Runtime Boundary
+
+The product orchestration surface is Foundry, not a Python control loop:
+
+```text
+pathforward-orchestrator Prompt Agent
+  /pathforward Skill
+  pathforward-orchestrator-toolbox
+  Tool Search + A2A tools
+  versioned specialist Prompt Agents
+```
+
+Python remains in the repo for deterministic executors, provisioning, tests, eval utilities, and
+small service/tool glue such as the MCP mint boundary. It is not the product Orchestrator brain.
+
 ## Pending Product Requirements
 
 - **MCP mint server:** signed request tokens are implemented; Azure Function hosting,
@@ -45,9 +62,9 @@ PathForward is built around a real agentic workflow:
 
 ## Current Proof Status
 
-The project has live proof for the Foundry multi-agent path, versioned specialist agents, and
-Fabric-backed Program Insights. The top-level Orchestrator is being migrated from the prior Hosted
-Agent wrapper to the Prompt Agent surface required by the architecture contract.
+The project has live proof for the Foundry Prompt Orchestrator, versioned specialist agents, Tool
+Search, A2A specialist calls, and Fabric-backed Program Insights. The prior Hosted Agent/container
+route has been removed from the product architecture.
 
 Offline regression suite:
 

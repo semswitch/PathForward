@@ -169,8 +169,8 @@ class FoundryLLMClient:
 class PersistentFoundryLLMClient:
     """LLMClient for a pre-provisioned Foundry prompt agent with Azure AI Search attached.
 
-    The hosted product route uses this client for the Generator so the agent remains visible and
-    versioned in Foundry. It never creates or deletes agent versions at request time.
+    The product prompt-agent route uses this client for the Generator so the agent remains visible
+    and versioned in Foundry. It never creates or deletes agent versions at request time.
     """
     endpoint: str
     agent_name: str
@@ -599,7 +599,7 @@ class FabricDataAgentClient:
         if not (self.tenant_id and self.client_id and self.client_secret):
             raise RuntimeError(
                 "FabricDataAgentClient requires tenant_id, client_id, and client_secret "
-                "(hosted env: PATHFORWARD_FABRIC_SP_TENANT_ID, "
+                "(background service env: PATHFORWARD_FABRIC_SP_TENANT_ID, "
                 "PATHFORWARD_FABRIC_SP_CLIENT_ID, PATHFORWARD_FABRIC_SP_CLIENT_SECRET)"
             )
         from azure.identity import ClientSecretCredential

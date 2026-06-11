@@ -4,8 +4,10 @@
 
 ```text
 Foundry Prompt Agent: pathforward-orchestrator
-  calls versioned Foundry specialist agents
-  Foundry Skills / Toolbox define those agent versions
+  /pathforward Skill
+  pathforward-orchestrator-toolbox
+  Tool Search + A2A calls to versioned Foundry specialist agents
+  Foundry Skills / Toolbox define those agent contracts
   Orchestrator / Conductor reasoning over the allowed route
   Curator agent
   Generator agent with Foundry grounded retrieval
@@ -15,10 +17,13 @@ Foundry Prompt Agent: pathforward-orchestrator
   Planner agent
   Program Insights / Fabric agent
   human approval where applicable
-  deterministic mint
+  MCP mint tool calling deterministic mint
 ```
 
 `run_multiagent` is not to be used for anything ever, except tests that validate that code works.
+
+Python is not the product Orchestrator runtime. Python may remain for deterministic executors,
+provisioning, tests, eval utilities, and serverless/tool glue such as MCP mint.
 
 ## Non-Negotiable Requirements
 
@@ -40,7 +45,8 @@ Foundry Prompt Agent: pathforward-orchestrator
 4. **Foundry Toolbox and Foundry Skill are runtime surfaces.**
    `/pathforward` must exist as a real `agentskills.io` Skill, be registered in Foundry, be visible in
    the portal/dashboard, and be baked into the versioned Foundry agent definitions used at runtime.
-   Local-only Markdown, inline prompt copies, registry-only Skills, and legacy non-Hosted shapes are unapproved.
+   Local-only Markdown, inline prompt copies, registry-only Skills, and legacy non-Prompt/non-A2A
+   shapes are unapproved.
 
 5. **Each agent must carry its Foundry runtime contract.**
    Foundry tools, Skills, guardrails, and system prompts must be attached to the appropriate agents.
