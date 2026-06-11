@@ -22,7 +22,7 @@ from .conductor import Orchestrator
 from .critic import Critic
 from .curator import Curator
 from .generator import Generator
-from .insights import ProgramInsightsAgent, derivation_floor_insights
+from .insights import ProgramInsightsAgent
 from .loop import run_assessment_loop
 from .planner import Planner
 from .types import LoopResult, MultiAgentResult, ProgramInsights
@@ -36,13 +36,7 @@ def _run_insights(insights: ProgramInsightsAgent | None, worker: Worker, role: R
     if insights is None:
         return None
     with tracing.span("insights", **{"pf.worker": worker.id}) as ins_span:
-        try:
-            program_insights = insights.analyze(worker, role, onto)
-        except Exception as exc:  # noqa: BLE001 - advisory only; keep the trust flow alive
-            ins_span.event("insights.fabric_failed",
-                           **{"pf.error_type": type(exc).__name__,
-                              "pf.error": str(exc)[:500]})
-            program_insights = derivation_floor_insights(worker, role, onto, reason=type(exc).__name__)
+        program_insights = insights.analyze(worker, role, onto)
         ins_span.set(**{"pf.cohort_n": program_insights.worker_comparison.get("n_cohort"),
                         "pf.source": program_insights.source})
     return program_insights

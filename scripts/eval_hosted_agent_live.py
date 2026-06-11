@@ -65,10 +65,6 @@ def _grounded_case(worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
     cited = set(loop.get("citations") or [])
     retrieved = set(item.get("retrieved_ref_ids") or [])
     insights_source = insights.get("source", "")
-    fabric_controlled_fallback = (
-        insights_source == "derivation-floor"
-        and "Fabric-live was unavailable" in str(insights.get("narrative", ""))
-    )
     checks = {
         "response_completed": result.get("status") == "completed",
         "hosted_agent_expected": _is_expected_hosted_agent(result.get("agent_reference") or {}),
@@ -78,7 +74,7 @@ def _grounded_case(worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
         "verified": loop.get("status") == "verified",
         "retrieved_nonempty": bool(retrieved),
         "citations_subset_retrieved": bool(cited) and cited <= retrieved,
-        "fabric_live_or_controlled_fallback": insights_source == "fabric-live" or fabric_controlled_fallback,
+        "fabric_live": insights_source == "fabric-live",
         "approval_requested": bool(doc.get("approval_request")),
         "no_credential_without_approval": not bool(doc.get("credential")),
     }
@@ -98,7 +94,6 @@ def _grounded_case(worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
             ),
             "loop_status": loop.get("status", ""),
             "insights_source": insights_source,
-            "fabric_controlled_fallback": fabric_controlled_fallback,
             "retrieved_ref_ids": sorted(retrieved),
             "citations": sorted(cited),
             "failure_excerpt": "" if doc else (result.get("output_text", "")[:500]),

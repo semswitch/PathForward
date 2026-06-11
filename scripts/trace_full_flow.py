@@ -9,7 +9,6 @@ This script loads `/pathforward` plus the specialist Skills through the Foundry 
 and runs live Foundry prompt-agent clients.
 
     python scripts/trace_full_flow.py
-    python scripts/trace_full_flow.py --fabric
 """
 from __future__ import annotations
 
@@ -66,7 +65,7 @@ def _load_skills(settings) -> tuple[dict[str, str], str, dict]:
     return bodies, "foundry-toolbox-mcp", evidence
 
 
-def _clients(settings, fabric: bool):
+def _clients(settings):
     from pathforward.agents.foundry import (
         FabricInsightsClient,
         FoundryLLMClient,
@@ -92,19 +91,13 @@ def _clients(settings, fabric: bool):
     planner = ReasoningFoundryClient(settings.foundry_project_endpoint,
                                      agent_name="pathforward-planner-trace",
                                      model=settings.model_deployment)
-    if fabric:
-        if not settings.fabric_connection_name:
-            raise RuntimeError("--fabric requires FABRIC_CONNECTION_NAME")
-        insights_client = FabricInsightsClient(settings.foundry_project_endpoint,
-                                               connection_name=settings.fabric_connection_name,
-                                               agent_name="pathforward-insights-fabric-trace",
-                                               model=settings.model_deployment)
-        insights_agent = FabricProgramInsightsAgent(insights_client)
-    else:
-        insights_client = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                                 agent_name="pathforward-insights-trace",
-                                                 model=settings.model_deployment)
-        insights_agent = ProgramInsightsAgent(insights_client)
+    if not settings.fabric_connection_name:
+        raise RuntimeError("live trace requires FABRIC_CONNECTION_NAME for Fabric-live Program Insights")
+    insights_client = FabricInsightsClient(settings.foundry_project_endpoint,
+                                           connection_name=settings.fabric_connection_name,
+                                           agent_name="pathforward-insights-fabric-trace",
+                                           model=settings.model_deployment)
+    insights_agent = FabricProgramInsightsAgent(insights_client)
 
     live_clients = [orch, curator, generator, critic, planner, insights_client]
     return {
@@ -126,7 +119,6 @@ def main() -> int:
         pass
 
     ap = argparse.ArgumentParser(description="Trace the full PathForward agentic flow.")
-    ap.add_argument("--fabric", action="store_true", help="use Fabric-live Program Insights")
     ap.add_argument("--skip-abstain", action="store_true",
                     help="skip the explicit fail-closed ABSTAIN proof segment")
     args = ap.parse_args()
@@ -135,14 +127,14 @@ def main() -> int:
     active = tracing.configure_tracing(
         console=True, azure_connection_string=(settings.azure_monitor_connection_string or None))
     print(f"tracing active={active}  azure_export={'on' if settings.azure_monitor_connection_string else 'off'}")
-    print(f"mode=live  fabric={'on' if args.fabric else 'off'}")
+    print("mode=live  fabric=on")
 
     onto = build_seed()
     edges = dv.build_all_edges(onto)
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
     skill_bodies, skill_source, skill_evidence = _load_skills(settings)
-    clients = _clients(settings, args.fabric)
+    clients = _clients(settings)
 
     # Deterministic cold-start signal for the hero path: S01 selects stretch, so adaptive is visible.
     adaptive = AdaptiveController(calibration={"item-S01": {"difficulty": 0.9}})
@@ -152,7 +144,7 @@ def main() -> int:
     try:
         with tracing.span("pathforward.full_flow",
                           **{"pf.worker": worker.id, "pf.skill_source": skill_source,
-                             "pf.fabric": bool(args.fabric)}) as root:
+                             "pf.fabric": True}) as root:
             root.event("skill.loaded", **{
                 "pf.source": skill_source,
                 "pf.uri": str(skill_evidence.get("skill_uri", "")),

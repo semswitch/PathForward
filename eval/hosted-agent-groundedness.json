@@ -52,7 +52,7 @@
           "verified": true,
           "retrieved_nonempty": true,
           "citations_subset_retrieved": true,
-          "fabric_live_or_controlled_fallback": true,
+          "fabric_live": true,
           "approval_requested": true,
           "no_credential_without_approval": true
         }
@@ -101,7 +101,7 @@
           "verified": true,
           "retrieved_nonempty": true,
           "citations_subset_retrieved": true,
-          "fabric_live_or_controlled_fallback": true,
+          "fabric_live": true,
           "approval_requested": true,
           "no_credential_without_approval": true
         }
@@ -149,7 +149,7 @@
           "verified": true,
           "retrieved_nonempty": true,
           "citations_subset_retrieved": true,
-          "fabric_live_or_controlled_fallback": true,
+          "fabric_live": true,
           "approval_requested": true,
           "no_credential_without_approval": true
         }
@@ -198,7 +198,7 @@
           "verified": true,
           "retrieved_nonempty": true,
           "citations_subset_retrieved": true,
-          "fabric_live_or_controlled_fallback": true,
+          "fabric_live": true,
           "approval_requested": true,
           "no_credential_without_approval": true
         }

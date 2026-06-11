@@ -131,36 +131,35 @@ def _build_clients(settings: Settings, skill_bodies: dict[str, str]):
                                           "pathforward-hosted-planner",
                                           settings.model_deployment),
     }
-    if os.getenv("PATHFORWARD_INSIGHTS_TIER", "").strip().lower() == "fabric-live":
-        if settings.fabric_data_agent_openai_base:
-            clients["insights"] = FabricDataAgentClient(
-                settings.fabric_data_agent_openai_base,
-                os.getenv("PATHFORWARD_FABRIC_SP_TENANT_ID", ""),
-                os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_ID", ""),
-                os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
-            )
-        else:
-            if not settings.fabric_connection_name:
-                raise RuntimeError(
-                    "PATHFORWARD_INSIGHTS_TIER=fabric-live requires either "
-                    "FABRIC_DATA_AGENT_OPENAI_BASE or FABRIC_CONNECTION_NAME"
-                )
-            clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
-                                                       settings.fabric_connection_name,
-                                                       agent_name="pathforward-hosted-insights-fabric",
-                                                       model=settings.model_deployment,
-                                                       use_cli_credential=False)
+    tier = os.getenv("PATHFORWARD_INSIGHTS_TIER", "fabric-live").strip().lower() or "fabric-live"
+    if tier != "fabric-live":
+        raise RuntimeError("Hosted Orchestrator product runtime requires PATHFORWARD_INSIGHTS_TIER=fabric-live")
+    if settings.fabric_data_agent_openai_base:
+        clients["insights"] = FabricDataAgentClient(
+            settings.fabric_data_agent_openai_base,
+            os.getenv("PATHFORWARD_FABRIC_SP_TENANT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
+        )
     else:
-        clients["insights"] = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                                     "pathforward-hosted-insights",
-                                                     settings.model_deployment)
+        if not settings.fabric_connection_name:
+            raise RuntimeError(
+                "Fabric-live Program Insights requires either "
+                "FABRIC_DATA_AGENT_OPENAI_BASE or FABRIC_CONNECTION_NAME"
+            )
+        clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
+                                                   settings.fabric_connection_name,
+                                                   agent_name="pathforward-hosted-insights-fabric",
+                                                   model=settings.model_deployment,
+                                                   use_cli_credential=False)
     return clients, tuple(c for c in clients.values() if hasattr(c, "close"))
 
 
 def _build_insights_agent(client, skill_instructions: str) -> ProgramInsightsAgent:
-    if os.getenv("PATHFORWARD_INSIGHTS_TIER", "").strip().lower() == "fabric-live":
-        return _FabricProgramInsightsAgent(client, skill_instructions=skill_instructions)
-    return ProgramInsightsAgent(client, skill_instructions=skill_instructions)
+    tier = os.getenv("PATHFORWARD_INSIGHTS_TIER", "fabric-live").strip().lower() or "fabric-live"
+    if tier != "fabric-live":
+        raise RuntimeError("Hosted Orchestrator product runtime requires Fabric-live Program Insights")
+    return _FabricProgramInsightsAgent(client, skill_instructions=skill_instructions)
 
 
 def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:

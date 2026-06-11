@@ -13,15 +13,16 @@ program questions — "how does this worker compare to peers targeting the same 
 are the biggest bottlenecks across the cohort?", "which gaps can't even be certified?". Those are
 the cross-worker aggregates this agent reasons over.
 
-Two tiers (verified facts + scope in `.agents/decisions/007-program-insights-fabric-readpath.md`):
-  - FLOOR (`analyze`, source="derivation-floor"): the agent NARRATES code-computed aggregates over a
-    tool-less reasoning client. Zero Fabric.
-  - FABRIC-LIVE (`analyze_via_fabric`, source="fabric-live"): the agent ANSWERS the cohort question by
-    querying a published Fabric data agent over OneLake (NL2SQL, OBO) via `FabricInsightsClient`
+Two methods exist:
+  - CODE-TEST / RECONCILIATION (`analyze`, source="derivation-floor"): narrates code-computed
+    aggregates and is retained for deterministic tests and reconciliation anchors. It is not approved
+    as the product Program Insights runtime.
+  - PRODUCT (`analyze_via_fabric`, source="fabric-live"): answers the cohort question by querying a
+    published Fabric data agent over OneLake (NL2SQL, OBO) via `FabricInsightsClient`
     (`MicrosoftFabricPreviewTool` on a `PromptAgentDefinition`, same Responses-API `agent_reference`
     shape the other clients use; OBO identity; paid F2+/P1+; preview). `cohort.py` stays the
     reconciliation ANCHOR — a Fabric answer that diverges from derivation is flagged, never trusted to
-    gate anything. Both tiers stay OFF the mint path.
+    gate anything. Product runtime fails closed if Fabric is unavailable.
 
 Trust posture: constructed with ONLY an `LLMClient` — no handle to the Evidence Gate, `mint`, or a
 `LoopResult`; imports neither the gate nor `mint`.
@@ -61,27 +62,6 @@ INSIGHTS_SCHEMA = {
     "properties": {"narrative": {"type": "string"}},
     "required": ["narrative"],
 }
-
-
-def derivation_floor_insights(worker: Worker, role: Role, onto: Ontology, *,
-                              reason: str = "") -> ProgramInsights:
-    """Deterministic advisory fallback when a live Fabric narrative is unavailable."""
-    rc = cohort.role_cohort(onto, role.id)
-    wc = cohort.worker_vs_cohort(onto, worker.id)
-    prog = cohort.program_aggregates(onto)
-    bottlenecks = rc.to_doc().get("bottleneck_skills", [])
-    names = ", ".join(str(b.get("name", b.get("skill_id", ""))) for b in bottlenecks[:3])
-    reason_note = f" Fabric-live was unavailable ({reason});" if reason else ""
-    narrative = (
-        f"{reason_note} using derivation-floor cohort facts instead. Worker {worker.id} has "
-        f"readiness {wc.worker_readiness} for {role.name} versus a cohort mean of "
-        f"{wc.cohort_mean_readiness}. Top cohort bottlenecks: {names or 'none'}."
-    ).strip()
-    return ProgramInsights(
-        worker_id=worker.id, role_id=role.id,
-        role_cohort=rc.to_doc(), worker_comparison=wc.to_doc(), program=prog.to_doc(),
-        narrative=narrative, source="derivation-floor",
-    )
 
 
 class ProgramInsightsAgent:

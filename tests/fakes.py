@@ -45,7 +45,11 @@ class FakeLLMClient:
             parsed = self._critique(json.loads(input))
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         if INSIGHTS_TAG in instructions:
-            parsed = self._insights(json.loads(input))
+            try:
+                payload = json.loads(input)
+            except json.JSONDecodeError:
+                payload = {"question": input}
+            parsed = self._insights(payload)
             return LLMResponse(rid, json.dumps(parsed), parsed, previous_response_id)
         if ORCHESTRATOR_TAG in instructions:
             parsed = self._orchestrate(json.loads(input))

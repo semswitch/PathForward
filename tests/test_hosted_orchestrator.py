@@ -193,6 +193,45 @@ class HostedOrchestratorTests(unittest.TestCase):
                 else:
                     os.environ[name] = value
 
+    def test_live_hosted_rejects_non_fabric_insights_tier(self):
+        old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
+        try:
+            os.environ["PATHFORWARD_INSIGHTS_TIER"] = "derivation-floor"
+            from pathforward.config import Settings
+            from pathforward.hosted_orchestrator import _build_clients
+
+            settings = Settings(
+                foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/p",
+                search_endpoint="https://search.example",
+                fabric_connection_name="pathforward-fabric-user",
+            )
+            with self.assertRaisesRegex(RuntimeError, "requires PATHFORWARD_INSIGHTS_TIER=fabric-live"):
+                _build_clients(settings, {})
+        finally:
+            if old is None:
+                os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
+            else:
+                os.environ["PATHFORWARD_INSIGHTS_TIER"] = old
+
+    def test_live_hosted_requires_fabric_configuration(self):
+        old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
+        try:
+            os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
+            from pathforward.config import Settings
+            from pathforward.hosted_orchestrator import _build_clients
+
+            settings = Settings(
+                foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/p",
+                search_endpoint="https://search.example",
+            )
+            with self.assertRaisesRegex(RuntimeError, "Fabric-live Program Insights requires"):
+                _build_clients(settings, {})
+        finally:
+            if old is None:
+                os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
+            else:
+                os.environ["PATHFORWARD_INSIGHTS_TIER"] = old
+
     def test_fabric_live_hosted_insights_agent_uses_fabric_method(self):
         old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
         try:
@@ -219,7 +258,7 @@ class HostedOrchestratorTests(unittest.TestCase):
             else:
                 os.environ["PATHFORWARD_INSIGHTS_TIER"] = old
 
-    def test_hosted_fabric_failure_returns_structured_derivation_fallback(self):
+    def test_hosted_fabric_failure_fails_closed(self):
         old = os.environ.get("PATHFORWARD_INSIGHTS_TIER")
         try:
             os.environ["PATHFORWARD_INSIGHTS_TIER"] = "fabric-live"
@@ -227,16 +266,11 @@ class HostedOrchestratorTests(unittest.TestCase):
                 def respond(self, instructions, input, *, previous_response_id=None, schema=None):
                     raise RuntimeError("Fabric data-agent run ended with status failed: server_error")
 
-            doc = _run_code_contract(
-                HostedRequest(message="Run /pathforward for EMP-001"),
-                clients=_code_test_clients(FailingFabricClient()),
-            )
-
-            self.assertEqual(doc["result"]["loop"]["status"], "verified")
-            self.assertEqual(doc["result"]["insights"]["source"], "derivation-floor")
-            self.assertIn("Fabric-live was unavailable", doc["result"]["insights"]["narrative"])
-            self.assertIsNotNone(doc["approval_request"])
-            self.assertIsNone(doc["credential"])
+            with self.assertRaisesRegex(RuntimeError, "Fabric data-agent run ended"):
+                _run_code_contract(
+                    HostedRequest(message="Run /pathforward for EMP-001"),
+                    clients=_code_test_clients(FailingFabricClient()),
+                )
         finally:
             if old is None:
                 os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)

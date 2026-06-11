@@ -86,7 +86,7 @@ class TestOrchestrator(unittest.TestCase):
         with self.assertRaises(CredentialIntegrityError):
             mint(worker, role, "", "", res.loop)
 
-    def test_insights_failure_falls_back_to_derivation_floor(self):
+    def test_insights_failure_fails_closed(self):
         class FailingInsights(ProgramInsightsAgent):
             def __init__(self):
                 pass
@@ -96,13 +96,9 @@ class TestOrchestrator(unittest.TestCase):
 
         worker = self.onto.workers[HERO_WORKER_ID]
         cur, gen, gate, plan, critic = _agents()
-        res = run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan,
-                             critic=critic, insights=FailingInsights())
-
-        self.assertIsNotNone(res.insights)
-        self.assertEqual(res.insights.source, "derivation-floor")
-        self.assertIn("Fabric-live was unavailable", res.insights.narrative)
-        self.assertEqual(res.loop.status, "verified")
+        with self.assertRaisesRegex(RuntimeError, "Fabric transient"):
+            run_multiagent_code_contract(worker, self.onto, self.edges, cur, gen, gate, plan,
+                                         critic=critic, insights=FailingInsights())
 
 
 if __name__ == "__main__":

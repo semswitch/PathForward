@@ -35,6 +35,13 @@ PathForward is built around a real agentic workflow:
 - **Microsoft-native architecture:** Foundry Hosted Agent, Foundry Skills/Toolbox, Azure AI Search,
   Fabric data agent, Azure Monitor telemetry, and Foundry evals.
 
+## Pending Product Requirements
+
+- **MCP mint server:** credential minting is currently governed by the hosted runtime approval
+  boundary and deterministic mint checks. The externally hosted MCP mint server remains pending.
+- **Voice Live / Engagement:** Azure Foundry Voice Live is in scope for the project, but the
+  PathForward Voice Live engagement path is not yet implemented.
+
 ## Current Proof Status
 
 The project has live proof for the main Foundry multi-agent path, the skill-loaded Orchestrator path,

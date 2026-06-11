@@ -193,9 +193,8 @@ class ProgramInsights:
     bottlenecks) are computed in code by `iq/cohort.py` from `derivation.py` and copied here
     verbatim — the agent CANNOT change them. The agent contributes only `narrative` (display-only
     prose: cohort framing, "why this path"). Nothing here is read by the Evidence Gate's `verify()`
-    or by `mint()`. `source` records which tier produced the data: 'derivation-floor' (in-process,
-    always green) or 'fabric-live' (governed OneLake via MicrosoftFabricPreviewTool / OBO, on paid
-    F2+/P1+ capacity)."""
+    or by `mint()`. `source` records provenance: 'fabric-live' is the product runtime; 
+    'derivation-floor' is retained for deterministic code tests and reconciliation anchors only."""
     worker_id: str
     role_id: str
     role_cohort: dict                # cohort.RoleCohort.to_doc() — code-computed, not model output
