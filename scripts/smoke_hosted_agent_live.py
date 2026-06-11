@@ -8,8 +8,7 @@ This targets the actual hosted-agent endpoint, not the project-level prompt-agen
 It proves the currently deployed hosted route can:
   - read `/pathforward` and specialist Skills from Foundry Toolbox MCP,
   - run the live multi-agent route with Search + Fabric-live Insights,
-  - request mint authorization without minting by default,
-  - mint only when the caller supplies explicit runtime approval.
+  - prepare a signed MCP mint request without minting in-process.
 
 The output evidence intentionally avoids secrets and raw auth material.
 """
@@ -52,7 +51,7 @@ class HostedCall:
     name: str
     input_text: str
     expect_credential: bool
-    expect_approval_request: bool
+    expect_mcp_mint_request: bool
     required_checks: tuple[str, ...]
 
 
@@ -123,7 +122,7 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
     insights = ((doc.get("result") or {}).get("insights") or {})
     skill_evidence = doc.get("skill_evidence") or {}
     credential = doc.get("credential")
-    approval_request = doc.get("approval_request")
+    mcp_mint_request = doc.get("mcp_mint_request")
     agent_ref = result.get("agent_reference") or {}
     checks = {
         "response_completed": result.get("status") == "completed",
@@ -133,13 +132,10 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
         "loop_verified": loop.get("status") == "verified",
         "loop_abstained": loop.get("status") == "abstained",
         "fabric_live": insights.get("source") == "fabric-live",
-        "approval_request_present": bool(approval_request),
-        "approval_request_absent": not bool(approval_request),
+        "mcp_mint_request_present": bool(mcp_mint_request),
+        "mcp_mint_request_absent": not bool(mcp_mint_request),
         "credential_presence_expected": bool(credential) == call.expect_credential,
-        "approval_presence_expected": bool(approval_request) == call.expect_approval_request,
-        "denied_mint_refused": call.name != "denied_mint" or (
-            not bool(credential) and "denied" in str(doc.get("mint_error", "")).lower()
-        ),
+        "mcp_mint_presence_expected": bool(mcp_mint_request) == call.expect_mcp_mint_request,
     }
     return {
         "name": call.name,
@@ -156,7 +152,7 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
         "retrieved_ref_ids": ((loop.get("item") or {}).get("retrieved_ref_ids") or []),
         "citations": loop.get("citations") or [],
         "insights_source": insights.get("source", ""),
-        "approval_request_id": (approval_request or {}).get("request_id", ""),
+        "mcp_mint_request_id": ((mcp_mint_request or {}).get("request") or {}).get("request_id", ""),
         "credential_issued": bool(credential),
         "credential_cited_edge_id": (((credential or {}).get("credentialSubject") or {}).get(
             "cited_edge_id", ""
@@ -186,7 +182,7 @@ def _write_evidence(out_base: Path, summaries: list[dict[str, Any]], raw: dict[s
         "`responses` endpoint.",
         "",
         "This evidence intentionally records response IDs, agent version, pass/fail checks, retrieval "
-        "IDs, citations, approval IDs, and credential-spine facts only. It does not include secrets.",
+        "IDs, citations, MCP mint request IDs, and credential-spine facts only. It does not include secrets.",
         "",
         "## Results",
         "",
@@ -201,7 +197,7 @@ def _write_evidence(out_base: Path, summaries: list[dict[str, Any]], raw: dict[s
             f"- Selected skill: `{item['selected_skill_id']}`",
             f"- Loop: `{item['loop_status']}` after `{item['attempts']}` attempt(s)",
             f"- Insights source: `{item['insights_source']}`",
-            f"- Approval request: `{item['approval_request_id'] or '(none)'}`",
+            f"- MCP mint request: `{item['mcp_mint_request_id'] or '(none)'}`",
             f"- Credential issued: `{item['credential_issued']}`",
             f"- Credential cited edge: `{item['credential_cited_edge_id'] or '(none)'}`",
             f"- Passed: `{item['passed']}`",
@@ -218,8 +214,6 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Live smoke for the Foundry Hosted Agent route.")
     ap.add_argument("--output-base", default=".agents/evidence/hosted-agent-live-proof",
                     help="Evidence path without extension.")
-    ap.add_argument("--skip-approved", action="store_true",
-                    help="Skip the explicit approval case that mints a synthetic credential.")
     args = ap.parse_args()
 
     settings = load_settings(str(_ROOT / ".env"))
@@ -234,14 +228,14 @@ def main() -> int:
             name="diagnose_toolbox",
             input_text="diagnose toolbox",
             expect_credential=False,
-            expect_approval_request=False,
+            expect_mcp_mint_request=False,
             required_checks=("response_completed", "hosted_agent_expected"),
         ),
         HostedCall(
             name="no_approval_default",
             input_text="Run /pathforward for EMP-001",
             expect_credential=False,
-            expect_approval_request=True,
+            expect_mcp_mint_request=True,
             required_checks=(
                 "response_completed",
                 "hosted_agent_expected",
@@ -249,7 +243,7 @@ def main() -> int:
                 "skill_from_toolbox",
                 "loop_verified",
                 "fabric_live",
-                "approval_request_present",
+                "mcp_mint_request_present",
                 "credential_presence_expected",
             ),
         ),
@@ -260,67 +254,19 @@ def main() -> int:
                 "abstain_probe": True,
             }),
             expect_credential=False,
-            expect_approval_request=False,
+            expect_mcp_mint_request=False,
             required_checks=(
                 "response_completed",
                 "hosted_agent_expected",
                 "surface_live",
                 "skill_from_toolbox",
                 "loop_abstained",
-                "approval_request_absent",
+                "mcp_mint_request_absent",
                 "credential_presence_expected",
-                "approval_presence_expected",
+                "mcp_mint_presence_expected",
             ),
         ),
     ]
-    if not args.skip_approved:
-        calls.extend(
-            [
-                HostedCall(
-                    name="approved_mint",
-                    input_text=json.dumps({
-                        "message": "Run /pathforward for EMP-001",
-                        "worker_id": "EMP-001",
-                        "approve_mint": True,
-                        "approver": "hosted-live-proof",
-                    }),
-                    expect_credential=True,
-                    expect_approval_request=True,
-                    required_checks=(
-                        "response_completed",
-                        "hosted_agent_expected",
-                        "surface_live",
-                        "skill_from_toolbox",
-                        "loop_verified",
-                        "fabric_live",
-                        "approval_request_present",
-                        "credential_presence_expected",
-                    ),
-                ),
-                HostedCall(
-                    name="denied_mint",
-                    input_text=json.dumps({
-                        "message": "Run /pathforward for EMP-001 with denied mint",
-                        "worker_id": "EMP-001",
-                        "deny_mint": True,
-                        "approver": "hosted-live-proof",
-                    }),
-                    expect_credential=False,
-                    expect_approval_request=True,
-                    required_checks=(
-                        "response_completed",
-                        "hosted_agent_expected",
-                        "surface_live",
-                        "skill_from_toolbox",
-                        "loop_verified",
-                        "fabric_live",
-                        "approval_request_present",
-                        "credential_presence_expected",
-                        "denied_mint_refused",
-                    ),
-                ),
-            ]
-        )
 
     raw: dict[str, Any] = {}
     summaries: list[dict[str, Any]] = []

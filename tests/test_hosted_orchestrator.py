@@ -30,61 +30,58 @@ def _code_test_clients(insights=None) -> dict:
 
 
 def _run_code_contract(request: HostedRequest, clients: dict | None = None) -> dict:
-    return _run_hosted_orchestrator_inner(
-        request,
-        "code-test",
-        _skill_bodies(),
-        {"source": "unit-test"},
-        clients or _code_test_clients(),
-    )
+    old = os.environ.get("PATHFORWARD_ALLOW_DEV_MINT_KEY")
+    try:
+        os.environ["PATHFORWARD_ALLOW_DEV_MINT_KEY"] = "1"
+        return _run_hosted_orchestrator_inner(
+            request,
+            "code-test",
+            _skill_bodies(),
+            {"source": "unit-test"},
+            clients or _code_test_clients(),
+        )
+    finally:
+        if old is None:
+            os.environ.pop("PATHFORWARD_ALLOW_DEV_MINT_KEY", None)
+        else:
+            os.environ["PATHFORWARD_ALLOW_DEV_MINT_KEY"] = old
 
 
 class HostedOrchestratorTests(unittest.TestCase):
-    def test_code_contract_hosted_route_requests_approval_without_minting(self):
+    def test_code_contract_hosted_route_requests_mcp_mint_without_minting(self):
         doc = _run_code_contract(HostedRequest(
             message="Run /pathforward for EMP-001",
-            approve_mint=False,
         ))
         self.assertEqual(doc["surface"], "foundry-hosted-agent")
         self.assertEqual(doc["mode"], "code-test")
         self.assertEqual(doc["skill_evidence"]["source"], "unit-test")
         self.assertEqual(doc["result"]["loop"]["status"], "verified")
-        self.assertIsNotNone(doc["approval_request"])
+        self.assertIsNotNone(doc["mcp_mint_request"])
+        self.assertIsNone(doc["approval_request"])
         self.assertIsNone(doc["credential"])
+        self.assertEqual(doc["mcp_mint_request"]["tool_name"], "pathforward_mint_credential")
+        self.assertEqual(doc["mcp_mint_request"]["require_approval"], "always")
 
-    def test_code_contract_hosted_route_mints_only_with_explicit_approval(self):
+    def test_code_contract_hosted_route_never_mints_in_process(self):
         doc = _run_code_contract(HostedRequest(
-            message="Run /pathforward for EMP-001 with approved mint",
-            approve_mint=True,
-            approver="unit-test",
+            message="Run /pathforward for EMP-001",
         ))
         self.assertEqual(doc["result"]["loop"]["status"], "verified")
-        self.assertIsNotNone(doc["credential"])
-        subject = doc["credential"]["credentialSubject"]
-        self.assertEqual(subject["cited_edge_id"], doc["result"]["loop"]["driving_edge_id"])
-
-    def test_code_contract_hosted_route_denied_approval_fails_closed(self):
-        doc = _run_code_contract(HostedRequest(
-            message="Run /pathforward for EMP-001 with denied mint",
-            deny_mint=True,
-            approver="unit-test",
-        ))
-        self.assertEqual(doc["result"]["loop"]["status"], "verified")
-        self.assertIsNotNone(doc["approval_request"])
+        self.assertIsNotNone(doc["mcp_mint_request"])
         self.assertIsNone(doc["credential"])
-        self.assertIn("denied", doc["mint_error"].lower())
+        self.assertEqual(doc["mint_error"], "")
 
     def test_code_contract_hosted_route_abstain_probe_never_requests_mint(self):
         doc = _run_code_contract(HostedRequest(
             message="Run /pathforward semantic ABSTAIN proof",
             abstain_probe=True,
-            approve_mint=True,
             approver="unit-test",
         ))
         self.assertEqual(doc["worker_id"], "EMP-ABSTAIN")
         self.assertEqual(doc["result"]["loop"]["status"], "abstained")
         self.assertEqual(doc["result"]["curator"]["chosen_skill_id"], "")
         self.assertIsNone(doc["approval_request"])
+        self.assertIsNone(doc["mcp_mint_request"])
         self.assertIsNone(doc["credential"])
         self.assertEqual(doc["mint_error"], "")
 

@@ -35,6 +35,8 @@ environment_variables:
     value: pathforward-toolbox
   - name: PATHFORWARD_INSIGHTS_TIER
     value: fabric-live
+  - name: PATHFORWARD_MINT_SIGNING_KEY
+    value: ${{connections.pathforward-hosted-secrets.credentials.pathforward_mint_signing_key}}
   - name: AZURE_MONITOR_CONNECTION_STRING
     value: ${AZURE_MONITOR_CONNECTION_STRING}
   - name: FABRIC_CONNECTION_NAME

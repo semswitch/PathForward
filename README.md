@@ -37,8 +37,8 @@ PathForward is built around a real agentic workflow:
 
 ## Pending Product Requirements
 
-- **MCP mint server:** credential minting is currently governed by the hosted runtime approval
-  boundary and deterministic mint checks. The externally hosted MCP mint server remains pending.
+- **MCP mint server:** signed request tokens are implemented; Azure Function hosting,
+  Foundry Toolbox attachment, and end-to-end approval proof are pending.
 - **Voice Live / Engagement:** Azure Foundry Voice Live is in scope for the project, but the
   PathForward Voice Live engagement path is not yet implemented.
 
@@ -46,7 +46,7 @@ PathForward is built around a real agentic workflow:
 
 The project has live proof for the main Foundry multi-agent path, the skill-loaded Orchestrator path,
 Fabric-backed Program Insights, and Hosted Agent invocation. Hosted Agent version 18 proves the latest
-hardening: semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
+hardening before the Function-backed MCP mint tool: semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
 4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
 
 Offline regression suite:

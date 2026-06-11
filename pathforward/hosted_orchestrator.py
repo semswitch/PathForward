@@ -24,12 +24,7 @@ from .agents.numeric import LocalNumericChecker
 from .agents.orchestrator import run_orchestrated_multiagent
 from .agents.planner import Planner
 from .config import Settings, load_settings
-from .credential.approval import (
-    MintApprovalDecision,
-    MintApprovalError,
-    mint_with_approval,
-    request_mint_approval,
-)
+from .credential.mcp_mint import McpMintError, create_mcp_mint_request
 from .iq import derivation as dv
 from .iq.models import Worker
 from .iq.seed import HERO_WORKER_ID, build_seed
@@ -51,14 +46,11 @@ _SKILL_NAMES = (
 class HostedRequest:
     """A single hosted Orchestrator request.
 
-    `approve_mint` / `deny_mint` are runtime authorization flags, not model decisions. Architecture
-    claims for mint/approval belong in `.agents/plans/000-non-negotiable-agentic-architecture-contract.md`.
+    Mint approval is mediated by the hosted MCP mint tool, not by request JSON flags.
     """
 
     message: str
     worker_id: str = HERO_WORKER_ID
-    approve_mint: bool = False
-    deny_mint: bool = False
     approver: str = "hosted-agent-runtime"
     mode: str = "live"
     abstain_probe: bool = False
@@ -174,7 +166,7 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                       **{"pf.surface": "foundry-hosted-agent",
                          "pf.mode": mode,
                          "pf.worker": request.worker_id,
-                         "pf.approve_mint": request.approve_mint}) as hosted_span:
+                         "pf.mcp_mint": True}) as hosted_span:
         skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
         hosted_span.set(**{"pf.skill_source": skill_evidence.get("source")})
 
@@ -187,7 +179,7 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
             hosted_span.set(**{"pf.status": loop.get("status"),
                                "pf.attempts": loop.get("attempts"),
                                "pf.insights_source": insights.get("source"),
-                               "pf.approval_requested": bool(doc.get("approval_request")),
+                               "pf.approval_requested": bool(doc.get("mcp_mint_request")),
                                "pf.credential_issued": bool(doc.get("credential"))})
             emit_custom_event(
                 settings.azure_monitor_connection_string,
@@ -200,7 +192,7 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                     "pf.status": loop.get("status"),
                     "pf.skill_id": loop.get("targeted_skill_id"),
                     "pf.insights_source": insights.get("source"),
-                    "pf.approval_requested": bool(doc.get("approval_request")),
+                    "pf.approval_requested": bool(doc.get("mcp_mint_request")),
                     "pf.credential_issued": bool(doc.get("credential")),
                 },
                 measurements={"pf.attempts": loop.get("attempts") or 0},
@@ -270,25 +262,16 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
         ),
     )
 
-    approval = None
+    mcp_mint_request = None
     credential = None
     mint_error = ""
     if result.loop.status == "verified":
-        approval_request = request_mint_approval(worker, role, result.loop.driving_edge_id,
-                                                 result.loop.targeted_skill_id, result.loop)
-        approval = approval_request.to_doc()
-        if request.approve_mint or request.deny_mint:
-            try:
-                decision = MintApprovalDecision(approval_request.request_id, request.approve_mint,
-                                                request.approver,
-                                                "approved by hosted-agent runtime"
-                                                if request.approve_mint
-                                                else "denied by hosted-agent runtime")
-                cred = mint_with_approval(worker, role, result.loop.driving_edge_id,
-                                          result.loop.targeted_skill_id, result.loop, decision)
-                credential = cred.to_doc()
-            except MintApprovalError as exc:
-                mint_error = str(exc)
+        try:
+            sealed = create_mcp_mint_request(worker, role, result.loop.driving_edge_id,
+                                             result.loop.targeted_skill_id, result.loop)
+            mcp_mint_request = sealed.to_doc()
+        except McpMintError as exc:
+            mint_error = str(exc)
 
     return {
         "agent": "pathforward-orchestrator",
@@ -299,7 +282,8 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
         "target_role_id": role.id,
         "skill_evidence": skill_evidence,
         "result": result.to_doc(),
-        "approval_request": approval,
+        "mcp_mint_request": mcp_mint_request,
+        "approval_request": None,
         "credential": credential,
         "mint_error": mint_error,
     }
@@ -319,8 +303,8 @@ def summarize_hosted_response(doc: dict[str, Any]) -> str:
         f"Assessment: {loop['status'].upper()} after {loop['attempts']} attempt(s)",
         f"Skill source: {doc['skill_evidence'].get('source')}",
     ]
-    if doc.get("approval_request") and not doc.get("credential"):
-        lines.append(f"Mint approval required: {doc['approval_request']['request_id']}")
+    if doc.get("mcp_mint_request") and not doc.get("credential"):
+        lines.append(f"MCP mint approval required: {doc['mcp_mint_request']['request']['request_id']}")
     if doc.get("credential"):
         subject = doc["credential"]["credentialSubject"]
         lines.append(f"Credential minted: cited_edge_id={subject.get('cited_edge_id')}")

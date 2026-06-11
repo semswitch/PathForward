@@ -27,11 +27,9 @@ logger = logging.getLogger("pathforward.hosted")
 
 
 def _parse_request_text(text: str) -> HostedRequest:
-    """Accept either plain text or a JSON object for local/eval-driven approval tests."""
+    """Accept either plain text or a JSON object for worker/eval selection."""
     message = text
     worker_id = os.getenv("PATHFORWARD_WORKER_ID", "EMP-001")
-    approve_mint = False
-    deny_mint = False
     approver = "hosted-agent-runtime"
     abstain_probe = False
     try:
@@ -41,15 +39,11 @@ def _parse_request_text(text: str) -> HostedRequest:
     if isinstance(parsed, dict):
         message = str(parsed.get("message") or parsed.get("input") or text)
         worker_id = str(parsed.get("worker_id") or worker_id)
-        approve_mint = bool(parsed.get("approve_mint", False))
-        deny_mint = bool(parsed.get("deny_mint", False))
         approver = str(parsed.get("approver") or approver)
         abstain_probe = bool(parsed.get("abstain_probe", False))
     return HostedRequest(
         message=message,
         worker_id=worker_id,
-        approve_mint=approve_mint,
-        deny_mint=deny_mint,
         approver=approver,
         mode=os.getenv("PATHFORWARD_HOSTED_MODE", "auto"),
         abstain_probe=abstain_probe,
