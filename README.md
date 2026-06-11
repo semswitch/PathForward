@@ -56,7 +56,8 @@ small service/tool glue such as the MCP mint boundary. It is not the product Orc
 ## Pending Product Requirements
 
 - **MCP mint server:** signed request tokens are implemented; Azure Function hosting,
-  Foundry Toolbox attachment, and end-to-end approval proof are pending.
+  MCP endpoint code, live Function deployment, and Foundry Toolbox attachment are implemented;
+  end-to-end approval-approved mint proof is pending.
 - **Voice Live / Engagement:** Azure Foundry Voice Live is in scope for the project, but the
   PathForward Voice Live engagement path is not yet implemented.
 
