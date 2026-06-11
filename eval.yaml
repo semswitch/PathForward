@@ -1,0 +1,13 @@
+name: pathforward-hosted-v21-dashboard
+agent:
+    name: pathforward-orchestrator
+    kind: hosted
+    version: "21"
+dataset_file: eval\foundry-hosted-dashboard.jsonl
+evaluators:
+    - builtin.intent_resolution
+    - builtin.task_adherence
+    - builtin.indirect_attack
+options:
+    eval_model: reasoning
+max_samples: 15

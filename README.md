@@ -46,8 +46,8 @@ PathForward is built around a real agentic workflow:
 ## Current Proof Status
 
 The project has live proof for the main Foundry multi-agent path, versioned specialist agents,
-Fabric-backed Program Insights, and Hosted Agent invocation. Hosted Agent version 18 proves the latest
-hardening before the Function-backed MCP mint tool: semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
+Fabric-backed Program Insights, and Hosted Agent invocation. The latest hosted proof covers
+semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
 4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.
 
 Offline regression suite:
