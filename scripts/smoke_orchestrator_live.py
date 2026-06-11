@@ -2,9 +2,8 @@
 
 This proves the Orchestrator/Conductor is a real Foundry-backed reasoning agent:
 
-  - Orchestrator runs on a TOOL-LESS Foundry reasoning agent (`pathforward-orchestrator`).
-  - Curator / Planner / Critic / Insights run on tool-less Foundry reasoning agents.
-  - Generator runs on the search-grounded FoundryLLMClient.
+  - Orchestrator, Curator, Generator, Critic, Planner, and Insights run as durable versioned
+    Foundry specialist agents.
   - Code validates the Orchestrator's route before execution.
   - Evidence Gate / LocalNumericChecker / mint remain deterministic code.
 
@@ -33,12 +32,18 @@ from pathforward.agents.conductor import Orchestrator, OrchestratorPlanError  # 
 from pathforward.agents.critic import Critic                          # noqa: E402
 from pathforward.agents.curator import Curator                        # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate             # noqa: E402
-from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
+from pathforward.agents.foundry import (  # noqa: E402
+    FabricDataAgentClient,
+    PersistentFabricInsightsClient,
+    PersistentFoundryLLMClient,
+    PersistentReasoningFoundryClient,
+)
 from pathforward.agents.generator import Generator                    # noqa: E402
 from pathforward.agents.insights import ProgramInsightsAgent          # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker            # noqa: E402
 from pathforward.agents.orchestrator import run_orchestrated_multiagent  # noqa: E402
 from pathforward.agents.planner import Planner                        # noqa: E402
+from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE       # noqa: E402
 from pathforward.config import load_settings                          # noqa: E402
 from pathforward.credential.mint import mint                          # noqa: E402
 from pathforward.iq import derivation as dv                           # noqa: E402
@@ -46,11 +51,11 @@ from pathforward.iq import traversal                                  # noqa: E4
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed            # noqa: E402
 from generate_data import _learner_responses                          # noqa: E402
 
-ORCHESTRATOR_AGENT = "pathforward-orchestrator"
-CURATOR_AGENT = "pathforward-curator"
-PLANNER_AGENT = "pathforward-planner"
-CRITIC_AGENT = "pathforward-critic"
-INSIGHTS_AGENT = "pathforward-insights"
+class FabricProgramInsightsAgent(ProgramInsightsAgent):
+    """Smoke adapter: make the standard orchestration seam call the Fabric-live method."""
+
+    def analyze(self, worker, role, onto):  # noqa: ANN001
+        return self.analyze_via_fabric(worker, role, onto)
 
 
 class _InvalidRouteClient:
@@ -98,24 +103,32 @@ def main() -> int:
     print("\n[VALIDATOR NEGATIVE PROBE]")
     negative_ok = _negative_validation_probe(worker, role, onto)
 
-    orchestrator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                                 agent_name=ORCHESTRATOR_AGENT,
-                                                 model=settings.model_deployment)
-    curator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                            agent_name=CURATOR_AGENT,
-                                            model=settings.model_deployment)
-    planner_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                            agent_name=PLANNER_AGENT,
-                                            model=settings.model_deployment)
-    critic_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                           agent_name=CRITIC_AGENT,
-                                           model=settings.model_deployment)
-    insights_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                             agent_name=INSIGHTS_AGENT,
-                                             model=settings.model_deployment)
-    generator_client = FoundryLLMClient(endpoint=settings.foundry_project_endpoint,
-                                        model=settings.model_deployment,
-                                        index_name=settings.search_index)
+    orchestrator_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["orchestrator"].agent_name)
+    curator_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["curator"].agent_name)
+    planner_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["planner"].agent_name)
+    critic_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["critic"].agent_name)
+    if settings.fabric_data_agent_openai_base:
+        insights_client = FabricDataAgentClient(
+            settings.fabric_data_agent_openai_base,
+            os.getenv("PATHFORWARD_FABRIC_SP_TENANT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
+        )
+    else:
+        insights_client = PersistentFabricInsightsClient(
+            endpoint=settings.foundry_project_endpoint,
+            agent_name=VERSIONED_AGENT_BY_ROLE["insights"].agent_name)
+    generator_client = PersistentFoundryLLMClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["generator"].agent_name)
     clients = (orchestrator_client, curator_client, planner_client, critic_client,
                insights_client, generator_client)
 
@@ -130,7 +143,7 @@ def main() -> int:
             Planner(planner_client, LocalNumericChecker()),
             critic=Critic(critic_client),
             adaptive=adaptive,
-            insights=ProgramInsightsAgent(insights_client),
+            insights=FabricProgramInsightsAgent(insights_client),
         )
         orch = result.orchestrator or {}
         route = orch.get("route", {})
@@ -138,7 +151,7 @@ def main() -> int:
         selected = orch.get("selected_target_skill_id", "")
 
         print("\n[ORCHESTRATOR]")
-        print(f"  live agent: {ORCHESTRATOR_AGENT}")
+        print(f"  live agent: {VERSIONED_AGENT_BY_ROLE['orchestrator'].agent_name}")
         print(f"  selected target: {selected or '(none)'}")
         for i, step in enumerate(steps, start=1):
             print(f"   {i}. {step.get('action')} target={step.get('target_skill_id') or '-'} "
@@ -190,7 +203,7 @@ def main() -> int:
                 c.close()
             except Exception:  # noqa: BLE001
                 pass
-        print("agents deleted")
+        print("clients closed")
     return rc
 
 

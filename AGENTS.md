@@ -4,7 +4,8 @@
 
 ```text
 Foundry Hosted Agent: pathforward-orchestrator
-  loads /pathforward from Foundry Skill / Toolbox
+  calls versioned Foundry specialist agents
+  Foundry Skills / Toolbox define those agent versions
   Orchestrator / Conductor reasoning over the allowed route
   Curator agent
   Generator agent with Foundry grounded retrieval
@@ -26,9 +27,9 @@ Foundry Hosted Agent: pathforward-orchestrator
    are code. They are not agents.
 
 2. **Use the Foundry Hosted Agent Orchestrator surface.**
-   The architecture surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` loading
-   the `/pathforward` Foundry Skill and appropriate specialist agent Skills. Agent Framework
-   Workflow, `PF_WORKFLOW`, Workflow HITL, and Workflow graph work are unauthorized for this
+   The architecture surface is the versioned Foundry Hosted Agent `pathforward-orchestrator` calling
+   versioned Foundry specialist agents whose Skills, tools, guardrails, and system prompts are
+   attached in Foundry. Agent Framework Workflow, `PF_WORKFLOW`, Workflow HITL, and Workflow graph work are unauthorized for this
    architecture unless the user explicitly re-authorizes them.
 
 3. **The Hosted Orchestrator proof must show the agentic reasoning beats in the final demo artifact.**
@@ -38,8 +39,8 @@ Foundry Hosted Agent: pathforward-orchestrator
 
 4. **Foundry Toolbox and Foundry Skill are runtime surfaces.**
    `/pathforward` must exist as a real `agentskills.io` Skill, be registered in Foundry, be visible in
-   the portal/dashboard, and be consumed by the Hosted Orchestrator at runtime. Local-only Markdown,
-   inline prompt copies, registry-only Skills, and legacy non-Hosted shapes are unapproved.
+   the portal/dashboard, and be baked into the versioned Foundry agent definitions used at runtime.
+   Local-only Markdown, inline prompt copies, registry-only Skills, and legacy non-Hosted shapes are unapproved.
 
 5. **Each agent must carry its Foundry runtime contract.**
    Foundry tools, Skills, guardrails, and system prompts must be attached to the appropriate agents.

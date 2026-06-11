@@ -7,10 +7,10 @@ This is the checklist #4 proof path:
     `skill://pathforward/SKILL.md`.
   - The toolbox also exposes specialist skills for Curator, Assessment, Planner, and Insights.
   - The smoke calls `tools/list`, `resources/list`, and `resources/read`.
-  - The Orchestrator and specialist agents receive MCP-loaded skill content at inference time.
+  - Versioned specialist agents already contain those Skills in their Foundry definitions.
 
 It intentionally does NOT fall back to the local file for the live proof. Local files are source;
-Foundry MCP readback is the runtime-consumption evidence.
+Foundry MCP readback plus versioned agent invocation is the runtime-consumption evidence.
 
     python scripts/build_toolbox.py --recreate
     python scripts/smoke_toolbox_skill_live.py
@@ -29,7 +29,11 @@ from pathforward.agents.conductor import Orchestrator  # noqa: E402
 from pathforward.agents.critic import Critic  # noqa: E402
 from pathforward.agents.curator import Curator  # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate  # noqa: E402
-from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
+from pathforward.agents.foundry import (  # noqa: E402
+    PersistentFabricInsightsClient,
+    PersistentFoundryLLMClient,
+    PersistentReasoningFoundryClient,
+)
 from pathforward.agents.generator import Generator  # noqa: E402
 from pathforward.agents.insights import ProgramInsightsAgent  # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker  # noqa: E402
@@ -37,6 +41,7 @@ from pathforward.agents.orchestrator import run_orchestrated_multiagent  # noqa:
 from pathforward.agents.planner import Planner  # noqa: E402
 from pathforward.config import load_settings  # noqa: E402
 from pathforward.credential.mint import mint  # noqa: E402
+from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
@@ -52,11 +57,11 @@ SPECIALIST_SKILLS = (
     "pathforward-plan",
     "pathforward-insights",
 )
-ORCHESTRATOR_AGENT = "pathforward-orchestrator-skill"
-CURATOR_AGENT = "pathforward-curator-skill"
-PLANNER_AGENT = "pathforward-planner-skill"
-CRITIC_AGENT = "pathforward-critic-skill"
-INSIGHTS_AGENT = "pathforward-insights-skill"
+class FabricProgramInsightsAgent(ProgramInsightsAgent):
+    """Smoke adapter: make the standard orchestration seam call the Fabric-live method."""
+
+    def analyze(self, worker, role, onto):  # noqa: ANN001
+        return self.analyze_via_fabric(worker, role, onto)
 
 
 def main() -> int:
@@ -80,25 +85,24 @@ def main() -> int:
         print(f"resources/read: {mcp_evidence['skill_uris'][name]} "
               f"chars={mcp_evidence['skill_chars'][name]}")
 
-    orchestrator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                                 agent_name=ORCHESTRATOR_AGENT,
-                                                 model=settings.model_deployment)
-    curator_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                            agent_name=CURATOR_AGENT,
-                                            model=settings.model_deployment)
-    planner_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                            agent_name=PLANNER_AGENT,
-                                            model=settings.model_deployment)
-    critic_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                           agent_name=CRITIC_AGENT,
-                                           model=settings.model_deployment)
-    insights_client = ReasoningFoundryClient(endpoint=settings.foundry_project_endpoint,
-                                             agent_name=INSIGHTS_AGENT,
-                                             model=settings.model_deployment)
-    generator_client = FoundryLLMClient(endpoint=settings.foundry_project_endpoint,
-                                        model=settings.model_deployment,
-                                        index_name=settings.search_index,
-                                        agent_name="pathforward-generator-skill")
+    orchestrator_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["orchestrator"].agent_name)
+    curator_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["curator"].agent_name)
+    planner_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["planner"].agent_name)
+    critic_client = PersistentReasoningFoundryClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["critic"].agent_name)
+    insights_client = PersistentFabricInsightsClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["insights"].agent_name)
+    generator_client = PersistentFoundryLLMClient(
+        endpoint=settings.foundry_project_endpoint,
+        agent_name=VERSIONED_AGENT_BY_ROLE["generator"].agent_name)
     clients = (orchestrator_client, curator_client, planner_client, critic_client,
                insights_client, generator_client)
     try:
@@ -110,16 +114,14 @@ def main() -> int:
 
         result = run_orchestrated_multiagent(
             worker, onto, edges,
-            Orchestrator(orchestrator_client, skill_instructions=skill_content),
-            Curator(curator_client, skill_instructions=skill_contents["pathforward-curate"]),
-            Generator(generator_client, skill_instructions=skill_contents["pathforward-assess"]),
+            Orchestrator(orchestrator_client),
+            Curator(curator_client),
+            Generator(generator_client),
             EvidenceGate(LocalNumericChecker()),
-            Planner(planner_client, LocalNumericChecker(),
-                    skill_instructions=skill_contents["pathforward-plan"]),
-            critic=Critic(critic_client, skill_instructions=skill_contents["pathforward-assess"]),
+            Planner(planner_client, LocalNumericChecker()),
+            critic=Critic(critic_client),
             adaptive=adaptive,
-            insights=ProgramInsightsAgent(
-                insights_client, skill_instructions=skill_contents["pathforward-insights"]),
+            insights=FabricProgramInsightsAgent(insights_client),
         )
         orch = result.orchestrator or {}
         target = orch.get("selected_target_skill_id", "")
@@ -137,8 +139,11 @@ def main() -> int:
         checks = {
             "toolbox MCP tools listed": bool(tool_names),
             "Foundry skill resources read": all(skill_contents.get(name) for name in SPECIALIST_SKILLS),
-            "Orchestrator used MCP-loaded /pathforward skill": route_ok,
-            "Specialist skills loaded": all(skill_contents.get(name) for name in SPECIALIST_SKILLS[1:]),
+            "Orchestrator versioned agent routed": route_ok,
+            "Specialist versioned agents invoked": all(
+                VERSIONED_AGENT_BY_ROLE[role].agent_name
+                for role in ("curator", "generator", "critic", "planner", "insights")
+            ),
             "Evidence Gate verified": result.loop.status == "verified",
             "credential spine intact": spine_ok,
             "insights returned": result.insights is not None,
@@ -147,12 +152,12 @@ def main() -> int:
             print(f"  [{'PASS' if ok else 'FAIL'}] {name}")
         if not all(checks.values()):
             return 1
-        print("LIVE TOOLBOX SKILL PASS")
+        print("LIVE TOOLBOX + VERSIONED AGENT PASS")
         return 0
     finally:
         for client in clients:
             client.close()
-        print("agents deleted")
+        print("clients closed")
 
 
 if __name__ == "__main__":

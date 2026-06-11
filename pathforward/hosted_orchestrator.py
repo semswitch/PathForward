@@ -33,13 +33,6 @@ from .obs import tracing
 
 _ROOT = Path(__file__).resolve().parent.parent
 _TOOLBOX_NAME = "pathforward-toolbox"
-_SKILL_NAMES = (
-    "pathforward",
-    "pathforward-curate",
-    "pathforward-assess",
-    "pathforward-plan",
-    "pathforward-insights",
-)
 
 
 @dataclass(frozen=True)
@@ -72,15 +65,6 @@ def _resolve_mode(settings: Settings, requested: str) -> str:
     return "live"
 
 
-def _load_live_skill_bodies(settings: Settings) -> tuple[dict[str, str], dict[str, Any]]:
-    from .toolbox_mcp import read_skills_from_toolbox
-
-    toolbox = os.getenv("PATHFORWARD_TOOLBOX_NAME", _TOOLBOX_NAME)
-    bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
-                                                toolbox, _SKILL_NAMES)
-    return bodies, {"source": "foundry-toolbox-mcp", "toolbox": toolbox, **evidence}
-
-
 def diagnose_live_toolbox(settings: Settings) -> dict[str, Any]:
     """Inspect the hosted runtime's Foundry Toolbox MCP access path."""
     from .toolbox_mcp import diagnose_toolbox_resources
@@ -97,31 +81,53 @@ def diagnose_live_toolbox(settings: Settings) -> dict[str, Any]:
     }
 
 
-def _build_clients(settings: Settings, skill_bodies: dict[str, str]):
+def _versioned_agent_evidence() -> dict[str, Any]:
+    from .agents.versioned import VERSIONED_AGENT_SPECS
+
+    return {
+        "source": "foundry-versioned-agents",
+        "toolbox": os.getenv("PATHFORWARD_TOOLBOX_NAME", _TOOLBOX_NAME),
+        "agents": [
+            {
+                "role": spec.role,
+                "agent_name": spec.agent_name,
+                "skill": f"/{spec.skill_name}",
+                "tool_surface": spec.tool_surface,
+            }
+            for spec in VERSIONED_AGENT_SPECS
+        ],
+    }
+
+
+def _build_clients(settings: Settings):
     from .agents.foundry import (
         FabricDataAgentClient,
-        FabricInsightsClient,
-        FoundryLLMClient,
-        ReasoningFoundryClient,
+        PersistentFoundryLLMClient,
+        PersistentReasoningFoundryClient,
     )
+    from .agents.versioned import VERSIONED_AGENT_BY_ROLE
 
     clients: dict[str, Any] = {
-        "orchestrator": ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                               "pathforward-hosted-orchestrator",
-                                               settings.model_deployment),
-        "curator": ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                          "pathforward-hosted-curator",
-                                          settings.model_deployment),
-        "generator": FoundryLLMClient(settings.foundry_project_endpoint,
-                                      settings.model_deployment,
-                                      index_name=settings.search_index,
-                                      agent_name="pathforward-hosted-generator"),
-        "critic": ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                         "pathforward-hosted-critic",
-                                         settings.model_deployment),
-        "planner": ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                          "pathforward-hosted-planner",
-                                          settings.model_deployment),
+        "orchestrator": PersistentReasoningFoundryClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["orchestrator"].agent_name,
+        ),
+        "curator": PersistentReasoningFoundryClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["curator"].agent_name,
+        ),
+        "generator": PersistentFoundryLLMClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["generator"].agent_name,
+        ),
+        "critic": PersistentReasoningFoundryClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["critic"].agent_name,
+        ),
+        "planner": PersistentReasoningFoundryClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["planner"].agent_name,
+        ),
     }
     tier = os.getenv("PATHFORWARD_INSIGHTS_TIER", "fabric-live").strip().lower() or "fabric-live"
     if tier != "fabric-live":
@@ -134,16 +140,11 @@ def _build_clients(settings: Settings, skill_bodies: dict[str, str]):
             os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
         )
     else:
-        if not settings.fabric_connection_name:
-            raise RuntimeError(
-                "Fabric-live Program Insights requires either "
-                "FABRIC_DATA_AGENT_OPENAI_BASE or FABRIC_CONNECTION_NAME"
-            )
-        clients["insights"] = FabricInsightsClient(settings.foundry_project_endpoint,
-                                                   settings.fabric_connection_name,
-                                                   agent_name="pathforward-hosted-insights-fabric",
-                                                   model=settings.model_deployment,
-                                                   use_cli_credential=False)
+        from .agents.foundry import PersistentFabricInsightsClient
+        clients["insights"] = PersistentFabricInsightsClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["insights"].agent_name,
+        )
     return clients, tuple(c for c in clients.values() if hasattr(c, "close"))
 
 
@@ -167,13 +168,12 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
                          "pf.mode": mode,
                          "pf.worker": request.worker_id,
                          "pf.mcp_mint": True}) as hosted_span:
-        skill_bodies, skill_evidence = _load_live_skill_bodies(settings)
+        skill_evidence = _versioned_agent_evidence()
         hosted_span.set(**{"pf.skill_source": skill_evidence.get("source")})
 
-        clients, closeables = _build_clients(settings, skill_bodies)
+        clients, closeables = _build_clients(settings)
         try:
-            doc = _run_hosted_orchestrator_inner(request, mode, skill_bodies,
-                                                skill_evidence, clients)
+            doc = _run_hosted_orchestrator_inner(request, mode, skill_evidence, clients)
             loop = (doc.get("result") or {}).get("loop") or {}
             insights = (doc.get("result") or {}).get("insights") or {}
             hosted_span.set(**{"pf.status": loop.get("status"),
@@ -221,7 +221,6 @@ def run_hosted_orchestrator(request: HostedRequest) -> dict[str, Any]:
 
 
 def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
-                                   skill_bodies: dict[str, str],
                                    skill_evidence: dict[str, Any],
                                    clients: dict[str, Any]) -> dict[str, Any]:
     """Implementation body split out so the public entrypoint can own tracing/cleanup."""
@@ -248,18 +247,14 @@ def _run_hosted_orchestrator_inner(request: HostedRequest, mode: str,
     adaptive = AdaptiveController(calibration=cold_start_calibrate(_learner_responses(onto)))
     result = run_orchestrated_multiagent(
         worker, onto, edges,
-        Orchestrator(clients["orchestrator"], skill_instructions=skill_bodies["pathforward"]),
-        Curator(clients["curator"], skill_instructions=skill_bodies["pathforward-curate"]),
-        Generator(clients["generator"], skill_instructions=skill_bodies["pathforward-assess"]),
+        Orchestrator(clients["orchestrator"]),
+        Curator(clients["curator"]),
+        Generator(clients["generator"]),
         EvidenceGate(LocalNumericChecker()),
-        Planner(clients["planner"], LocalNumericChecker(),
-                skill_instructions=skill_bodies["pathforward-plan"]),
-        critic=Critic(clients["critic"], skill_instructions=skill_bodies["pathforward-assess"]),
+        Planner(clients["planner"], LocalNumericChecker()),
+        critic=Critic(clients["critic"]),
         adaptive=adaptive,
-        insights=_build_insights_agent(
-            clients["insights"],
-            skill_instructions=skill_bodies["pathforward-insights"],
-        ),
+        insights=_build_insights_agent(clients["insights"], skill_instructions=""),
     )
 
     mcp_mint_request = None

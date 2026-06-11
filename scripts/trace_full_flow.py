@@ -2,11 +2,12 @@
 
 This is the demo/proof artifact for the "agents reason, code notarizes" architecture. It traces:
 
-  Foundry Skill load -> Orchestrator route -> Curator -> Generator/Critic/Evidence Gate with
+  Versioned Foundry agents -> Orchestrator route -> Curator -> Generator/Critic/Evidence Gate with
   adaptive + reflection -> Planner -> Program Insights/Fabric -> mint, plus an explicit ABSTAIN.
 
-This script loads `/pathforward` plus the specialist Skills through the Foundry Toolbox MCP endpoint
-and runs live Foundry prompt-agent clients.
+This script runs the durable Foundry specialist agents. Their Skills are baked into the Foundry agent
+versions by `scripts/provision_foundry_specialist_agents.py`; this script does not inject Skill text
+at inference time.
 
     python scripts/trace_full_flow.py
 """
@@ -37,17 +38,6 @@ from pathforward.iq import traversal  # noqa: E402
 from pathforward.iq.seed import HERO_WORKER_ID, build_seed  # noqa: E402
 from pathforward.obs import tracing  # noqa: E402
 
-TOOLBOX_NAME = "pathforward-toolbox"
-SKILL_NAME = "pathforward"
-SPECIALIST_SKILLS = (
-    "pathforward",
-    "pathforward-curate",
-    "pathforward-assess",
-    "pathforward-plan",
-    "pathforward-insights",
-)
-
-
 class FabricProgramInsightsAgent(ProgramInsightsAgent):
     """Script-only adapter: make the normal insights call use the Fabric-live tier."""
 
@@ -55,48 +45,44 @@ class FabricProgramInsightsAgent(ProgramInsightsAgent):
         return self.analyze_via_fabric(worker, role, onto)
 
 
-def _load_skills(settings) -> tuple[dict[str, str], str, dict]:
-    from pathforward.toolbox_mcp import read_skills_from_toolbox
-
-    if not settings.foundry_project_endpoint:
-        raise RuntimeError("live skill load requires AZURE_AI_PROJECT_ENDPOINT")
-    bodies, evidence = read_skills_from_toolbox(settings.foundry_project_endpoint,
-                                                TOOLBOX_NAME, SPECIALIST_SKILLS)
-    return bodies, "foundry-toolbox-mcp", evidence
-
-
 def _clients(settings):
     from pathforward.agents.foundry import (
-        FabricInsightsClient,
-        FoundryLLMClient,
-        ReasoningFoundryClient,
+        FabricDataAgentClient,
+        PersistentFabricInsightsClient,
+        PersistentFoundryLLMClient,
+        PersistentReasoningFoundryClient,
     )
+    from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE
 
     if not settings.azure_ready:
         raise RuntimeError("live trace requires AZURE_AI_PROJECT_ENDPOINT and AZURE_SEARCH_ENDPOINT")
 
-    orch = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                  agent_name="pathforward-orchestrator-trace",
-                                  model=settings.model_deployment)
-    curator = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                     agent_name="pathforward-curator-trace",
-                                     model=settings.model_deployment)
-    generator = FoundryLLMClient(settings.foundry_project_endpoint,
-                                 model=settings.model_deployment,
-                                 index_name=settings.search_index,
-                                 agent_name="pathforward-generator-trace")
-    critic = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                    agent_name="pathforward-critic-trace",
-                                    model=settings.model_deployment)
-    planner = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                     agent_name="pathforward-planner-trace",
-                                     model=settings.model_deployment)
-    if not settings.fabric_connection_name:
-        raise RuntimeError("live trace requires FABRIC_CONNECTION_NAME for Fabric-live Program Insights")
-    insights_client = FabricInsightsClient(settings.foundry_project_endpoint,
-                                           connection_name=settings.fabric_connection_name,
-                                           agent_name="pathforward-insights-fabric-trace",
-                                           model=settings.model_deployment)
+    orch = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["orchestrator"].agent_name)
+    curator = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["curator"].agent_name)
+    generator = PersistentFoundryLLMClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["generator"].agent_name)
+    critic = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["critic"].agent_name)
+    planner = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["planner"].agent_name)
+    if settings.fabric_data_agent_openai_base:
+        insights_client = FabricDataAgentClient(
+            settings.fabric_data_agent_openai_base,
+            os.getenv("PATHFORWARD_FABRIC_SP_TENANT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_ID", ""),
+            os.getenv("PATHFORWARD_FABRIC_SP_CLIENT_SECRET", ""),
+        )
+    else:
+        insights_client = PersistentFabricInsightsClient(
+            settings.foundry_project_endpoint,
+            VERSIONED_AGENT_BY_ROLE["insights"].agent_name)
     insights_agent = FabricProgramInsightsAgent(insights_client)
 
     live_clients = [orch, curator, generator, critic, planner, insights_client]
@@ -133,8 +119,9 @@ def main() -> int:
     edges = dv.build_all_edges(onto)
     worker = onto.workers[HERO_WORKER_ID]
     role = onto.roles[worker.target_role_id]
-    skill_bodies, skill_source, skill_evidence = _load_skills(settings)
     clients = _clients(settings)
+    from pathforward.hosted_orchestrator import _versioned_agent_evidence  # noqa: PLC0415
+    agent_evidence = _versioned_agent_evidence()
 
     # Deterministic cold-start signal for the hero path: S01 selects stretch, so adaptive is visible.
     adaptive = AdaptiveController(calibration={"item-S01": {"difficulty": 0.9}})
@@ -143,30 +130,22 @@ def main() -> int:
     rc = 0
     try:
         with tracing.span("pathforward.full_flow",
-                          **{"pf.worker": worker.id, "pf.skill_source": skill_source,
+                          **{"pf.worker": worker.id, "pf.skill_source": agent_evidence["source"],
                              "pf.fabric": True}) as root:
-            root.event("skill.loaded", **{
-                "pf.source": skill_source,
-                "pf.uri": str(skill_evidence.get("skill_uri", "")),
-                "pf.count": len(skill_bodies),
+            root.event("foundry_agents.versioned", **{
+                "pf.source": agent_evidence["source"],
+                "pf.count": len(agent_evidence["agents"]),
             })
             result = run_orchestrated_multiagent(
                 worker, onto, edges,
-                Orchestrator(clients["orchestrator"],
-                             skill_instructions=skill_bodies["pathforward"]),
-                Curator(clients["curator"],
-                        skill_instructions=skill_bodies["pathforward-curate"]),
-                Generator(clients["generator"],
-                          skill_instructions=skill_bodies["pathforward-assess"]),
+                Orchestrator(clients["orchestrator"]),
+                Curator(clients["curator"]),
+                Generator(clients["generator"]),
                 gate,
-                Planner(clients["planner"], LocalNumericChecker(),
-                        skill_instructions=skill_bodies["pathforward-plan"]),
-                critic=Critic(clients["critic"],
-                              skill_instructions=skill_bodies["pathforward-assess"]),
+                Planner(clients["planner"], LocalNumericChecker()),
+                critic=Critic(clients["critic"]),
                 adaptive=adaptive,
-                insights=clients["insights_cls"](
-                    clients["insights_client"],
-                    skill_instructions=skill_bodies["pathforward-insights"]),
+                insights=clients["insights_cls"](clients["insights_client"]),
             )
             root.set(**{"pf.status": result.loop.status,
                         "pf.attempts": result.loop.attempts,
@@ -187,18 +166,16 @@ def main() -> int:
                               **{"pf.worker": worker.id, "pf.skill": skill.id}) as abstain_root:
                 abstain = run_assessment_loop(
                     driving, skill, (),
-                    Generator(clients["generator"],
-                              skill_instructions=skill_bodies["pathforward-assess"]),
+                    Generator(clients["generator"]),
                     gate,
-                    critic=Critic(clients["critic"],
-                                  skill_instructions=skill_bodies["pathforward-assess"]),
+                    critic=Critic(clients["critic"]),
                     adaptive=adaptive)
                 abstain_root.set(**{"pf.status": abstain.status, "pf.attempts": abstain.attempts})
                 print(f"abstain proof status={abstain.status} attempts={abstain.attempts}")
 
         insights_source = result.insights.source if result.insights else "(none)"
         print("\ntrace storyboard")
-        print(f"- skill source: {skill_source}")
+        print(f"- agent source: {agent_evidence['source']}")
         print(f"- orchestrator target: {result.orchestrator.get('selected_target_skill_id') if result.orchestrator else '(none)'}")
         print("- adaptive band: stretch (cold-start estimated, selection-only)")
         print(f"- assessment: {result.loop.status} in {result.loop.attempts} attempt(s)")

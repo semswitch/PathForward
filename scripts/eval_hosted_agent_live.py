@@ -1,12 +1,12 @@
 """Hosted-Agent-targeted eval/red-team scorecards.
 
-This complements `scripts/eval_orchestrator_live.py`. That older scorecard targets the live
-prompt-agent Orchestrator plus MCP-loaded Skills. This script targets the product surface:
-the containerized Foundry Hosted Agent `pathforward-orchestrator`.
+This complements `scripts/eval_orchestrator_live.py`. Both scorecards target versioned Foundry
+specialist agents; this script targets the product surface: the containerized Foundry Hosted Agent
+`pathforward-orchestrator`.
 
 The hosted route is intentionally coarser than the inner loop eval harness: it accepts a user request,
-loads Skills from Foundry Toolbox MCP, runs the multi-agent route, and returns a serializable proof
-document. Pass/fail here is deterministic and based on the returned proof document, not an LLM judge.
+calls versioned Foundry specialist agents, runs the multi-agent route, and returns a serializable
+proof document. Pass/fail here is deterministic and based on the returned proof document, not an LLM judge.
 """
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def _grounded_case(worker_id: str, result: dict[str, Any]) -> dict[str, Any]:
         "hosted_agent_expected": _is_expected_hosted_agent(result.get("agent_reference") or {}),
         "surface_live": doc.get("surface") == "foundry-hosted-agent" and doc.get("mode") == "live",
         "worker_matched": doc.get("worker_id") == worker_id,
-        "toolbox_skill_loaded": (doc.get("skill_evidence") or {}).get("source") == "foundry-toolbox-mcp",
+        "versioned_agents": (doc.get("skill_evidence") or {}).get("source") == "foundry-versioned-agents",
         "verified": loop.get("status") == "verified",
         "retrieved_nonempty": bool(retrieved),
         "citations_subset_retrieved": bool(cited) and cited <= retrieved,
@@ -250,7 +250,7 @@ def main() -> int:
 
     grounded = _scorecard(
         "PathForward - Hosted Agent Groundedness & MCP Mint Hold (live)",
-        "hosted response verified, grounded, skill-loaded, fabric-live, MCP mint request present, no credential issued in-process",
+        "hosted response verified, grounded, versioned-agents, fabric-live, MCP mint request present, no credential issued in-process",
         grounded_results,
     )
     redteam = _scorecard(

@@ -162,6 +162,55 @@ class FoundryLLMClient:
 
 
 @dataclass
+class PersistentFoundryLLMClient:
+    """LLMClient for a pre-provisioned Foundry prompt agent with Azure AI Search attached.
+
+    The hosted product route uses this client for the Generator so the agent remains visible and
+    versioned in Foundry. It never creates or deletes agent versions at request time.
+    """
+    endpoint: str
+    agent_name: str
+    _project: object = field(default=None, repr=False)
+    _openai: object = field(default=None, repr=False)
+
+    def _ensure(self) -> None:
+        if self._openai is not None:
+            return
+        from azure.ai.projects import AIProjectClient
+        from azure.identity import DefaultAzureCredential
+
+        self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
+        self._openai = self._project.get_openai_client()
+
+    def respond(self, instructions: str, input: str, *,
+                previous_response_id: Optional[str] = None,
+                schema: Optional[dict] = None) -> LLMResponse:
+        self._ensure()
+        try:
+            resp = self._openai.responses.create(
+                input=input,
+                tool_choice="auto",
+                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+            )
+        except Exception as exc:  # noqa: BLE001
+            if _is_content_filter(exc):
+                return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
+                                   retrieved_ref_ids=())
+            raise
+        try:
+            parsed = json.loads(resp.output_text or "{}")
+        except Exception:  # noqa: BLE001
+            parsed = {}
+        if "cited_ref_ids" in parsed:
+            parsed["cited_ref_ids"] = [_key_to_ref(k) for k in (parsed.get("cited_ref_ids") or [])]
+        return LLMResponse(getattr(resp, "id", ""), resp.output_text or "", parsed,
+                           previous_response_id, retrieved_ref_ids=retrieved_ref_ids(resp))
+
+    def close(self) -> None:
+        return None
+
+
+@dataclass
 class ReasoningFoundryClient:
     """Drop-in LLMClient for a TOOL-LESS Foundry reasoning agent (the Curator / Planner).
 
@@ -262,6 +311,48 @@ class ReasoningFoundryClient:
             except Exception:  # noqa: BLE001
                 pass
             self._agent = None
+
+
+@dataclass
+class PersistentReasoningFoundryClient:
+    """LLMClient for a pre-provisioned tool-less Foundry prompt agent."""
+    endpoint: str
+    agent_name: str
+    _project: object = field(default=None, repr=False)
+    _openai: object = field(default=None, repr=False)
+
+    def _ensure(self) -> None:
+        if self._openai is not None:
+            return
+        from azure.ai.projects import AIProjectClient
+        from azure.identity import DefaultAzureCredential
+
+        self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
+        self._openai = self._project.get_openai_client()
+
+    def respond(self, instructions: str, input: str, *,
+                previous_response_id: Optional[str] = None,
+                schema: Optional[dict] = None) -> LLMResponse:
+        self._ensure()
+        try:
+            resp = self._openai.responses.create(
+                input=input,
+                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+            )
+        except Exception as exc:  # noqa: BLE001
+            if _is_content_filter(exc):
+                return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
+                                   retrieved_ref_ids=())
+            raise
+        try:
+            parsed = json.loads(resp.output_text or "{}")
+        except Exception:  # noqa: BLE001
+            parsed = {}
+        return LLMResponse(getattr(resp, "id", ""), resp.output_text or "", parsed,
+                           previous_response_id, retrieved_ref_ids=())
+
+    def close(self) -> None:
+        return None
 
 
 @dataclass
@@ -378,6 +469,50 @@ class FabricInsightsClient:
             except Exception:  # noqa: BLE001
                 pass
             self._agent = None
+
+
+@dataclass
+class PersistentFabricInsightsClient:
+    """LLMClient for a pre-provisioned Foundry prompt agent with the Fabric data-agent tool."""
+    endpoint: str
+    agent_name: str
+    force_tool: bool = True
+    _project: object = field(default=None, repr=False)
+    _openai: object = field(default=None, repr=False)
+
+    def _ensure(self) -> None:
+        if self._openai is not None:
+            return
+        from azure.ai.projects import AIProjectClient
+        from azure.identity import DefaultAzureCredential
+
+        self._project = AIProjectClient(endpoint=self.endpoint, credential=DefaultAzureCredential())
+        self._openai = self._project.get_openai_client()
+
+    def respond(self, instructions: str, input: str, *,
+                previous_response_id: Optional[str] = None,
+                schema: Optional[dict] = None) -> LLMResponse:
+        self._ensure()
+        try:
+            resp = self._openai.responses.create(
+                input=input,
+                tool_choice="required" if self.force_tool else "auto",
+                extra_body={"agent_reference": {"name": self.agent_name, "type": "agent_reference"}},
+            )
+        except Exception as exc:  # noqa: BLE001
+            if _is_content_filter(exc):
+                return LLMResponse("", "", {"_content_filtered": True}, previous_response_id,
+                                   retrieved_ref_ids=())
+            raise
+        try:
+            parsed = json.loads(resp.output_text or "{}")
+        except Exception:  # noqa: BLE001
+            parsed = {}
+        return LLMResponse(getattr(resp, "id", ""), resp.output_text or "", parsed,
+                           previous_response_id, retrieved_ref_ids=())
+
+    def close(self) -> None:
+        return None
 
 
 @dataclass

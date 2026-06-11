@@ -21,7 +21,8 @@ PathForward is built around a real agentic workflow:
 - A Foundry Hosted Agent acts as the top-level Orchestrator.
 - Specialist reasoning agents handle skill-gap selection, assessment generation, critique, planning,
   and program insights.
-- Foundry Skills define the agent behavior and are loaded through the Foundry Toolbox surface.
+- Foundry Skills define the agent behavior and are baked into versioned specialist agents through
+  the Foundry Toolbox/provisioning surface.
 - Azure AI Search grounds assessment generation in cited evidence.
 - Microsoft Fabric provides live cohort/program insights over the reskilling ontology.
 - A deterministic Evidence Gate and governed mint boundary prevent unsafe credential issuance.
@@ -44,7 +45,7 @@ PathForward is built around a real agentic workflow:
 
 ## Current Proof Status
 
-The project has live proof for the main Foundry multi-agent path, the skill-loaded Orchestrator path,
+The project has live proof for the main Foundry multi-agent path, versioned specialist agents,
 Fabric-backed Program Insights, and Hosted Agent invocation. Hosted Agent version 18 proves the latest
 hardening before the Function-backed MCP mint tool: semantic ABSTAIN, denied mint refusal, governed mint behavior, and a hosted scorecard with
 4/4 groundedness cases, 4/4 prompt-surface attacks held, and 1/1 ABSTAIN case passed.

@@ -43,16 +43,19 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="orchestrator-and-specialist-skills",
-        surface="Foundry Toolbox MCP resources (`resources/list` + `resources/read`)",
+        surface="Versioned Foundry specialist prompt agents with Toolbox Skill content baked in",
         status="mainline-supporting-surface",
         rationale=(
             "The `/pathforward` Orchestrator Skill and specialist Skill files are registered in "
             "Foundry, attached to `pathforward-toolbox`, read through the toolbox MCP endpoint, and "
-            "loaded by the Hosted Orchestrator path before it runs the specialist agents."
+            "baked into durable Foundry specialist-agent versions. Product runtime calls named "
+            "agent references; it does not inject Skill text at inference time."
         ),
         proof=(
             "scripts/build_toolbox.py --recreate",
+            "scripts/provision_foundry_specialist_agents.py",
             "scripts/smoke_toolbox_skill_live.py",
+            "pathforward/agents/versioned.py",
             "tests/test_skills.py",
         ),
     ),

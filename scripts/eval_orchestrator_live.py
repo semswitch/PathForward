@@ -1,9 +1,8 @@
-"""Live safety re-measure for the skill-loaded Orchestrator control surface.
+"""Live safety re-measure for the versioned Foundry Orchestrator control surface.
 
-This is checklist #2 and #4. It does not reuse the older loop-only safety numbers. It loads the
-`/pathforward` runtime skill plus specialist Skills from Foundry Toolbox MCP resources, routes every
-legit eval case through a Foundry-backed Orchestrator plan, and runs route-level adversarial probes
-that target the Orchestrator/validator boundary.
+This does not reuse older loop-only safety numbers. It routes every legit eval case through
+pre-provisioned Foundry specialist agents whose Skills are baked into their versioned definitions,
+then runs route-level adversarial probes that target the Orchestrator/validator boundary.
 
 Outputs:
   eval/orchestrator-groundedness.{json,md}
@@ -25,12 +24,13 @@ sys.path.insert(0, _ROOT)
 from pathforward.agents.conductor import Orchestrator, OrchestratorPlanError  # noqa: E402
 from pathforward.agents.critic import Critic  # noqa: E402
 from pathforward.agents.evidence_gate import EvidenceGate  # noqa: E402
-from pathforward.agents.foundry import FoundryLLMClient, ReasoningFoundryClient  # noqa: E402
+from pathforward.agents.foundry import PersistentFoundryLLMClient, PersistentReasoningFoundryClient  # noqa: E402
 from pathforward.agents.generator import Generator  # noqa: E402
 from pathforward.agents.loop import run_assessment_loop  # noqa: E402
 from pathforward.agents.numeric import LocalNumericChecker  # noqa: E402
 from pathforward.config import load_settings  # noqa: E402
 from pathforward.credential.mint import mint  # noqa: E402
+from pathforward.agents.versioned import VERSIONED_AGENT_BY_ROLE  # noqa: E402
 from pathforward.eval.attacks import LIVE_ATTACKS, run_live_attack  # noqa: E402
 from pathforward.eval.cases import build_eval_cases  # noqa: E402
 from pathforward.eval.foundry_eval import FoundryGroundedness  # noqa: E402
@@ -115,7 +115,7 @@ def _grounded_result(case, orchestrator: Orchestrator, generator: Generator,
     return CaseResult(case.id, passed, headline, detail=detail)
 
 
-def _orchestrator_route_attacks(onto, skill_content: str) -> list[CaseResult]:
+def _orchestrator_route_attacks(onto, _legacy_skill_content: str = "") -> list[CaseResult]:
     """Route attacks are deterministic validator probes: they prove a malicious plan cannot execute."""
     from pathforward.agents.client import LLMResponse
 
@@ -154,7 +154,7 @@ def _orchestrator_route_attacks(onto, skill_content: str) -> list[CaseResult]:
     results: list[CaseResult] = []
     for attack_id, parsed in attacks:
         try:
-            Orchestrator(StaticClient(parsed), skill_instructions=skill_content).plan(worker, role, onto)
+            Orchestrator(StaticClient(parsed)).plan(worker, role, onto)
         except OrchestratorPlanError as exc:
             results.append(CaseResult(attack_id, True, f"HELD ({exc})",
                                       detail={"status": "rejected", "why": str(exc)}))
@@ -191,7 +191,6 @@ def main() -> int:
 
     skill_contents, mcp = read_skills_from_toolbox(settings.foundry_project_endpoint,
                                                    TOOLBOX_NAME, SPECIALIST_SKILLS)
-    skill_content = skill_contents[SKILL_NAME]
     print(f"skills: {mcp['skill_uris']} chars={mcp['skill_chars']} tools={mcp['tools']}")
 
     onto = build_seed()
@@ -206,20 +205,19 @@ def main() -> int:
     if judge and not judge.available:
         print(f"(Foundry groundedness judge unavailable: {judge.reason})")
 
-    orch_client = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                         agent_name="pathforward-orchestrator-eval",
-                                         model=settings.model_deployment)
-    gen_client = FoundryLLMClient(settings.foundry_project_endpoint,
-                                  model=settings.model_deployment,
-                                  index_name=settings.search_index,
-                                  agent_name="pathforward-generator-eval")
-    critic_client = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                           agent_name="pathforward-critic-eval",
-                                           model=settings.model_deployment)
+    orch_client = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["orchestrator"].agent_name)
+    gen_client = PersistentFoundryLLMClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["generator"].agent_name)
+    critic_client = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["critic"].agent_name)
     try:
-        orchestrator = Orchestrator(orch_client, skill_instructions=skill_content)
-        generator = Generator(gen_client, skill_instructions=skill_contents["pathforward-assess"])
-        critic = Critic(critic_client, skill_instructions=skill_contents["pathforward-assess"])
+        orchestrator = Orchestrator(orch_client)
+        generator = Generator(gen_client)
+        critic = Critic(critic_client)
         print(f"running {len(cases)} Orchestrator groundedness cases...")
         grounded_results = []
         for case in cases:
@@ -231,23 +229,21 @@ def main() -> int:
         gen_client.close()
         critic_client.close()
 
-    grounded = Scorecard("PathForward — Orchestrator Skill Groundedness & Spine Integrity (live)",
-                         "skill-loaded route + grounded + spine-intact", grounded_results)
+    grounded = Scorecard("PathForward — Versioned Orchestrator Groundedness & Spine Integrity (live)",
+                         "versioned Foundry route + grounded + spine-intact", grounded_results)
     _write_scorecard(grounded, "orchestrator-groundedness")
     print(f"\nOrchestrator groundedness: {grounded.n_passed}/{grounded.n} ({grounded.rate * 100:.1f}%)")
 
     attacks = LIVE_ATTACKS[:args.attack_limit] if args.attack_limit else LIVE_ATTACKS
-    attack_client = FoundryLLMClient(settings.foundry_project_endpoint,
-                                     model=settings.model_deployment,
-                                     index_name=settings.search_index,
-                                     agent_name="pathforward-generator-orch-redteam")
-    attack_critic_client = ReasoningFoundryClient(settings.foundry_project_endpoint,
-                                                  agent_name="pathforward-critic-orch-redteam",
-                                                  model=settings.model_deployment)
+    attack_client = PersistentFoundryLLMClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["generator"].agent_name)
+    attack_critic_client = PersistentReasoningFoundryClient(
+        settings.foundry_project_endpoint,
+        VERSIONED_AGENT_BY_ROLE["critic"].agent_name)
     model_attack_results = []
     try:
-        critic = Critic(attack_critic_client,
-                        skill_instructions=skill_contents["pathforward-assess"])
+        critic = Critic(attack_critic_client)
         print(f"\nrunning {len(attacks)} model-side attacks against live loop + Critic...")
         for atk in attacks:
             r = run_live_attack(atk, attack_client, onto, edges, critic=critic)
@@ -257,12 +253,12 @@ def main() -> int:
         attack_client.close()
         attack_critic_client.close()
 
-    route_attack_results = _orchestrator_route_attacks(onto, skill_content)
+    route_attack_results = _orchestrator_route_attacks(onto)
     print("\nrunning Orchestrator route attacks...")
     for r in route_attack_results:
         print(f"  {'HELD ' if r.passed else 'BREACH'} {r.case_id}: {r.detail.get('why')}")
 
-    redteam = Scorecard("PathForward — Orchestrator Skill Red-Team (live)",
+    redteam = Scorecard("PathForward — Versioned Orchestrator Red-Team (live)",
                         "defense held", model_attack_results + route_attack_results,
                         adversarial=True)
     _write_scorecard(redteam, "orchestrator-redteam-asr")

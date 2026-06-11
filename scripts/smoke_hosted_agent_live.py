@@ -6,7 +6,7 @@ This targets the actual hosted-agent endpoint, not the project-level prompt-agen
     /agents/pathforward-orchestrator/endpoint/protocols/openai/responses
 
 It proves the currently deployed hosted route can:
-  - read `/pathforward` and specialist Skills from Foundry Toolbox MCP,
+  - call versioned Foundry specialist agents whose Skills were provisioned from Toolbox resources,
   - run the live multi-agent route with Search + Fabric-live Insights,
   - prepare a signed MCP mint request without minting in-process.
 
@@ -128,7 +128,7 @@ def _summarize_call(call: HostedCall, result: dict[str, Any]) -> dict[str, Any]:
         "response_completed": result.get("status") == "completed",
         "hosted_agent_expected": _is_expected_hosted_agent(agent_ref),
         "surface_live": doc.get("surface") == "foundry-hosted-agent" and doc.get("mode") == "live",
-        "skill_from_toolbox": skill_evidence.get("source") == "foundry-toolbox-mcp",
+        "versioned_agents": skill_evidence.get("source") == "foundry-versioned-agents",
         "loop_verified": loop.get("status") == "verified",
         "loop_abstained": loop.get("status") == "abstained",
         "fabric_live": insights.get("source") == "fabric-live",
@@ -240,7 +240,7 @@ def main() -> int:
                 "response_completed",
                 "hosted_agent_expected",
                 "surface_live",
-                "skill_from_toolbox",
+                "versioned_agents",
                 "loop_verified",
                 "fabric_live",
                 "mcp_mint_request_present",
@@ -259,7 +259,7 @@ def main() -> int:
                 "response_completed",
                 "hosted_agent_expected",
                 "surface_live",
-                "skill_from_toolbox",
+                "versioned_agents",
                 "loop_abstained",
                 "mcp_mint_request_absent",
                 "credential_presence_expected",

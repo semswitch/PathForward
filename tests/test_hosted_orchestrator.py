@@ -2,19 +2,15 @@ import os
 import unittest
 from pathlib import Path
 
-from pathforward.hosted_orchestrator import HostedRequest, _SKILL_NAMES, _run_hosted_orchestrator_inner
-from pathforward.skills import read_skill_file
+from pathforward.hosted_orchestrator import (
+    HostedRequest,
+    _run_hosted_orchestrator_inner,
+    _versioned_agent_evidence,
+)
 from tests.fakes import FakeLLMClient
 
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _skill_bodies() -> dict[str, str]:
-    return {
-        name: read_skill_file(ROOT / "skills" / name / "SKILL.md").instructions
-        for name in _SKILL_NAMES
-    }
 
 
 def _code_test_clients(insights=None) -> dict:
@@ -36,8 +32,7 @@ def _run_code_contract(request: HostedRequest, clients: dict | None = None) -> d
         return _run_hosted_orchestrator_inner(
             request,
             "code-test",
-            _skill_bodies(),
-            {"source": "unit-test"},
+            _versioned_agent_evidence(),
             clients or _code_test_clients(),
         )
     finally:
@@ -54,7 +49,8 @@ class HostedOrchestratorTests(unittest.TestCase):
         ))
         self.assertEqual(doc["surface"], "foundry-hosted-agent")
         self.assertEqual(doc["mode"], "code-test")
-        self.assertEqual(doc["skill_evidence"]["source"], "unit-test")
+        self.assertEqual(doc["skill_evidence"]["source"], "foundry-versioned-agents")
+        self.assertGreaterEqual(len(doc["skill_evidence"]["agents"]), 5)
         self.assertEqual(doc["result"]["loop"]["status"], "verified")
         self.assertIsNotNone(doc["mcp_mint_request"])
         self.assertIsNone(doc["approval_request"])
@@ -176,11 +172,13 @@ class HostedOrchestratorTests(unittest.TestCase):
                     "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/"
                 ),
             )
-            clients, closeables = _build_clients(settings, {})
+            clients, closeables = _build_clients(settings)
 
             self.assertEqual(clients["insights"].__class__.__name__, "FabricDataAgentClient")
             self.assertEqual(clients["insights"].base_url,
                              "https://api.fabric.microsoft.com/v1/workspaces/w/aiskills/a/aiassistant/openai/")
+            self.assertEqual(clients["curator"].agent_name, "pathforward-specialist-curator")
+            self.assertEqual(clients["generator"].agent_name, "pathforward-specialist-generator")
             for client in closeables:
                 client.close()
         finally:
@@ -203,7 +201,7 @@ class HostedOrchestratorTests(unittest.TestCase):
                 fabric_connection_name="pathforward-fabric-user",
             )
             with self.assertRaisesRegex(RuntimeError, "requires PATHFORWARD_INSIGHTS_TIER=fabric-live"):
-                _build_clients(settings, {})
+                _build_clients(settings)
         finally:
             if old is None:
                 os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)
@@ -221,8 +219,11 @@ class HostedOrchestratorTests(unittest.TestCase):
                 foundry_project_endpoint="https://example.services.ai.azure.com/api/projects/p",
                 search_endpoint="https://search.example",
             )
-            with self.assertRaisesRegex(RuntimeError, "Fabric-live Program Insights requires"):
-                _build_clients(settings, {})
+            clients, closeables = _build_clients(settings)
+            self.assertEqual(clients["insights"].agent_name,
+                             "pathforward-specialist-insights-fabric")
+            for client in closeables:
+                client.close()
         finally:
             if old is None:
                 os.environ.pop("PATHFORWARD_INSIGHTS_TIER", None)

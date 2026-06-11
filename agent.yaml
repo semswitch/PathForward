@@ -3,9 +3,9 @@
 kind: hosted
 name: pathforward-orchestrator
 description: |
-  PathForward Reasoning Agents submission: a Foundry Hosted Agent that loads the /pathforward
-  Skill, runs the multi-agent competency-verification route, requests governed mint approval, and
-  abstains fail-closed when evidence is insufficient.
+  PathForward Reasoning Agents submission: a Foundry Hosted Agent that calls versioned specialist
+  agents provisioned from the /pathforward Skills, runs the multi-agent competency-verification
+  route, requests governed mint approval, and abstains fail-closed when evidence is insufficient.
 metadata:
   tags:
     - Microsoft Agents League
