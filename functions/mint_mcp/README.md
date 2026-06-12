@@ -18,6 +18,8 @@ PATHFORWARD_MINT_REPLAY_TABLE_CONNECTION=<storage connection string>
 PATHFORWARD_MINT_REPLAY_TABLE=PathForwardMintReplay
 AZURE_SEARCH_ENDPOINT=<search endpoint>
 AZURE_SEARCH_INDEX=pathforward-iq
+APPLICATIONINSIGHTS_CONNECTION_STRING=<pathforward-telemetry connection string>
+PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY=true
 ```
 
 Foundry Toolbox configuration must use:
@@ -45,6 +47,17 @@ allowed_tools: verify_assessment_and_issue_mint_request
 
 The gate issuer verifies the assessment item in code and returns a signed mint request token only
 when the Evidence Gate passes.
+
+The Function emits non-secret custom events:
+
+```text
+pathforward.mcp.gate
+pathforward.mcp.mint
+pathforward.mcp.fabric
+```
+
+These events exclude request bodies, prompts, citations, credential evidence, and
+`mint_request_token` values.
 
 Approval execution uses the Responses API MCP approval flow:
 

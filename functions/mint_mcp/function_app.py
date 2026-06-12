@@ -16,6 +16,7 @@ for _candidate in (_HERE.parent, _HERE.parents[2] if len(_HERE.parents) > 2 else
 from pathforward.mcp.fabric_server import handle_http_body as handle_fabric_http_body  # noqa: E402
 from pathforward.mcp.gate_server import handle_http_body as handle_gate_http_body  # noqa: E402
 from pathforward.mcp.mint_server import handle_http_body as handle_mint_http_body  # noqa: E402
+from pathforward.mcp.telemetry import emit_mcp_result_event  # noqa: E402
 
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
@@ -25,6 +26,7 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 @app.route(route="mcp", methods=["POST"])
 def pathforward_mint_mcp(req: func.HttpRequest) -> func.HttpResponse:
     result = handle_mint_http_body(req.get_body())
+    emit_mcp_result_event("mcp", result.body, result.status_code)
     return func.HttpResponse(
         body=result.body,
         status_code=result.status_code,
@@ -36,6 +38,7 @@ def pathforward_mint_mcp(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="fabric-mcp", methods=["POST"])
 def pathforward_fabric_mcp(req: func.HttpRequest) -> func.HttpResponse:
     result = handle_fabric_http_body(req.get_body())
+    emit_mcp_result_event("fabric-mcp", result.body, result.status_code)
     return func.HttpResponse(
         body=result.body,
         status_code=result.status_code,
@@ -47,6 +50,7 @@ def pathforward_fabric_mcp(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="gate-mcp", methods=["POST"])
 def pathforward_gate_mcp(req: func.HttpRequest) -> func.HttpResponse:
     result = handle_gate_http_body(req.get_body())
+    emit_mcp_result_event("gate-mcp", result.body, result.status_code)
     return func.HttpResponse(
         body=result.body,
         status_code=result.status_code,
