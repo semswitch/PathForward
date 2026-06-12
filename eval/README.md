@@ -12,6 +12,12 @@ dataset: eval/foundry-prompt-dashboard.jsonl
 Historical hosted/v21 dashboard runs are not current product proof. Current product evals must target
 the live Prompt Orchestrator route.
 
+The dashboard JSONL rows are contract-shaped for PathForward-specific evaluators:
+
+```text
+query, expected_behavior, expected_outcome, risk_category, feature_area, must_not_expose, must_emit
+```
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the
