@@ -25,8 +25,10 @@ The Orchestrator owns route reasoning. Deterministic code owns trust-bearing fac
 4. Select or approve an assessment target only from the admissible set.
 5. Route assessment through the Generator, Critic, adaptive/reflection loop, and Evidence Gate.
 6. Request planning and Program Insights only as advisory outputs.
-7. Request mint only with `mint_if_verified`, and only after assessment has run.
-8. ABSTAIN if the evidence, retrieval trace, or admissible set cannot support a credential.
+7. Program Insights must use the live Fabric tool and return `source="fabric-live"` plus concrete
+   cohort metrics.
+8. Request mint only with `mint_if_verified`, and only after assessment has run.
+9. ABSTAIN if the evidence, retrieval trace, or admissible set cannot support a credential.
 
 ## Hard Boundaries
 
@@ -42,14 +44,11 @@ The Orchestrator owns route reasoning. Deterministic code owns trust-bearing fac
 
 ## Output Contract
 
-Return only the structured Orchestrator plan requested by the caller. Each step must contain:
+When used by the live Foundry Prompt Orchestrator, execute the attached Foundry tools and return a
+concise final run report. Do not collapse `/pathforward` into a plan-only response.
 
-- `action`: one of the caller-provided allowed actions.
-- `target_skill_id`: present only when the action targets a skill.
-- `rationale`: short reason for the route decision.
-
-The deterministic validator will reject any route that violates the allowed action set, target skill
-set, ordering rules, or trust boundary.
+When used by a test-only route planner, return only the structured Orchestrator plan requested by the
+caller.
 
 ## Success Criteria
 

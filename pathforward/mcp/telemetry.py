@@ -45,13 +45,18 @@ def _mcp_doc(raw_body: str) -> tuple[dict[str, Any], dict[str, Any]]:
 
 def _safe_props(route: str, status_code: int, result: dict[str, Any],
                 doc: dict[str, Any]) -> dict[str, Any]:
+    status = str(doc.get("status", "unknown"))
+    if status == "unknown" and doc.get("source") == "fabric-live" and not result.get("isError"):
+        status = "ok"
     props = {
         "service.name": "pathforward-mcp-function",
         "pf.route": route,
         "pf.status_code": str(status_code),
-        "pf.status": str(doc.get("status", "unknown")),
+        "pf.status": status,
         "pf.is_error": str(bool(result.get("isError"))),
     }
+    if doc.get("source") is not None:
+        props["pf.source"] = str(doc["source"])
     for source, target in (
         ("worker_id", "pf.worker"),
         ("target_role_id", "pf.target_role"),
@@ -111,7 +116,9 @@ def emit_mcp_result_event(route: str, raw_body: str, status_code: int, *,
     result, doc = _mcp_doc(raw_body)
     if not doc and not result:
         return False
-    if not any(key in doc for key in ("status", "credential", "mint_request")):
+    if route == "fabric-mcp" and doc.get("source") == "fabric-live":
+        pass
+    elif not any(key in doc for key in ("status", "credential", "mint_request")):
         return False
     if route == "gate-mcp":
         event_name = "pathforward.mcp.gate"
