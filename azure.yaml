@@ -1,0 +1,5 @@
+name: pathforward
+services:
+  pathforward-orchestrator:
+    project: .
+    host: azure.ai.agent

@@ -1,4 +1,6 @@
-name: pathforward-prompt-dashboard
+# Active dashboard target: current live Foundry Prompt Agent.
+# Historical hosted/v21 dashboard runs are not current product proof.
+name: pathforward-prompt-orchestrator-dashboard
 agent:
     name: pathforward-orchestrator
     kind: prompt

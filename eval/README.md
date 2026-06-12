@@ -1,9 +1,21 @@
 # PathForward — Eval & Red-Team Pack
 
-Two **deterministic** scorecards over the *same* Generator→Critic→Evidence Gate loop the product runs. Every
-pass/fail is decided in **code** (the `corpus ∩ retrieved` gate, the credential spine, an injected
-marker surviving into output) — **never an LLM judge** — which is what makes a safety claim
-falsifiable. Cases are derived from the synthetic ontology, so the benchmark is reproducible.
+Current dashboard eval target:
+
+```text
+Foundry Prompt Agent: pathforward-orchestrator
+kind: prompt
+azd service: pathforward-orchestrator
+dataset: eval/foundry-prompt-dashboard.jsonl
+```
+
+Historical hosted/v21 dashboard runs are not current product proof. Current product evals must target
+the live Prompt Orchestrator route.
+
+The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
+pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
+surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the
+benchmark is reproducible.
 
 ## Scorecards
 
@@ -31,6 +43,7 @@ by the hardened defense (run with `python -m unittest discover -s tests -t .`).
 ## Run it
 
 ```bash
+azd ai agent eval run --environment pathforward-dev --config eval.yaml
 python -m unittest tests.test_redteam_gate        # 12 offline defense-logic proofs (no Azure)
 python scripts/eval_groundedness.py               # live groundedness + spine eval  -> eval-groundedness.*
 python scripts/redteam_live.py                    # live adversarial ASR scorecard  -> redteam-asr.*
