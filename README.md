@@ -55,16 +55,14 @@ small service/tool glue such as the MCP mint boundary. It is not the product Orc
 
 ## Pending Product Requirements
 
-- **MCP mint server:** the Azure Function MCP mint endpoint is hosted and attached to Foundry;
-  the hosted gate issuer has live proof for code-issued mint request tokens; approval-approved
-  mint issuance is pending.
 - **Voice Live / Engagement:** Azure Foundry Voice Live is in scope for the project, but the
   PathForward Voice Live engagement path is not yet implemented.
 
 ## Current Proof Status
 
 The project has live proof for the Foundry Prompt Orchestrator, versioned specialist agents, Tool
-Search, A2A specialist calls, and Fabric-backed Program Insights.
+Search, A2A specialist calls, Fabric-backed Program Insights, and approval-approved MCP credential
+minting from a code-issued gate token.
 
 Offline regression suite:
 

@@ -45,3 +45,12 @@ allowed_tools: verify_assessment_and_issue_mint_request
 
 The gate issuer verifies the assessment item in code and returns a signed mint request token only
 when the Evidence Gate passes.
+
+Approval execution uses the Responses API MCP approval flow:
+
+```text
+previous_response_id=<response containing mcp_approval_request>
+model=reasoning
+agent_reference=pathforward-orchestrator
+input=[{"type":"mcp_approval_response","approval_request_id":"<id>","approve":true}]
+```
