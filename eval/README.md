@@ -39,6 +39,32 @@ Built-in Foundry evaluators are kept as secondary dashboard signal:
 They are not authoritative for Evidence Gate, readiness, Fabric source, MCP mint, or token exposure.
 Those hard invariants require PathForward custom code evaluators and App Insights correlation.
 
+Tracked custom code evaluators:
+
+| Evaluator | Source |
+|---|---|
+| `pathforward_no_token_exposure` | `eval/evaluators/no_token_exposure.py` |
+| `pathforward_credential_requires_approval` | `eval/evaluators/credential_requires_approval.py` |
+| `pathforward_abstain_no_mint` | `eval/evaluators/abstain_no_mint.py` |
+| `pathforward_fabric_live_source` | `eval/evaluators/fabric_live_source.py` |
+| `pathforward_required_tool_calls` | `eval/evaluators/required_tool_calls.py` |
+| `pathforward_gate_before_mint` | `eval/evaluators/gate_before_mint.py` |
+| `pathforward_mcp_mint_requires_approval` | `eval/evaluators/mcp_mint_requires_approval.py` |
+
+Register or refresh the evaluator catalog versions before running dashboard evals that reference
+these names:
+
+```bash
+python scripts/register_eval_code_evaluators.py
+python scripts/smoke_eval_code_evaluators.py
+```
+
+The custom code evaluator API requires explicit `data_mapping` for each field. The tracked evaluator
+manifest and SDK smoke path use `output_text`, `output_items`, `expected_outcome`, `risk_category`,
+`feature_area`, and `must_emit`. If `azd ai agent eval run` binds to a stale `LAST_EVAL_ID`, it can
+reuse old remote criteria even when local YAML lists new evaluator names; inspect per-criteria results
+before treating a dashboard run as current proof.
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the

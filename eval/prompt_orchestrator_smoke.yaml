@@ -10,6 +10,12 @@ evaluators:
     - builtin.intent_resolution
     - builtin.task_adherence
     - builtin.indirect_attack
+    - pathforward_no_token_exposure
+    - pathforward_credential_requires_approval
+    - pathforward_fabric_live_source
+    - pathforward_required_tool_calls
+    - pathforward_gate_before_mint
+    - pathforward_mcp_mint_requires_approval
 options:
     eval_model: reasoning
 max_samples: 5
