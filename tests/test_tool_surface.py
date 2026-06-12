@@ -27,8 +27,8 @@ class TestToolSurfaceContract(unittest.TestCase):
         self.assertIn("Azure AI Search", generator.surface)
         self.assertIn("corpus", generator.rationale)
         self.assertEqual(fabric.status, "accepted-mainline-seam")
-        self.assertIn("MicrosoftFabricPreviewTool", fabric.surface)
-        self.assertIn("direct published Fabric", fabric.surface)
+        self.assertIn("MCP tool", fabric.surface)
+        self.assertIn("published Fabric data-agent REST endpoint", fabric.surface)
         self.assertIn("off the credential mint path", fabric.rationale)
 
     def test_versioned_specialist_agents_are_declared_for_product_roles(self):
@@ -38,7 +38,7 @@ class TestToolSurfaceContract(unittest.TestCase):
         )
         by_role = VERSIONED_AGENT_BY_ROLE
         self.assertEqual(by_role["generator"].tool_surface, "azure_ai_search")
-        self.assertEqual(by_role["insights"].tool_surface, "fabric_iq")
+        self.assertEqual(by_role["insights"].tool_surface, "fabric_mcp")
         self.assertEqual(
             {spec.agent_name for spec in VERSIONED_AGENT_SPECS},
             {

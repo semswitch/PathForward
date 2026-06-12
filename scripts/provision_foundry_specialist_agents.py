@@ -17,6 +17,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _ROOT)
 
 from pathforward.agents.versioned import (  # noqa: E402
+    VERSIONED_AGENT_BY_ROLE,
     VERSIONED_AGENT_SPECS,
     versioned_agent_instructions,
 )
@@ -24,6 +25,46 @@ from pathforward.config import load_settings  # noqa: E402
 from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
 
 SEARCH_CONNECTION = "pathforward-search"
+MINT_CONNECTION = "pathforward-mint-mcp"
+FABRIC_MCP_CONNECTION = "pathforward-fabric-mcp"
+A2A_CONNECTION_PREFIX = "pathforward-a2a"
+A2A_ROLES = ("curator", "generator", "critic", "planner", "insights")
+
+
+def _orchestrator_instructions(skill_body: str) -> str:
+    return (
+        "You are pathforward-orchestrator, the live Foundry Prompt Agent for PathForward.\n\n"
+        "Loaded Foundry Skill `/pathforward`:\n"
+        f"{skill_body.strip()}\n\n"
+        "When the user asks to run /pathforward, execute the workflow with your attached "
+        "Foundry tools:\n"
+        "1. Call pathforward-a2a-curator to rank admissible candidate skills.\n"
+        "2. Select the highest-ranked admissible skill.\n"
+        "3. Call pathforward-a2a-generator to create the grounded assessment item for that "
+        "selected skill. The Generator call must include worker_id, target_role_id, target_role, "
+        "selected skill_id, driving_edge_id, approved_refs, attempt, and difficulty_band. It must "
+        "ask for exactly this JSON item contract: stem, options, answer_index, cited_ref_ids, "
+        "numeric_claim. Do not ask for a summary from Generator.\n"
+        "4. Call pathforward-a2a-critic to review ambiguity, fairness, answerability, and "
+        "citation relevance. The Critic call must ask for exactly this JSON contract: "
+        "recommendation is one of pass, repair, reject; concerns is a list of "
+        "criterion_name/severity objects; advisory_notes is a string. Never ask for pass/fail.\n"
+        "5. Call pathforward-a2a-planner for the advisory learning plan.\n"
+        "6. Call pathforward-a2a-insights for Fabric-backed cohort/program insight.\n"
+        "7. Do not forge Evidence Gate, readiness, verified status, or mint request tokens.\n"
+        "8. Only call pathforward-mint.pathforward_mint_credential if a deterministic code-issued "
+        "mint_request_token is present and the user explicitly approves the mint action. If no "
+        "token is present, report mint_pending_no_code_token.\n\n"
+        "For this live Foundry Prompt Agent, these attached tool instructions are the runtime "
+        "contract for `/pathforward`; do not collapse the flow into a plan-only response.\n\n"
+        "Return a concise final report with: tools_called, selected_skill_id, assessment_summary, "
+        "critic_summary, planner_summary, fabric_insight_summary, and mint_state. Never use local "
+        "Python orchestration or FakeLLM behavior."
+    )
+
+
+def _a2a_base_url(project_endpoint: str, agent_name: str) -> str:
+    return f"{project_endpoint.rstrip('/')}/agents/{agent_name}/endpoint/protocols/a2a/"
 
 
 def _text_options(schema: dict | None, name: str, strict: bool):
@@ -55,20 +96,75 @@ def _search_tool(project, index_name: str):
     )
 
 
-def _fabric_tool(project, connection_name: str):
-    from azure.ai.projects.models import (
-        FabricDataAgentToolParameters, MicrosoftFabricPreviewTool, ToolProjectConnection,
+def _derived_fabric_mcp_url(settings) -> str:
+    if settings.fabric_mcp_url:
+        return settings.fabric_mcp_url
+    if settings.mcp_mint_url and settings.mcp_mint_url.rstrip("/").endswith("/api/mcp"):
+        return settings.mcp_mint_url.rstrip("/")[:-len("/api/mcp")] + "/api/fabric-mcp"
+    return ""
+
+
+def _fabric_tool(project, settings):
+    from azure.ai.projects.models import MCPTool
+    from pathforward.mcp.fabric_server import SERVER_LABEL, TOOL_NAME
+
+    server_url = _derived_fabric_mcp_url(settings)
+    if not server_url:
+        raise RuntimeError("pathforward-specialist-insights-fabric requires FABRIC_MCP_URL")
+    conn = project.connections.get(FABRIC_MCP_CONNECTION)
+    return MCPTool(
+        server_label=SERVER_LABEL,
+        server_url=server_url,
+        require_approval="never",
+        allowed_tools=[TOOL_NAME],
+        project_connection_id=conn.id,
     )
-    conn_id = project.connections.get(connection_name).id
-    return MicrosoftFabricPreviewTool(fabric_dataagent_preview=FabricDataAgentToolParameters(
-        project_connections=[ToolProjectConnection(project_connection_id=conn_id)]
-    ))
+
+
+def _orchestrator_tools(project, settings):
+    from azure.ai.projects.models import A2APreviewTool, MCPTool
+
+    if not settings.mcp_mint_url:
+        raise RuntimeError("pathforward-orchestrator requires MCP_MINT_URL")
+
+    tools = []
+    for role in A2A_ROLES:
+        spec = VERSIONED_AGENT_BY_ROLE[role]
+        conn = project.connections.get(f"{A2A_CONNECTION_PREFIX}-{role}")
+        tools.append(
+            A2APreviewTool(
+                name=f"pathforward-a2a-{role}",
+                description=f"Call the PathForward {role} specialist prompt agent.",
+                base_url=_a2a_base_url(settings.foundry_project_endpoint, spec.agent_name),
+                agent_card_path="agentCard/v0.3",
+                project_connection_id=conn.id,
+            )
+        )
+
+    from pathforward.mcp.mint_server import SERVER_LABEL, TOOL_NAME
+
+    mint_conn = project.connections.get(MINT_CONNECTION)
+    tools.append(
+        MCPTool(
+            server_label=SERVER_LABEL,
+            server_url=settings.mcp_mint_url,
+            require_approval="always",
+            allowed_tools=[TOOL_NAME],
+            project_connection_id=mint_conn.id,
+        )
+    )
+    return tools
 
 
 def _fabric_connection_name(project, configured: str) -> str:
     """Return the configured Fabric connection or discover the single approved Fabric data-agent connection."""
     if configured:
         return configured
+    try:
+        project.connections.get("pathforward-fabric-user")
+        return "pathforward-fabric-user"
+    except Exception:  # noqa: BLE001
+        pass
     candidates = []
     for conn in project.connections.list():
         if getattr(conn, "type", "") == "MicrosoftFabric":
@@ -90,10 +186,12 @@ def _fabric_connection_name(project, configured: str) -> str:
 
 
 def _tools_for(spec, project, settings):
+    if spec.role == "orchestrator":
+        return _orchestrator_tools(project, settings)
     if spec.tool_surface == "azure_ai_search":
         return [_search_tool(project, settings.search_index)]
-    if spec.tool_surface == "fabric_iq":
-        return [_fabric_tool(project, _fabric_connection_name(project, settings.fabric_connection_name))]
+    if spec.tool_surface == "fabric_mcp":
+        return [_fabric_tool(project, settings)]
     return []
 
 
@@ -144,7 +242,7 @@ def main() -> int:
               f"uri={evidence.get('skill_uri')} chars={evidence.get('skill_chars')}")
 
     from azure.ai.projects import AIProjectClient
-    from azure.ai.projects.models import PromptAgentDefinition
+    from azure.ai.projects.models import PromptAgentDefinition, Reasoning
     from azure.identity import DefaultAzureCredential
 
     project = AIProjectClient(
@@ -154,13 +252,18 @@ def main() -> int:
 
     created = []
     for spec in specs:
-        instructions = versioned_agent_instructions(spec, skill_bodies[spec.role])
-        text = _text_options(spec.schema, f"{spec.role}_output", spec.strict_schema)
+        if spec.role == "orchestrator":
+            instructions = _orchestrator_instructions(skill_bodies[spec.role])
+            text = None
+        else:
+            instructions = versioned_agent_instructions(spec, skill_bodies[spec.role])
+            text = _text_options(spec.schema, f"{spec.role}_output", spec.strict_schema)
         tools = _tools_for(spec, project, settings)
         definition = PromptAgentDefinition(
             model=settings.model_deployment,
             instructions=instructions,
             tools=tools,
+            reasoning=Reasoning(effort="low"),
             text=text,
         )
         agent = project.agents.create_version(

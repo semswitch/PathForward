@@ -70,7 +70,7 @@ def _run(cmd: list[str]) -> str:
 
 
 def _a2a_url(project_endpoint: str, agent_name: str) -> str:
-    return f"{project_endpoint.rstrip('/')}/agents/{agent_name}/endpoint/protocols/a2a"
+    return f"{project_endpoint.rstrip('/')}/agents/{agent_name}/endpoint/protocols/a2a/"
 
 
 def _agent_card(role: str, agent_name: str) -> dict:
@@ -100,7 +100,7 @@ def enable_incoming_a2a(project_endpoint: str, role: str, agent_name: str) -> di
     }
     url = f"{project_endpoint.rstrip('/')}/agents/{agent_name}?api-version=v1"
     result = _json_request("PATCH", url, body)
-    card = _json_request("GET", f"{_a2a_url(project_endpoint, agent_name)}/agentCard/v1.0")
+    card = _json_request("GET", f"{_a2a_url(project_endpoint, agent_name)}agentCard/v0.3")
     print(f"A2A enabled: {agent_name} card_protocol={card.get('protocolVersion')}")
     return result
 
@@ -120,7 +120,7 @@ def create_a2a_connections(project_endpoint: str) -> list[str]:
             # toolbox card fetches to fail with 403 in local MCP validation.
             "--auth-type", "user-entra-token",
             "--audience", A2A_AUDIENCE,
-            "--metadata", "AgentCardPath=/agentCard/v1.0",
+            "--metadata", "agentCardPath=agentCard/v0.3",
             "--metadata", f"PathForwardRole={role}",
             "--force",
             "--no-prompt",
@@ -148,7 +148,10 @@ def create_orchestrator_toolbox(project_endpoint: str, connection_names: list[st
         "--no-prompt",
     ])
     created = json.loads(output)
-    version = str((created.get("version") or created).get("version") or "")
+    raw_version = created.get("version")
+    if isinstance(raw_version, dict):
+        raw_version = raw_version.get("version")
+    version = str(raw_version or "")
     if version:
         _run([
             _exe("azd"), "ai", "toolbox", "publish", ORCHESTRATOR_TOOLBOX, version,

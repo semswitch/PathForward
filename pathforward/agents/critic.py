@@ -32,7 +32,8 @@ CRIT_INSTRUCTIONS = (
     "support the item?). Do NOT decide whether the item is grounded, single-correct, or numerically "
     "valid — a deterministic gate owns those; you may flag them but never decide them. Return a "
     "`recommendation` of 'pass', 'repair', or 'reject' and a list of `concerns` (each a "
-    "criterion_name + severity high|medium|low). You advise; you never issue or block a credential."
+    "criterion_name + severity high|medium|low). Never use 'fail' as a recommendation value. "
+    "You advise; you never issue or block a credential."
 )
 
 CRITIC_SCHEMA = {

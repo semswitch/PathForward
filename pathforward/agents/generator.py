@@ -9,7 +9,11 @@ GEN_INSTRUCTIONS = (
     f"{GENERATOR_TAG} Propose ONE multiple-choice competency item that tests the target "
     "skill. Ground every factual claim in the approved corpus and cite the supporting "
     "ref ids. If the item makes any numeric claim, include it as `numeric_claim` so it can "
-    "be independently checked. Exactly one option is correct; never embed the answer in the stem."
+    "be independently checked. Exactly one option is correct; never embed the answer in the stem. "
+    "For live A2A calls, make exactly one targeted Azure AI Search call using only the selected "
+    "skill id, skill name, driving_edge_id, and approved_refs from the input. After that Search "
+    "call, stop retrieving and return the JSON item. Cite only approved_refs that the Search "
+    "result supports."
 )
 
 # Documented schema for the real Responses agent.

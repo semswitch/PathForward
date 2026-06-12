@@ -82,7 +82,7 @@ VERSIONED_AGENT_SPECS: tuple[VersionedAgentSpec, ...] = (
         toolbox_name="pathforward-insights-fabric-toolbox",
         base_instructions=FABRIC_INS_INSTRUCTIONS,
         schema=None,
-        tool_surface="fabric_iq",
+        tool_surface="fabric_mcp",
     ),
 )
 

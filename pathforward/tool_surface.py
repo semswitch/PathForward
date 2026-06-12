@@ -76,22 +76,21 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
     ),
     ToolSurfaceDecision(
         capability="fabric-program-insights",
-        surface=("Foundry MicrosoftFabricPreviewTool for OBO/user runs; direct published Fabric "
-                 "data-agent endpoint for service/background runs"),
+        surface=("Foundry MCP tool backed by the published Fabric data-agent REST endpoint using "
+                 "service-principal authentication"),
         status="accepted-mainline-seam",
         rationale=(
-            "Fabric Program Insights is advisory and off the credential mint path. User/OBO smoke "
-            "runs use the documented prompt-agent Fabric tool; service/background runs use the "
-            "published Fabric data-agent endpoint with an isolated service-principal token because "
-            "the OBO preview tool cannot run under a background service identity. "
-            "`iq/cohort.py` remains the reconciliation anchor in both routes."
+            "Fabric Program Insights is advisory and off the credential mint path. The live product "
+            "tool calls the published Fabric data-agent REST endpoint with an isolated "
+            "service-principal token through the `pathforward-fabric` MCP server. `iq/cohort.py` "
+            "remains the reconciliation anchor."
         ),
         proof=(
-            "pathforward/agents/foundry.py:FabricInsightsClient",
+            "pathforward/mcp/fabric_server.py",
             "pathforward/agents/foundry.py:FabricDataAgentClient",
-            "scripts/smoke_fabric_live.py",
-            "prompt-agent migration pending live proof",
+            "functions/mint_mcp/function_app.py:pathforward_fabric_mcp",
             "tests/test_fabric_insights.py",
+            "tests/test_mcp_fabric_server.py",
         ),
     ),
     ToolSurfaceDecision(

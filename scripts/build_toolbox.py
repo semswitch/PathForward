@@ -92,6 +92,19 @@ def build_fabric_iq_tool(conn_id: str):
     )
 
 
+def build_fabric_mcp_tool(conn_id: str, server_url: str):
+    from azure.ai.projects.models import MCPTool
+    from pathforward.mcp.fabric_server import SERVER_LABEL, TOOL_NAME
+
+    return MCPTool(
+        server_label=SERVER_LABEL,
+        server_url=server_url,
+        require_approval="never",
+        allowed_tools=[TOOL_NAME],
+        project_connection_id=conn_id,
+    )
+
+
 def build_toolbox_search_tool(role: str):
     from azure.ai.projects.models import ToolboxSearchPreviewTool
     return ToolboxSearchPreviewTool(
@@ -143,7 +156,16 @@ def _resolve_fabric_connection(project, configured: str) -> str:
     return ""
 
 
+def _derived_fabric_mcp_url(settings) -> str:
+    if settings.fabric_mcp_url:
+        return settings.fabric_mcp_url
+    if settings.mcp_mint_url and settings.mcp_mint_url.rstrip("/").endswith("/api/mcp"):
+        return settings.mcp_mint_url.rstrip("/")[:-len("/api/mcp")] + "/api/fabric-mcp"
+    return ""
+
+
 def _tools_for_surface(surface: str, *, search_conn_id: str, fabric_conn_id: str,
+                       fabric_mcp_conn_id: str, fabric_mcp_url: str,
                        index_name: str, role: str) -> list:
     if surface == "azure_ai_search":
         return [build_search_tool(conn_id=search_conn_id, index_name=index_name)]
@@ -151,6 +173,10 @@ def _tools_for_surface(surface: str, *, search_conn_id: str, fabric_conn_id: str
         if not fabric_conn_id:
             raise RuntimeError("Fabric IQ toolbox requires FABRIC_CONNECTION_NAME or an approved Fabric connection")
         return [build_fabric_iq_tool(conn_id=fabric_conn_id)]
+    if surface == "fabric_mcp":
+        if not fabric_mcp_conn_id or not fabric_mcp_url:
+            raise RuntimeError("Fabric MCP toolbox requires pathforward-fabric-mcp connection and FABRIC_MCP_URL")
+        return [build_fabric_mcp_tool(conn_id=fabric_mcp_conn_id, server_url=fabric_mcp_url)]
     return [build_toolbox_search_tool(role)]
 
 
@@ -225,6 +251,16 @@ def main() -> int:
             print(f"FAIL: could not resolve Fabric connection '{fabric_connection_name}': "
                   f"{type(exc).__name__}: {exc}")
             return 1
+    fabric_mcp_url = _derived_fabric_mcp_url(settings)
+    fabric_mcp_conn_id = ""
+    try:
+        fabric_mcp_conn_id = project.connections.get("pathforward-fabric-mcp").id
+        print(f"resolved Fabric MCP connection 'pathforward-fabric-mcp' -> {fabric_mcp_conn_id}")
+    except Exception as exc:  # noqa: BLE001
+        if any(spec.tool_surface == "fabric_mcp" for spec in VERSIONED_AGENT_SPECS):
+            print(f"FAIL: could not resolve Fabric MCP connection 'pathforward-fabric-mcp': "
+                  f"{type(exc).__name__}: {exc}")
+            return 1
 
     if args.recreate:
         toolbox_names = [spec.toolbox_name for spec in VERSIONED_AGENT_SPECS]
@@ -265,6 +301,8 @@ def main() -> int:
                 spec.tool_surface,
                 search_conn_id=conn_id,
                 fabric_conn_id=fabric_conn_id,
+                fabric_mcp_conn_id=fabric_mcp_conn_id,
+                fabric_mcp_url=fabric_mcp_url,
                 index_name=index_name,
                 role=spec.role,
             )
