@@ -68,6 +68,7 @@ class Settings:
     fabric_mcp_url: str = ""                          # Azure Function MCP bridge to published Fabric data agent
     voice_resource_endpoint: str = ""
     mcp_mint_url: str = ""
+    mcp_gate_url: str = ""
 
     @property
     def azure_ready(self) -> bool:
@@ -98,4 +99,5 @@ def load_settings(dotenv_path: str = ".env") -> Settings:
         fabric_mcp_url=_env_value("FABRIC_MCP_URL", ""),
         voice_resource_endpoint=_env_value("VOICE_LIVE_ENDPOINT", ""),
         mcp_mint_url=_env_value("MCP_MINT_URL", ""),
+        mcp_gate_url=_env_value("MCP_GATE_URL", ""),
     )

@@ -1,11 +1,13 @@
 # PathForward MCP Mint Function
 
-Azure Functions HTTP adapter for the governed MCP mint tool.
+Azure Functions HTTP adapter for PathForward MCP tools.
 
-Endpoint after deployment:
+Endpoints after deployment:
 
 ```text
 https://<function-app>.azurewebsites.net/api/mcp
+https://<function-app>.azurewebsites.net/api/gate-mcp
+https://<function-app>.azurewebsites.net/api/fabric-mcp
 ```
 
 Required app settings:
@@ -14,6 +16,8 @@ Required app settings:
 PATHFORWARD_MINT_SIGNING_KEY=<secret>
 PATHFORWARD_MINT_REPLAY_TABLE_CONNECTION=<storage connection string>
 PATHFORWARD_MINT_REPLAY_TABLE=PathForwardMintReplay
+AZURE_SEARCH_ENDPOINT=<search endpoint>
+AZURE_SEARCH_INDEX=pathforward-iq
 ```
 
 Foundry Toolbox configuration must use:
@@ -28,3 +32,16 @@ allowed_tools: pathforward_mint_credential
 
 The MCP tool accepts only `mint_request_token`. It does not accept raw credential facts, verified
 flags, worker readiness, or Evidence Gate verdicts.
+
+Gate issuer toolbox configuration:
+
+```text
+type: mcp
+server_label: pathforward-gate
+server_url: https://<function-app>.azurewebsites.net/api/gate-mcp
+require_approval: never
+allowed_tools: verify_assessment_and_issue_mint_request
+```
+
+The gate issuer verifies the assessment item in code and returns a signed mint request token only
+when the Evidence Gate passes.

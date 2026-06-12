@@ -26,6 +26,7 @@ from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
 
 SEARCH_CONNECTION = "pathforward-search"
 MINT_CONNECTION = "pathforward-mint-mcp"
+GATE_CONNECTION = "pathforward-gate-mcp"
 FABRIC_MCP_CONNECTION = "pathforward-fabric-mcp"
 A2A_CONNECTION_PREFIX = "pathforward-a2a"
 A2A_ROLES = ("curator", "generator", "critic", "planner", "insights")
@@ -39,7 +40,9 @@ def _orchestrator_instructions(skill_body: str) -> str:
         "When the user asks to run /pathforward, execute the workflow with your attached "
         "Foundry tools:\n"
         "1. Call pathforward-a2a-curator to rank admissible candidate skills.\n"
-        "2. Select the highest-ranked admissible skill.\n"
+        "2. Select the highest-ranked admissible skill. Set driving_edge_id to the deterministic "
+        "edge id `certgap::{worker_id}::{skill_id}` for that selected skill unless the "
+        "code-provided payload supplies that exact edge id.\n"
         "3. Call pathforward-a2a-generator to create the grounded assessment item for that "
         "selected skill. The Generator call must include worker_id, target_role_id, target_role, "
         "selected skill_id, driving_edge_id, approved_refs, attempt, and difficulty_band. It must "
@@ -49,10 +52,14 @@ def _orchestrator_instructions(skill_body: str) -> str:
         "citation relevance. The Critic call must ask for exactly this JSON contract: "
         "recommendation is one of pass, repair, reject; concerns is a list of "
         "criterion_name/severity objects; advisory_notes is a string. Never ask for pass/fail.\n"
-        "5. Call pathforward-a2a-planner for the advisory learning plan.\n"
-        "6. Call pathforward-a2a-insights for Fabric-backed cohort/program insight.\n"
-        "7. Do not forge Evidence Gate, readiness, verified status, or mint request tokens.\n"
-        "8. Only call pathforward-mint.pathforward_mint_credential if a deterministic code-issued "
+        "5. Call pathforward-gate.verify_assessment_and_issue_mint_request with the selected "
+        "worker, role, skill, driving edge, attempt, and Generator item. If the gate returns "
+        "status=rejected with feedback, call Generator again with only that bounded feedback. If "
+        "the gate returns status=verified, keep the returned mint_request_token.\n"
+        "6. Call pathforward-a2a-planner for the advisory learning plan.\n"
+        "7. Call pathforward-a2a-insights for Fabric-backed cohort/program insight.\n"
+        "8. Do not forge Evidence Gate, readiness, verified status, or mint request tokens.\n"
+        "9. Only call pathforward-mint.pathforward_mint_credential if a deterministic code-issued "
         "mint_request_token is present and the user explicitly approves the mint action. If no "
         "token is present, report mint_pending_no_code_token.\n\n"
         "For this live Foundry Prompt Agent, these attached tool instructions are the runtime "
@@ -104,6 +111,14 @@ def _derived_fabric_mcp_url(settings) -> str:
     return ""
 
 
+def _derived_gate_mcp_url(settings) -> str:
+    if settings.mcp_gate_url:
+        return settings.mcp_gate_url
+    if settings.mcp_mint_url and settings.mcp_mint_url.rstrip("/").endswith("/api/mcp"):
+        return settings.mcp_mint_url.rstrip("/")[:-len("/api/mcp")] + "/api/gate-mcp"
+    return ""
+
+
 def _fabric_tool(project, settings):
     from azure.ai.projects.models import MCPTool
     from pathforward.mcp.fabric_server import SERVER_LABEL, TOOL_NAME
@@ -126,6 +141,9 @@ def _orchestrator_tools(project, settings):
 
     if not settings.mcp_mint_url:
         raise RuntimeError("pathforward-orchestrator requires MCP_MINT_URL")
+    gate_url = _derived_gate_mcp_url(settings)
+    if not gate_url:
+        raise RuntimeError("pathforward-orchestrator requires MCP_GATE_URL or derivable MCP_MINT_URL")
 
     tools = []
     for role in A2A_ROLES:
@@ -140,6 +158,19 @@ def _orchestrator_tools(project, settings):
                 project_connection_id=conn.id,
             )
         )
+
+    from pathforward.mcp.gate_server import SERVER_LABEL as GATE_LABEL, TOOL_NAME as GATE_TOOL
+
+    gate_conn = project.connections.get(GATE_CONNECTION)
+    tools.append(
+        MCPTool(
+            server_label=GATE_LABEL,
+            server_url=gate_url,
+            require_approval="never",
+            allowed_tools=[GATE_TOOL],
+            project_connection_id=gate_conn.id,
+        )
+    )
 
     from pathforward.mcp.mint_server import SERVER_LABEL, TOOL_NAME
 
