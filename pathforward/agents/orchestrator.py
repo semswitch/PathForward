@@ -1,15 +1,7 @@
-"""The multi-agent reasoning loop: Curator -> Generator -> Critic -> Evidence Gate -> Planner, in code.
+"""Code-test orchestration helper.
 
-The Curator reasons over the worker's gaps and selects the assessment target; the Generator authors a
-grounded competency item; an advisory Critic AGENT reviews item quality; the deterministic Evidence
-Gate decides whether it passes; the Planner reasons an advisory, capacity- and accessibility-aware
-learning plan around the full gap. Agents reason; code notarizes.
-
-The trust boundary is unchanged: the loop's `corpus ∩ retrieved` gate, the N=3 fail-closed
-ABSTAIN, and the credential's causal-spine assertion all stay exactly as they were. The Curator
-adds a STRICTER fail-closed path (no assessable gap -> no loop, no mint), and the Planner is
-advisory — it never feeds the mint. Each agent step is an OpenTelemetry span (no-op unless
-configured) so the whole reasoning chain is one observable trace.
+Product orchestration is the Foundry Prompt Agent `pathforward-orchestrator` with A2A tools.
+This module remains for deterministic contract tests and validator checks.
 """
 from __future__ import annotations
 
@@ -49,12 +41,7 @@ def run_orchestrated_multiagent(worker: Worker, onto: Ontology, edges: list[Edge
                                 critic: Critic | None = None,
                                 adaptive: AdaptiveController | None = None,
                                 insights: ProgramInsightsAgent | None = None) -> MultiAgentResult:
-    """Orchestrator-agent-driven route with deterministic validation.
-
-    The Orchestrator reasons over the route/target; code validates and executes. The Evidence Gate
-    and mint trust boundary is unchanged: `run_assessment_loop` remains the only producer of
-    `status="verified"`, and this function never mints.
-    """
+    """Run the in-process contract path for tests. This is not the product runtime."""
     role = onto.roles[worker.target_role_id]
     with tracing.span("orchestrated_multiagent",
                       **{"pf.worker": worker.id, "pf.target_role": role.id,

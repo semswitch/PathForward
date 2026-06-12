@@ -9,7 +9,7 @@ surface that its matching agent is allowed to consume:
   - generator: /pathforward-assess + Azure AI Search
   - critic: /pathforward-assess
   - planner: /pathforward-plan
-  - insights: /pathforward-insights + Fabric IQ
+  - insights: /pathforward-insights + Fabric MCP
 
 Source-verified against azure-ai-projects 2.2.0 (see .agents/decisions/003-foundry-toolbox-
 governance.md): beta.skills.create / beta.toolboxes.create_version, with the preview header
@@ -47,10 +47,6 @@ SKILL_PATHS = {
     "pathforward-insights": os.path.join(_ROOT, "skills", "pathforward-insights", "SKILL.md"),
 }
 LEGACY_TOOLBOX_NAME = "pathforward-toolbox"
-FALLBACK_FABRIC_CONNECTIONS = (
-    "pathforward-fabric-user",
-    "pathforward-fabric-cohort",
-)
 
 
 def build_skill_content(path: str):
@@ -80,15 +76,6 @@ def build_search_tool(conn_id: str, index_name: str):
         azure_ai_search=AzureAISearchToolResource(indexes=[
             AISearchIndexResource(project_connection_id=conn_id, index_name=index_name,
                                   query_type=AzureAISearchQueryType.SEMANTIC)]),
-    )
-
-
-def build_fabric_iq_tool(conn_id: str):
-    from azure.ai.projects.models import FabricIQPreviewTool
-    return FabricIQPreviewTool(
-        project_connection_id=conn_id,
-        server_label="fabriciq",
-        require_approval="never",
     )
 
 
@@ -129,33 +116,6 @@ def _rbac_hint(exc: Exception) -> None:
               "NOT self-assign roles (auto-mode classifier blocks it).")
 
 
-def _resolve_fabric_connection(project, configured: str) -> str:
-    toolbox_configured = os.getenv("FABRIC_TOOLBOX_CONNECTION_NAME", "").strip()
-    if toolbox_configured:
-        return toolbox_configured
-    # Fabric IQ toolbox enumeration is an OBO/user surface. Prefer the UserEntraToken connection
-    # when it exists; hosted/background Fabric execution still uses the direct data-agent SP path.
-    try:
-        project.connections.get("pathforward-fabric-user")
-        return "pathforward-fabric-user"
-    except Exception:  # noqa: BLE001
-        pass
-    if configured:
-        return configured
-    found = []
-    for name in FALLBACK_FABRIC_CONNECTIONS:
-        try:
-            project.connections.get(name)
-            found.append(name)
-        except Exception:  # noqa: BLE001
-            pass
-    if len(found) == 1:
-        return found[0]
-    if len(found) > 1:
-        return "pathforward-fabric-cohort" if "pathforward-fabric-cohort" in found else found[0]
-    return ""
-
-
 def _derived_fabric_mcp_url(settings) -> str:
     if settings.fabric_mcp_url:
         return settings.fabric_mcp_url
@@ -164,15 +124,11 @@ def _derived_fabric_mcp_url(settings) -> str:
     return ""
 
 
-def _tools_for_surface(surface: str, *, search_conn_id: str, fabric_conn_id: str,
+def _tools_for_surface(surface: str, *, search_conn_id: str,
                        fabric_mcp_conn_id: str, fabric_mcp_url: str,
                        index_name: str, role: str) -> list:
     if surface == "azure_ai_search":
         return [build_search_tool(conn_id=search_conn_id, index_name=index_name)]
-    if surface == "fabric_iq":
-        if not fabric_conn_id:
-            raise RuntimeError("Fabric IQ toolbox requires FABRIC_CONNECTION_NAME or an approved Fabric connection")
-        return [build_fabric_iq_tool(conn_id=fabric_conn_id)]
     if surface == "fabric_mcp":
         if not fabric_mcp_conn_id or not fabric_mcp_url:
             raise RuntimeError("Fabric MCP toolbox requires pathforward-fabric-mcp connection and FABRIC_MCP_URL")
@@ -241,16 +197,6 @@ def main() -> int:
         print(f"FAIL: could not resolve connection '{CONNECTION}': {type(exc).__name__}: {exc}")
         return 1
     print(f"resolved connection '{CONNECTION}' -> {conn_id}")
-    fabric_connection_name = _resolve_fabric_connection(project, settings.fabric_connection_name)
-    fabric_conn_id = ""
-    if fabric_connection_name:
-        try:
-            fabric_conn_id = project.connections.get(fabric_connection_name).id
-            print(f"resolved Fabric connection '{fabric_connection_name}' -> {fabric_conn_id}")
-        except Exception as exc:  # noqa: BLE001
-            print(f"FAIL: could not resolve Fabric connection '{fabric_connection_name}': "
-                  f"{type(exc).__name__}: {exc}")
-            return 1
     fabric_mcp_url = _derived_fabric_mcp_url(settings)
     fabric_mcp_conn_id = ""
     try:
@@ -300,7 +246,6 @@ def main() -> int:
             tools = _tools_for_surface(
                 spec.tool_surface,
                 search_conn_id=conn_id,
-                fabric_conn_id=fabric_conn_id,
                 fabric_mcp_conn_id=fabric_mcp_conn_id,
                 fabric_mcp_url=fabric_mcp_url,
                 index_name=index_name,

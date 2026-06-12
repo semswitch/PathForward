@@ -64,8 +64,7 @@ small service/tool glue such as the MCP mint boundary. It is not the product Orc
 ## Current Proof Status
 
 The project has live proof for the Foundry Prompt Orchestrator, versioned specialist agents, Tool
-Search, A2A specialist calls, and Fabric-backed Program Insights. The prior Hosted Agent/container
-route has been removed from the product architecture.
+Search, A2A specialist calls, and Fabric-backed Program Insights.
 
 Offline regression suite:
 

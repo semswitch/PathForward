@@ -1,31 +1,8 @@
-"""Program Insights agent — read-only cohort / program-level reasoning, OFF the credential trust path.
+"""Program Insights agent data contracts.
 
-This is the "agents reason, code notarizes" shape applied to analytics: deterministic code
-(`iq/cohort.py`, over the single derivation source) computes every TRUST-BEARING NUMBER — the
-worker's standing in their role cohort, the cohort's skill bottlenecks, the program-wide rollup —
-and the agent only NARRATES them ("why this path", cohort framing). The agent's prose is
-display-only; it is never trusted, never gates anything, and structurally cannot change a statistic
-(the loop reads the code-computed aggregates, not the model's JSON, for every number).
-
-Why it is additive (distinct from the per-item grounding path the Generator uses): the Generator's
-Azure AI Search retrieval grounds ONE item against ONE skill's corpus. It cannot answer cohort/
-program questions — "how does this worker compare to peers targeting the same role?", "which skills
-are the biggest bottlenecks across the cohort?", "which gaps can't even be certified?". Those are
-the cross-worker aggregates this agent reasons over.
-
-Two methods exist:
-  - CODE-TEST / RECONCILIATION (`analyze`, source="derivation-floor"): narrates code-computed
-    aggregates and is retained for deterministic tests and reconciliation anchors. It is not approved
-    as the product Program Insights runtime.
-  - PRODUCT (`analyze_via_fabric`, source="fabric-live"): answers the cohort question by querying a
-    published Fabric data agent over OneLake (NL2SQL, OBO) via `FabricInsightsClient`
-    (`MicrosoftFabricPreviewTool` on a `PromptAgentDefinition`, same Responses-API `agent_reference`
-    shape the other clients use; OBO identity; paid F2+/P1+; preview). `cohort.py` stays the
-    reconciliation ANCHOR — a Fabric answer that diverges from derivation is flagged, never trusted to
-    gate anything. Product runtime fails closed if Fabric is unavailable.
-
-Trust posture: constructed with ONLY an `LLMClient` — no handle to the Evidence Gate, `mint`, or a
-`LoopResult`; imports neither the gate nor `mint`.
+`analyze` is code-test/reconciliation only and returns `source="derivation-floor"`.
+`analyze_via_fabric` returns `source="fabric-live"` through the injected live Fabric client.
+This module imports neither the Evidence Gate nor mint.
 """
 from __future__ import annotations
 
@@ -45,8 +22,7 @@ INS_INSTRUCTIONS = (
     "chosen reskilling path is reasonable. The narrative is advisory and read-only."
 )
 
-# The Fabric-live tier: the model MUST consult the Fabric data agent (it owns the numbers here),
-# unlike the floor tier where code owns the numbers and the model only narrates them.
+# Fabric-live instructions for the Foundry Insights specialist and MCP-backed client.
 FABRIC_INS_INSTRUCTIONS = (
     f"{INSIGHTS_TAG} You are the PathForward Program Insights analyst with a Microsoft Fabric data "
     "agent tool over the reskilling ontology (workers, skills, roles, certifications and their edges, "
@@ -107,11 +83,8 @@ class ProgramInsightsAgent:
         )
 
     def analyze_via_fabric(self, worker: Worker, role: Role, onto: Ontology) -> ProgramInsights:
-        """FABRIC-LIVE tier: the model answers the cohort question by querying the published Fabric
-        data agent (NL2SQL over OneLake, OBO). Use with a `FabricInsightsClient`. The code-owned
-        `cohort.py` aggregates are still computed and returned as the reconciliation ANCHOR — Fabric is
-        advisory and never gates anything (this method never touches the Evidence Gate or mint)."""
-        # Reconciliation anchor (single derivation source) — returned alongside the live narrative.
+        """Fabric-live tier. The injected client must query the published Fabric data agent."""
+        # Reconciliation anchor; never used for product Fabric claims.
         rc = cohort.role_cohort(onto, role.id)
         wc = cohort.worker_vs_cohort(onto, worker.id)
         prog = cohort.program_aggregates(onto)

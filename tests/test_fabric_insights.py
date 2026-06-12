@@ -1,7 +1,6 @@
 """Code-contract guards for the Fabric-live Program Insights tier.
 
 These run without Azure SDK imports at module load time. They prove:
-  - `FabricInsightsClient` is import-safe and creates live resources lazily.
   - `FabricDataAgentClient` is import-safe and creates live resources lazily.
   - `analyze_via_fabric` returns a fabric-live ProgramInsights that still carries the code-owned
     `cohort.py` aggregates as the reconciliation anchor.
@@ -22,7 +21,7 @@ _INSIGHTS_SRC = os.path.join(os.path.dirname(os.path.dirname(__file__)),
 
 
 class _RecordingFabricClient:
-    """Stands in for FabricInsightsClient: records the question, returns a free-text narrative."""
+    """Records the Fabric question and returns a free-text narrative."""
 
     def __init__(self, text: str):
         self._text = text
@@ -38,15 +37,6 @@ class _RecordingFabricClient:
 
 
 class FabricInsightsCodeContractTest(unittest.TestCase):
-    def test_client_is_import_safe_and_lazy(self):
-        # Importable and constructable without live resources; agent creation is lazy.
-        from pathforward.agents import foundry
-
-        self.assertTrue(hasattr(foundry, "FabricInsightsClient"))
-        c = foundry.FabricInsightsClient(endpoint="https://x", connection_name="pf-fabric")
-        self.assertIsNone(c._agent)        # nothing created until respond()
-        self.assertTrue(c.force_tool)      # the Fabric tool is forced by default
-
     def test_direct_fabric_data_agent_client_is_import_safe_and_lazy(self):
         from pathforward.agents import foundry
 

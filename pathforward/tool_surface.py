@@ -52,7 +52,7 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
         proof=(
             "scripts/build_toolbox.py --recreate",
             "scripts/provision_foundry_specialist_agents.py",
-            "scripts/smoke_toolbox_skill_live.py",
+            "scripts/provision_a2a_orchestrator_toolbox.py",
             "pathforward/agents/versioned.py",
             "tests/test_skills.py",
         ),
@@ -70,7 +70,7 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
         ),
         proof=(
             "pathforward/agents/foundry.py:FoundryLLMClient",
-            "scripts/smoke_toolbox_skill_live.py",
+            "scripts/provision_foundry_specialist_agents.py",
             "scripts/eval_orchestrator_live.py --no-judge",
         ),
     ),

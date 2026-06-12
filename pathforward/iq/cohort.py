@@ -1,22 +1,7 @@
-"""Cohort / program-level read aggregates — the read-only data layer the Program Insights agent
-reasons over.
+"""Read-only cohort aggregates for code tests and reconciliation.
 
-Every number here is computed from the SAME derivation functions (`cert_gap_skill_ids`,
-`readiness_score`) that feed the Search mirror and the credential, so the cohort/program view can
-never disagree with the per-worker trust path — and the Insights agent reasons over numbers it
-cannot fabricate (it only narrates; the facts are code-owned).
-
-This module is strictly READ-ONLY and OFF the credential trust path:
-  - it imports neither the Evidence Gate nor `mint`;
-  - it never mutates the ontology, an edge, or a derivation;
-  - nothing it returns is consumed by `EvidenceGate.verify()` or `mint()`.
-
-Two-tier posture (see `.agents/decisions/007-program-insights-fabric-readpath.md`): this in-process
-layer is the always-green FLOOR. The live tier — a Fabric data agent over OneLake exposed to a
-Foundry agent via `MicrosoftFabricPreviewTool` (OBO identity, paid F2+ or Power BI Premium P1+
-capacity) — would serve the same cohort aggregates from governed OneLake when capacity is un-paused.
-The aggregates are DEFINED here, so the two tiers reconcile by construction; the Fabric tier changes
-where the numbers are read from, never what they are.
+Product Program Insights uses the live Fabric data agent through the Foundry MCP tool.
+This module imports neither the Evidence Gate nor mint.
 """
 from __future__ import annotations
 

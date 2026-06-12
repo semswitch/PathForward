@@ -1,13 +1,9 @@
 """Enable incoming A2A on specialists and attach them to the orchestrator toolbox.
 
-This is the prompt-agent replacement for the removed container route:
-
 1. PATCH each specialist prompt agent with an agent card and `responses` + `a2a` protocols.
 2. Create RemoteA2A project connections pointing at each specialist A2A endpoint.
 3. Create/promote a new `pathforward-orchestrator-toolbox` version with `/pathforward`, Tool Search,
    and the specialist A2A connections.
-
-The A2A endpoints use Foundry prompt-agent endpoints, not custom containers.
 """
 from __future__ import annotations
 
