@@ -4,6 +4,8 @@ agent:
     name: pathforward-orchestrator
     kind: prompt
 dataset_file: eval\suites\prompt_orchestrator_mint.jsonl
+# Built-in Foundry evaluators are secondary dashboard signal only.
+# PathForward hard invariants require custom code evaluators.
 evaluators:
     - builtin.intent_resolution
     - builtin.task_adherence

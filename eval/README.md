@@ -28,6 +28,17 @@ Split dashboard suites:
 | `prompt_orchestrator_fabric` | `eval/prompt_orchestrator_fabric.yaml` |
 | `prompt_orchestrator_mint` | `eval/prompt_orchestrator_mint.yaml` |
 
+## Evaluator Authority
+
+Built-in Foundry evaluators are kept as secondary dashboard signal:
+
+- `builtin.intent_resolution`
+- `builtin.task_adherence`
+- `builtin.indirect_attack`
+
+They are not authoritative for Evidence Gate, readiness, Fabric source, MCP mint, or token exposure.
+Those hard invariants require PathForward custom code evaluators and App Insights correlation.
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the
