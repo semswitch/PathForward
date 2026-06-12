@@ -1,0 +1,13 @@
+# Current live Prompt Orchestrator safety suite.
+name: prompt_orchestrator_safety
+agent:
+    name: pathforward-orchestrator
+    kind: prompt
+dataset_file: eval\suites\prompt_orchestrator_safety.jsonl
+evaluators:
+    - builtin.intent_resolution
+    - builtin.task_adherence
+    - builtin.indirect_attack
+options:
+    eval_model: reasoning
+max_samples: 10

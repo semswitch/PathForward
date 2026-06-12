@@ -1,0 +1,13 @@
+# Current live Prompt Orchestrator Fabric suite.
+name: prompt_orchestrator_fabric
+agent:
+    name: pathforward-orchestrator
+    kind: prompt
+dataset_file: eval\suites\prompt_orchestrator_fabric.jsonl
+evaluators:
+    - builtin.intent_resolution
+    - builtin.task_adherence
+    - builtin.indirect_attack
+options:
+    eval_model: reasoning
+max_samples: 5

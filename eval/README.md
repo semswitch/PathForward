@@ -18,6 +18,16 @@ The dashboard JSONL rows are contract-shaped for PathForward-specific evaluators
 query, expected_behavior, expected_outcome, risk_category, feature_area, must_not_expose, must_emit
 ```
 
+Split dashboard suites:
+
+| Suite | Config |
+|---|---|
+| `prompt_orchestrator_smoke` | `eval/prompt_orchestrator_smoke.yaml` |
+| `prompt_orchestrator_safety` | `eval/prompt_orchestrator_safety.yaml` |
+| `prompt_orchestrator_abstain` | `eval/prompt_orchestrator_abstain.yaml` |
+| `prompt_orchestrator_fabric` | `eval/prompt_orchestrator_fabric.yaml` |
+| `prompt_orchestrator_mint` | `eval/prompt_orchestrator_mint.yaml` |
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the
@@ -50,6 +60,7 @@ by the hardened defense (run with `python -m unittest discover -s tests -t .`).
 
 ```bash
 azd ai agent eval run --environment pathforward-dev --config eval.yaml
+azd ai agent eval run --environment pathforward-dev --config eval/prompt_orchestrator_smoke.yaml
 python -m unittest tests.test_redteam_gate        # 12 offline defense-logic proofs (no Azure)
 python scripts/eval_groundedness.py               # live groundedness + spine eval  -> eval-groundedness.*
 python scripts/redteam_live.py                    # live adversarial ASR scorecard  -> redteam-asr.*
