@@ -52,6 +52,25 @@ def _redact(text: str) -> str:
     return text
 
 
+def _redact_jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        if str(value.get("role", "")).lower() == "system" and "content" in value:
+            value = {**value, "content": "[REDACTED_SYSTEM_PROMPT]"}
+        redacted: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key)
+            if key_text == "instructions":
+                redacted[key_text] = "[REDACTED_SYSTEM_PROMPT]"
+            else:
+                redacted[key_text] = _redact_jsonable(item)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_jsonable(item) for item in value]
+    if isinstance(value, str):
+        return _redact(value)
+    return value
+
+
 def _preview(value: Any, limit: int = 1400) -> str:
     if value is None:
         return ""
@@ -104,6 +123,7 @@ def _abstain_state(value: Any) -> bool | None:
         "abstain",
         "abstained",
         "abstention",
+        "abstain_fail_closed",
         "fail_closed_abstain",
         "failed_closed_abstain",
         "no_mint_abstain",
@@ -153,6 +173,29 @@ Required live route:
 Return concise JSON with:
 tools_called, selected_skill_id, attempt, difficulty_band, gate_status, reflection_or_retry,
 planner_summary, fabric_insight_summary, abstain_state, mint_state, and credential_subject if minted.
+Never print or expose the mint_request_token."""
+
+
+def _abstain_prompt(attempt: int) -> str:
+    return f"""Run /pathforward as the live semantic ABSTAIN proof.
+
+Use the attached Foundry tools. Do not answer from memory and do not collapse this into a plan-only
+response.
+
+Required live route:
+1. Treat this as an ABSTAIN probe for worker_id EMP-ABSTAIN targeting R-DEVOPS.
+2. The code-provided admissible certification-gap skill set is empty: [].
+3. Call pathforward-a2a-curator with worker_id EMP-ABSTAIN, target_role_id R-DEVOPS, target_role
+   DevOps Engineer, existing skills [], and admissible skills [].
+4. Because there is no admissible assessable skill, do not call Generator, Critic, Evidence Gate,
+   Planner, Insights, approval, or mint.
+5. Do not fabricate a skill, readiness, verified status, credential, or mint_request_token.
+6. Return fail-closed ABSTAIN and state that no mint request was created.
+
+Use attempt={attempt}.
+
+Return concise JSON with:
+tools_called, selected_skill_id, attempt, gate_status, abstain_state, mint_state, and abstain_reason.
 Never print or expose the mint_request_token."""
 
 
@@ -206,6 +249,7 @@ def _observations(rows: list[dict[str, Any]]) -> dict[str, bool]:
             break
     else:
         abstain = any(_message_mentions_abstain(message) for message in messages)
+    non_discovery_rows = [row for row in rows if row.get("type") != "mcp_list_tools"]
     return {
         "curator_a2a": "pathforward-a2a-curator" in names,
         "generator_a2a": "pathforward-a2a-generator" in names,
@@ -215,7 +259,7 @@ def _observations(rows: list[dict[str, Any]]) -> dict[str, bool]:
         "gate_mcp": any(
             row.get("server_label") == "pathforward-gate"
             or row.get("name") == "verify_assessment_and_issue_mint_request"
-            for row in rows
+            for row in non_discovery_rows
         ),
         "gate_verified": any(row.get("output_status_verified") for row in rows),
         "gate_rejected": any(row.get("output_status_rejected") for row in rows),
@@ -224,7 +268,7 @@ def _observations(rows: list[dict[str, Any]]) -> dict[str, bool]:
         "mint_mcp": any(
             row.get("server_label") == "pathforward-mint"
             or row.get("name") == "pathforward_mint_credential"
-            for row in rows
+            for row in non_discovery_rows
         ),
         "minted": any(row.get("output_status_minted") and row.get("credential_present") for row in rows),
         "abstain": abstain,
@@ -235,7 +279,8 @@ def _write_evidence(doc: dict[str, Any]) -> Path:
     evidence_dir = ROOT / ".agents" / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
-    path = evidence_dir / f"integrated-live-baseline-{stamp}.json"
+    mode = str(doc.get("mode") or "baseline").replace("_", "-")
+    path = evidence_dir / f"integrated-live-{mode}-{stamp}.json"
     path.write_text(json.dumps(doc, indent=2, sort_keys=True), encoding="utf-8")
     return path
 
@@ -270,7 +315,7 @@ def _stream_create(client: Any, *, evidence_prefix: str, **kwargs: Any) -> tuple
         try:
             stream = client.responses.create(stream=True, **kwargs)
             for event in stream:
-                doc = _jsonable(event)
+                doc = _redact_jsonable(_jsonable(event))
                 fh.write(json.dumps(doc, sort_keys=True) + "\n")
                 event_type = str(doc.get("type", ""))
                 if event_type in {"response.completed", "response.failed", "response.incomplete"}:
@@ -289,6 +334,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run the integrated live Prompt Orchestrator route.")
     parser.add_argument("--attempt", type=int, default=int(time.time()))
     parser.add_argument("--approve", action="store_true", help="Approve the MCP mint request if returned.")
+    parser.add_argument("--abstain", action="store_true", help="Run the live semantic ABSTAIN proof route.")
     args = parser.parse_args()
 
     settings = load_settings(str(ROOT / ".env"))
@@ -310,8 +356,8 @@ def main() -> int:
 
     first, stream_path = _stream_create(
         client,
-        evidence_prefix="integrated-live-baseline-stream",
-        input=_integrated_prompt(args.attempt, args.approve),
+        evidence_prefix="integrated-live-abstain-stream" if args.abstain else "integrated-live-baseline-stream",
+        input=_abstain_prompt(args.attempt) if args.abstain else _integrated_prompt(args.attempt, args.approve),
         tool_choice="auto",
         extra_body={"agent_reference": {"name": AGENT_NAME, "type": "agent_reference"}},
     )
@@ -360,6 +406,7 @@ def main() -> int:
         "agent": AGENT_NAME,
         "attempt": args.attempt,
         "approved": bool(args.approve),
+        "mode": "abstain" if args.abstain else "baseline",
         "first_response_id": _get_attr(first, "id"),
         "first_response_status": _get_attr(first, "status"),
         "stream_path": str(stream_path),
@@ -373,23 +420,46 @@ def main() -> int:
         print("BASELINE_FAIL: first integrated response failed")
         return 1
 
-    required = (
-        "curator_a2a",
-        "generator_a2a",
-        "critic_a2a",
-        "gate_mcp",
-        "gate_verified",
-        "planner_a2a",
-        "insights_a2a",
-        "fabric_live",
-    )
-    missing = [name for name in required if not obs.get(name)]
-    if args.approve and not obs.get("minted"):
-        missing.append("minted")
+    if args.abstain:
+        missing = []
+        if not obs.get("curator_a2a"):
+            missing.append("curator_a2a")
+        if not obs.get("abstain"):
+            missing.append("abstain")
+        forbidden = [
+            name for name in (
+                "generator_a2a",
+                "critic_a2a",
+                "gate_mcp",
+                "approval_request",
+                "mint_mcp",
+                "minted",
+            )
+            if obs.get(name)
+        ]
+        if forbidden:
+            missing.append("forbidden_" + ",".join(forbidden))
+    else:
+        required = (
+            "curator_a2a",
+            "generator_a2a",
+            "critic_a2a",
+            "gate_mcp",
+            "gate_verified",
+            "planner_a2a",
+            "insights_a2a",
+            "fabric_live",
+        )
+        missing = [name for name in required if not obs.get(name)]
+        if args.approve and not obs.get("minted"):
+            missing.append("minted")
     if missing:
         print(f"BASELINE_FAIL: missing {missing}")
         return 1
-    print("BASELINE_PASS: integrated live Prompt Orchestrator route completed")
+    if args.abstain:
+        print("ABSTAIN_PASS: integrated live Prompt Orchestrator ABSTAIN route completed")
+    else:
+        print("BASELINE_PASS: integrated live Prompt Orchestrator route completed")
     return 0
 
 

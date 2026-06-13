@@ -26,7 +26,7 @@ class IntegratedOrchestratorAbstainTests(unittest.TestCase):
     def test_final_json_abstain_is_true(self):
         final = {
             "gate_status": "rejected",
-            "abstain_state": "ABSTAIN",
+            "abstain_state": "ABSTAIN_FAIL_CLOSED",
             "mint_state": {"status": "not_requested"},
         }
         rows, _ = smoke._summarize_response(SimpleNamespace(output=[_message(json.dumps(final))]))
@@ -49,6 +49,45 @@ class IntegratedOrchestratorAbstainTests(unittest.TestCase):
         rows = [{"type": "message", "message_preview": "Gate failed closed: ABSTAIN. No mint request."}]
 
         self.assertTrue(smoke._observations(rows)["abstain"])
+
+    def test_mcp_list_tools_is_not_gate_or_mint_execution(self):
+        rows = [
+            {"type": "mcp_list_tools", "server_label": "pathforward-gate"},
+            {"type": "mcp_list_tools", "server_label": "pathforward-mint"},
+            {"type": "message", "abstain_state": "ABSTAIN_FAIL_CLOSED", "message_preview": "{}"},
+        ]
+        observations = smoke._observations(rows)
+
+        self.assertFalse(observations["gate_mcp"])
+        self.assertFalse(observations["mint_mcp"])
+        self.assertTrue(observations["abstain"])
+
+    def test_abstain_prompt_forbids_downstream_mint_path(self):
+        prompt = smoke._abstain_prompt(123)
+
+        self.assertIn("EMP-ABSTAIN", prompt)
+        self.assertIn("admissible certification-gap skill set is empty: []", prompt)
+        self.assertIn("do not call Generator, Critic, Evidence Gate", prompt)
+        self.assertIn("no mint request was created", prompt)
+
+    def test_stream_redaction_removes_system_prompt_and_tokens(self):
+        redacted = smoke._redact_jsonable({
+            "role": "system",
+            "content": "hidden instructions with mint_request_token=abc.def",
+        })
+
+        self.assertEqual("[REDACTED_SYSTEM_PROMPT]", redacted["content"])
+
+    def test_stream_redaction_removes_response_instructions(self):
+        redacted = smoke._redact_jsonable({
+            "response": {
+                "instructions": "hosted agent instructions",
+                "id": "resp_123",
+            },
+        })
+
+        self.assertEqual("[REDACTED_SYSTEM_PROMPT]", redacted["response"]["instructions"])
+        self.assertEqual("resp_123", redacted["response"]["id"])
 
 
 if __name__ == "__main__":
