@@ -78,6 +78,21 @@ python scripts/register_eval_prompt_evaluators.py
 python scripts/smoke_eval_prompt_evaluators.py
 ```
 
+## App Insights Correlation
+
+Every formal eval run should have a telemetry correlation record:
+
+```bash
+python scripts/correlate_eval_appinsights.py \
+  --eval-id <eval_id> \
+  --run-id <evalrun_id> \
+  --config eval/prompt_orchestrator_smoke.yaml
+```
+
+The report records eval ID, run ID, agent name/version, dataset fingerprint, evaluator list/version,
+App Insights query window, product failure count, evaluator failure count, and the exact KQL used.
+Reports are written to `.agents/evidence/` by default.
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the
