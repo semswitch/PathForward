@@ -13,6 +13,7 @@ evaluators:
     - pathforward_no_token_exposure
     - pathforward_fabric_live_source
     - pathforward_required_tool_calls
+    - pathforward_subjective_quality
 options:
     eval_model: reasoning
 max_samples: 5

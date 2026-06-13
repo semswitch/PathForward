@@ -13,6 +13,7 @@ evaluators:
     - pathforward_no_token_exposure
     - pathforward_credential_requires_approval
     - pathforward_mcp_mint_requires_approval
+    - pathforward_subjective_quality
 options:
     eval_model: reasoning
 max_samples: 10

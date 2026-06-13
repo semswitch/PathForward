@@ -1,0 +1,12 @@
+{
+  "deployment_name": "reasoning",
+  "threshold": 4,
+  "evaluators": [
+    {
+      "name": "pathforward_subjective_quality",
+      "display_name": "PathForward Subjective Quality",
+      "description": "Scores route reasoning clarity, refusal quality, and user-facing explanation quality only.",
+      "local_uri": "eval/evaluators/subjective_quality_prompt.md"
+    }
+  ]
+}

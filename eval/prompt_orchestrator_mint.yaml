@@ -15,6 +15,7 @@ evaluators:
     - pathforward_required_tool_calls
     - pathforward_gate_before_mint
     - pathforward_mcp_mint_requires_approval
+    - pathforward_subjective_quality
 options:
     eval_model: reasoning
 max_samples: 5

@@ -65,6 +65,19 @@ manifest and SDK smoke path use `output_text`, `output_items`, `expected_outcome
 reuse old remote criteria even when local YAML lists new evaluator names; inspect per-criteria results
 before treating a dashboard run as current proof.
 
+Tracked custom prompt evaluator:
+
+| Evaluator | Source | Authority |
+|---|---|---|
+| `pathforward_subjective_quality` | `eval/evaluators/subjective_quality_prompt.md` | Subjective signal only |
+
+Register or refresh it separately from the hard code evaluators:
+
+```bash
+python scripts/register_eval_prompt_evaluators.py
+python scripts/smoke_eval_prompt_evaluators.py
+```
+
 The tracked deterministic scorecards remain supporting code/trust-boundary regression proof. Every
 pass/fail is decided in code (the `corpus ∩ retrieved` gate, the credential spine, an injected marker
 surviving into output), never an LLM judge. Cases are derived from the synthetic ontology, so the

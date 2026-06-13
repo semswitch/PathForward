@@ -22,3 +22,9 @@ when Foundry supplies agent-target output.
 | `required_tool_calls` | Required live tool calls must appear in `sample.output_items`. |
 | `gate_before_mint` | Evidence Gate must appear before mint approval or mint call. |
 | `mcp_mint_requires_approval` | MCP mint surfaces must show an approval requirement artifact. |
+
+## Prompt Evaluator
+
+`pathforward_subjective_quality` is a Foundry prompt evaluator for subjective quality only. It scores
+route reasoning clarity, refusal or ABSTAIN quality, and user-facing explanation quality. It is not a
+hard-invariant evaluator.
