@@ -42,6 +42,25 @@ npm run preview    # serve the production build on http://localhost:9711
 - Visual language: **agents reason (rounded, warm glow) — code notarizes (sharp, mint
   edge)**. Deterministic components are never drawn as agents.
 
+## Narration (Azure TTS)
+
+The tour plays silently with captions until narration is generated, then drives all
+visuals from the audio (the narration is the master clock; visuals are slaved to it).
+
+1. Fill `web/.env.local` (gitignored): `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION`
+   (+ optional `AZURE_SPEECH_VOICE` / `AZURE_SPEECH_STYLE` / `AZURE_SPEECH_RATE`).
+2. `npm run narration` — synthesizes every beat's `narration` text, writes dry stems +
+   `narration-work/tour-dry.wav`, and records measured beat offsets and word timings in
+   `src/tour/narration.manifest.json`.
+3. Mix/master externally per `narration-work/README.md` (lay music under the dry VO,
+   **no time edits**), bounce to `web/public/narration/tour.mp3`.
+4. The tour's start overlay switches to "Plays with narration" automatically when the
+   manifest matches the script. Re-run `npm run narration` whenever beat text changes
+   (`-- --beat <id>` redoes a single line).
+
+Fail-safes: a stale/empty manifest or an audio load error falls back to the silent
+timer-clock tour — narration can never desync the visuals.
+
 ## Conventions
 
 - **Styling:** Tailwind v4 only — tokens in `src/index.css` under `@theme`; semantic

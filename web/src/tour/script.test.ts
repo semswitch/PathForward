@@ -68,9 +68,16 @@ describe("buildTourScript", () => {
     expect(abstainIndex).toBeGreaterThan(verifyIndex);
   });
 
-  it("writes a non-empty caption for every beat", () => {
+  it("writes a non-empty caption and narration for every beat", () => {
     for (const beat of beats) {
       expect(beat.caption.trim().length).toBeGreaterThan(0);
+      expect(beat.narration.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps narration speakable — no underscores or double-colon ids", () => {
+    for (const beat of beats) {
+      expect(beat.narration).not.toMatch(/_|::/);
     }
   });
 

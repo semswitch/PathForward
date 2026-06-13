@@ -24,6 +24,11 @@ web/dist/
 web/.vite/
 web/src/lib/fixture.json
 
+# tour narration working files — stems + dry VO stay local; only the final
+# mastered mix (web/public/narration/tour.mp3) and the manifest are committed
+web/narration-work/
+web/public/narration/*.wav
+
 # os / editor
 .DS_Store
 Thumbs.db
