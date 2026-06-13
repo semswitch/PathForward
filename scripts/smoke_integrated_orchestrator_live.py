@@ -22,16 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from pathforward.config import load_settings  # noqa: E402
-from pathforward.iq import traversal  # noqa: E402
-from pathforward.iq.seed import build_seed  # noqa: E402
 
 
 AGENT_NAME = "pathforward-orchestrator"
 WORKER_ID = "EMP-001"
-TARGET_ROLE_ID = "R-CLOUD"
-TARGET_ROLE_NAME = "Cloud Engineer"
-EXISTING_SKILLS = ("S05", "S12", "S03")
-ADMISSIBLE_SKILLS = ("S01", "S02", "S08")
 
 
 warnings.filterwarnings("ignore", message="Pydantic serializer warnings:*")
@@ -151,62 +145,30 @@ def _message_mentions_abstain(message: str) -> bool:
     return bool(re.search(r"\bABSTAIN(?:ED)?\b", upper))
 
 
-def _approved_ref_map() -> dict[str, list[str]]:
-    onto = build_seed()
-    worker = onto.workers[WORKER_ID]
-    if worker.target_role_id != TARGET_ROLE_ID:
-        raise ValueError("smoke proof worker target role mismatch")
-    return {
-        skill_id: list(traversal.approved_refs(worker, onto.skills[skill_id], onto))
-        for skill_id in ADMISSIBLE_SKILLS
-    }
-
-
 def _integrated_prompt(attempt: int, approve_mint: bool) -> str:
-    approved_refs = json.dumps(_approved_ref_map(), sort_keys=True)
     approval_line = (
-        "I approve minting only after the deterministic gate returns a code-issued "
-        "mint_request_token and the Foundry MCP approval step is presented."
+        "When the route reaches a verified assessment, mint only after the deterministic gate "
+        "returns a code-issued mint_request_token and a separate MCP approval step is presented "
+        "and approved."
         if approve_mint else
-        "Do not mint unless the deterministic gate returns a code-issued mint_request_token and "
-        "a separate MCP approval response is supplied."
+        "Do not mint unless the deterministic gate returns a code-issued mint_request_token and a "
+        "separate MCP approval response is supplied."
     )
-    return f"""Run /pathforward as the live integrated product route for {WORKER_ID} targeting {TARGET_ROLE_ID}.
+    return f"""Run /pathforward for worker {WORKER_ID}.
 
-Use the attached Foundry tools. Do not answer from memory and do not collapse this into a plan-only
-response.
+Use your attached Foundry tools to resolve the route facts and run the workflow. Do not answer from
+memory, do not ask me for the worker's skills, gaps, or evidence, and do not collapse this into a
+plan-only response.
 
-Code-provided route facts:
-- worker_id: {WORKER_ID}
-- target_role_id: {TARGET_ROLE_ID}
-- target_role: {TARGET_ROLE_NAME}
-- existing_skills: {list(EXISTING_SKILLS)}
-- admissible_skill_ids: {list(ADMISSIBLE_SKILLS)}
-- approved_ref_map: {approved_refs}
+This live proof is staged across turns. In THIS response: resolve the route facts with your tools,
+then run Curator, Generator, Critic, the Evidence Gate, and Planner for the selected admissible
+skill. Use attempt={attempt}. Stop after Planner and report that Fabric Insights is pending the next
+turn. Do not call Insights, approval, or mint in this response.
 
-Required live route:
-1. Call pathforward-a2a-curator with worker_id {WORKER_ID}, target_role_id {TARGET_ROLE_ID},
-   target_role {TARGET_ROLE_NAME}, existing skills {list(EXISTING_SKILLS)}, and admissible skills
-   {list(ADMISSIBLE_SKILLS)}.
-2. Select one skill only from {list(ADMISSIBLE_SKILLS)}. The deterministic driving edge id must be
-   certgap::{WORKER_ID}::<selected_skill_id>.
-3. Use difficulty_band=core and attempt={attempt}.
-4. Call pathforward-a2a-generator for the selected skill. The Generator call must include
-   approved_refs exactly equal to approved_ref_map[selected_skill_id]; approved_refs must never be
-   empty for S01, S02, or S08. Ask Generator for the exact JSON item contract: stem, options,
-   answer_index, cited_ref_ids, numeric_claim.
-5. Call pathforward-a2a-critic before the gate.
-6. Call pathforward-gate.verify_assessment_and_issue_mint_request using the generated item.
-7. If the gate rejects, retry Generator once using only the bounded failed criteria/remediation from
-   the gate, then call the gate again. If it still rejects, ABSTAIN and do not mint.
-8. If the gate verifies and returns a mint_request_token, call pathforward-a2a-planner.
-9. This proof is staged across live Prompt Orchestrator turns. Do not call pathforward-a2a-insights
-   in this first response. Stop after Planner and report that Fabric Insights is pending the next
-   live turn.
-10. {approval_line}
+{approval_line}
 
 Return concise JSON with:
-tools_called, selected_skill_id, attempt, difficulty_band, gate_status, reflection_or_retry,
+selected_skill_id, attempt, difficulty_band, gate_status, reflection_or_retry,
 planner_summary, fabric_insight_summary, abstain_state, mint_state, and credential_subject if minted.
 Never print or expose the mint_request_token."""
 
@@ -230,7 +192,7 @@ Required live route:
 Use attempt={attempt}.
 
 Return concise JSON with:
-tools_called, selected_skill_id, attempt, gate_status, abstain_state, mint_state, and abstain_reason.
+selected_skill_id, attempt, gate_status, abstain_state, mint_state, and abstain_reason.
 Never print or expose the mint_request_token."""
 
 
@@ -360,6 +322,20 @@ def _jsonable(obj: Any) -> Any:
     return str(obj)
 
 
+def _is_transient(exc: Exception) -> bool:
+    """True for retryable Foundry hiccups: rate limits, timeouts, 5xx, and server-side
+    'Agent task ... failed' APIErrors (distinct from a genuine 4xx contract error)."""
+    name = type(exc).__name__
+    message = str(exc).lower()
+    if name in ("RateLimitError", "APIConnectionError", "APITimeoutError", "InternalServerError"):
+        return True
+    if "agent task" in message and "failed" in message:
+        return True
+    return any(s in message for s in (
+        "rate_limit", "too many requests", "timeout", "temporarily", " 500", " 502", " 503",
+    ))
+
+
 def _stream_create(client: Any, *, evidence_prefix: str, **kwargs: Any) -> tuple[Any | None, Path]:
     evidence_dir = ROOT / ".agents" / "evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -385,6 +361,35 @@ def _stream_create(client: Any, *, evidence_prefix: str, **kwargs: Any) -> tuple
     return final_response, path
 
 
+def _stream_create_with_retry(client: Any, *, evidence_prefix: str, attempts: int = 3,
+                              **kwargs: Any) -> tuple[Any, Path]:
+    """Run the first streamed turn, retrying transient Foundry failures with backoff.
+
+    A streamed turn cannot resume after a server-side abort, so each retry starts a fresh response
+    (the route is re-derived deterministically). Returns the final response and its stream path.
+    """
+    delays = (15, 30, 45)
+    last_path: Path | None = None
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(delays[min(attempt - 1, len(delays) - 1)])
+        try:
+            final, path = _stream_create(client, evidence_prefix=evidence_prefix, **kwargs)
+            last_path = path
+            if final is not None:
+                return final, path
+            raise RuntimeError("stream ended without a final response")
+        except Exception as exc:  # noqa: BLE001
+            if not _is_transient(exc) or attempt == attempts - 1:
+                raise
+            print(json.dumps({
+                "phase": "stream_retry",
+                "attempt": attempt + 1,
+                "error_type": type(exc).__name__,
+            }))
+    raise RuntimeError(f"stream failed after {attempts} attempts; last_path={last_path}")
+
+
 def _responses_create_with_backoff(client: Any, **kwargs: Any) -> Any:
     delays = (15, 30, 45)
     for idx, delay in enumerate((0, *delays)):
@@ -393,13 +398,7 @@ def _responses_create_with_backoff(client: Any, **kwargs: Any) -> Any:
         try:
             return client.responses.create(**kwargs)
         except Exception as exc:  # noqa: BLE001
-            message = str(exc).lower()
-            is_rate_limit = (
-                type(exc).__name__ == "RateLimitError"
-                or "rate_limit" in message
-                or "too many requests" in message
-            )
-            if not is_rate_limit or idx == len(delays):
+            if not _is_transient(exc) or idx == len(delays):
                 raise
             print(json.dumps({
                 "phase": "responses_retry",
@@ -432,7 +431,7 @@ def main() -> int:
     )
     client = project.get_openai_client()
 
-    first, stream_path = _stream_create(
+    first, stream_path = _stream_create_with_retry(
         client,
         evidence_prefix="integrated-live-abstain-stream" if args.abstain else "integrated-live-baseline-stream",
         input=_abstain_prompt(args.attempt) if args.abstain else _integrated_prompt(args.attempt, args.approve),

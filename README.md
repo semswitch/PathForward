@@ -35,7 +35,7 @@ PathForward is built around a real agentic workflow:
 - **Grounded verification:** assessment items must cite retrieved evidence before they can pass.
 - **Honest refusal:** failed or ungrounded attempts end in ABSTAIN, not a fake pass.
 - **Governed credentialing:** minting re-checks the causal spine and fails closed when proof is missing.
-- **Microsoft-native architecture:** Foundry Prompt Agent, Foundry Skills/Toolbox, Azure AI Search,
+- **Microsoft-native architecture:** Foundry Prompt Agent, Foundry Skills, Azure AI Search,
   Fabric data agent, Azure Monitor telemetry, and Foundry evals.
 
 ## Runtime Boundary
@@ -44,9 +44,8 @@ The product orchestration surface is Foundry, not a Python control loop:
 
 ```text
 pathforward-orchestrator Prompt Agent
-  /pathforward Skill
-  pathforward-orchestrator-toolbox
-  Tool Search + A2A tools
+  /pathforward Skill (baked into the agent instructions)
+  directly-attached A2A links + route/gate/mint MCP tools
   versioned specialist Prompt Agents
 ```
 

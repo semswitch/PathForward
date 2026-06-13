@@ -42,13 +42,7 @@ class Generator:
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return GEN_INSTRUCTIONS
-        return (
-            f"{GEN_INSTRUCTIONS}\n\n"
-            "Loaded Foundry Skill `/pathforward-assess`:\n"
-            f"{self.skill_instructions}\n\n"
-            "Follow the Generator contract in the loaded skill. The Evidence Gate and structured "
-            "schema remain authoritative."
-        )
+        return f"{GEN_INSTRUCTIONS}\n\n{self.skill_instructions}"
 
     def generate(self, edge: Edge, skill: Skill, allowed_ref_ids: tuple[str, ...],
                  attempt: int, previous_response_id: str | None = None,

@@ -28,45 +28,47 @@ TOOL_SURFACE_DECISIONS: tuple[ToolSurfaceDecision, ...] = (
         status="mainline-a2a-toolbox-live",
         rationale=(
             "`pathforward-orchestrator` is a Foundry Prompt Agent connected to the existing "
-            "`reasoning` model deployment. Its orchestrator toolbox exposes Tool Search and A2A "
-            "SendMessage tools for the five specialist prompt agents."
+            "`reasoning` model deployment. Its A2A links to the five specialist prompt agents and "
+            "its route/gate/mint MCP tools are attached directly to its PromptAgentDefinition; no "
+            "toolbox is involved at runtime."
         ),
         proof=(
             "pathforward/agents/versioned.py",
             "scripts/provision_foundry_specialist_agents.py --roles orchestrator",
-            "scripts/provision_a2a_orchestrator_toolbox.py",
+            "scripts/provision_specialist_a2a.py",
             ".agents/evidence/orchestrator-a2a-toolbox-live-2026-06-11.md",
             "tests/test_tool_surface.py",
         ),
     ),
     ToolSurfaceDecision(
         capability="orchestrator-and-specialist-skills",
-        surface="Versioned Foundry specialist prompt agents with scoped Toolbox Skill content baked in",
+        surface="Versioned Foundry specialist prompt agents with their registered Skill content baked in",
         status="mainline-supporting-surface",
         rationale=(
             "The `/pathforward` Orchestrator Skill and specialist Skill files are registered in "
-            "Foundry, attached to per-agent toolboxes, read through those toolbox MCP endpoints, "
-            "and baked into durable Foundry specialist-agent versions. Product runtime calls named "
-            "agent references; it does not inject Skill text at inference time."
+            "Foundry for portal visibility (register_skills.py) and injected directly into durable "
+            "Foundry specialist-agent versions from their local skills/<name>/SKILL.md sources at "
+            "provision time. Product runtime calls named agent references; it does not inject Skill "
+            "text at inference time and does not use toolboxes."
         ),
         proof=(
-            "scripts/build_toolbox.py --recreate",
+            "scripts/register_skills.py",
             "scripts/provision_foundry_specialist_agents.py",
-            "scripts/provision_a2a_orchestrator_toolbox.py",
+            "scripts/provision_specialist_a2a.py",
             "pathforward/agents/versioned.py",
             "tests/test_skills.py",
         ),
     ),
     ToolSurfaceDecision(
         capability="generator-search-grounding",
-        surface="Scoped generator toolbox plus Foundry PromptAgentDefinition Azure AI Search trace",
+        surface="Foundry PromptAgentDefinition Azure AI Search trace attached directly to the generator agent",
         status="accepted-mainline-seam",
         rationale=(
-            "The generator has a scoped toolbox containing /pathforward-assess and Azure AI Search. "
-            "The current specialist agent definition also attaches Azure AI Search directly because "
-            "the assessment loop needs `azure_ai_search_call_output.documents[].id` for the "
-            "`corpus ∩ retrieved` anti-bluff gate. Replacing that trace with toolbox MCP output "
-            "requires a dedicated retrieval parser before it can be product-safe."
+            "The generator specialist agent attaches Azure AI Search directly to its "
+            "PromptAgentDefinition because the assessment loop needs "
+            "`azure_ai_search_call_output.documents[].id` for the `corpus ∩ retrieved` anti-bluff "
+            "gate. The Search tool is attached directly to the agent definition, not delivered "
+            "through a toolbox."
         ),
         proof=(
             "pathforward/agents/foundry.py:FoundryLLMClient",

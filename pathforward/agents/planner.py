@@ -74,13 +74,7 @@ class Planner:
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return PLAN_INSTRUCTIONS
-        return (
-            f"{PLAN_INSTRUCTIONS}\n\n"
-            "Loaded Foundry Skill `/pathforward-plan`:\n"
-            f"{self.skill_instructions}\n\n"
-            "Follow the loaded skill, but code-owned hours, capacity phasing, arithmetic, and "
-            "accessibility vocabulary remain authoritative."
-        )
+        return f"{PLAN_INSTRUCTIONS}\n\n{self.skill_instructions}"
 
     def plan(self, worker: Worker, ranked_skill_ids: tuple[str, ...],
              onto: Ontology) -> LearningPlan:

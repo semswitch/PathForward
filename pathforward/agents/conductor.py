@@ -177,13 +177,7 @@ class Orchestrator:
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return CONDUCTOR_INSTRUCTIONS
-        return (
-            f"{CONDUCTOR_INSTRUCTIONS}\n\n"
-            "Loaded Foundry Skill `/pathforward`:\n"
-            f"{self.skill_instructions}\n\n"
-            "Follow the loaded `/pathforward` skill, but the structured output schema and "
-            "deterministic validator remain authoritative."
-        )
+        return f"{CONDUCTOR_INSTRUCTIONS}\n\n{self.skill_instructions}"
 
     def plan(self, worker: Worker, role: Role, onto: Ontology, *,
              curator_chosen_skill_id: str = "", prior_loop_status: str = "",

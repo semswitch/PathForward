@@ -1,9 +1,11 @@
-"""Enable incoming A2A on specialists and attach them to the orchestrator toolbox.
+"""Enable incoming A2A on the specialist prompt agents and create their RemoteA2A connections.
 
 1. PATCH each specialist prompt agent with an agent card and `responses` + `a2a` protocols.
 2. Create RemoteA2A project connections pointing at each specialist A2A endpoint.
-3. Create/promote a new `pathforward-orchestrator-toolbox` version with `/pathforward`, Tool Search,
-   and the specialist A2A connections.
+
+The orchestrator reaches these specialists through A2A tools attached **directly** to its
+`PromptAgentDefinition` (by `provision_foundry_specialist_agents.py`), referencing the
+`pathforward-a2a-<role>` connections this script creates. No toolbox is involved.
 """
 from __future__ import annotations
 
@@ -25,7 +27,6 @@ from pathforward.config import load_settings  # noqa: E402
 
 
 A2A_AUDIENCE = "https://ai.azure.com"
-ORCHESTRATOR_TOOLBOX = "pathforward-orchestrator-toolbox"
 A2A_ROLES = ("curator", "generator", "critic", "planner", "insights")
 
 
@@ -113,7 +114,7 @@ def create_a2a_connections(project_endpoint: str) -> list[str]:
             "--kind", "remote-a2a",
             "--target", _a2a_url(project_endpoint, agent_name),
             # User Entra Token is the working Foundry dashboard/OBO path. Agentic identity caused
-            # toolbox card fetches to fail with 403 in local MCP validation.
+            # A2A card fetches to fail with 403 in local MCP validation.
             "--auth-type", "user-entra-token",
             "--audience", A2A_AUDIENCE,
             "--metadata", "agentCardPath=agentCard/v0.3",
@@ -122,40 +123,6 @@ def create_a2a_connections(project_endpoint: str) -> list[str]:
             "--no-prompt",
         ])
     return names
-
-
-def create_orchestrator_toolbox(project_endpoint: str, connection_names: list[str]) -> None:
-    connections_file = _ROOT / ".agents" / "temp" / "pathforward-orchestrator-a2a-connections.yaml"
-    connections_file.parent.mkdir(parents=True, exist_ok=True)
-    connection_lines = "\n".join(f"  - name: {name}" for name in connection_names)
-    connections_file.write_text(
-        "\n".join([
-            "connections:",
-            connection_lines,
-            "",
-        ]),
-        encoding="utf-8",
-    )
-    output = _run([
-        _exe("azd"), "ai", "toolbox", "connection", "add", ORCHESTRATOR_TOOLBOX,
-        "--project-endpoint", project_endpoint,
-        "--from-file", str(connections_file),
-        "--output", "json",
-        "--no-prompt",
-    ])
-    created = json.loads(output)
-    raw_version = created.get("version")
-    if isinstance(raw_version, dict):
-        raw_version = raw_version.get("version")
-    version = str(raw_version or "")
-    if version:
-        _run([
-            _exe("azd"), "ai", "toolbox", "publish", ORCHESTRATOR_TOOLBOX, version,
-            "--project-endpoint", project_endpoint,
-            "--output", "json",
-            "--no-prompt",
-        ])
-        print(f"Promoted {ORCHESTRATOR_TOOLBOX} default_version -> {version}")
 
 
 def main() -> int:
@@ -172,8 +139,8 @@ def main() -> int:
         spec = VERSIONED_AGENT_BY_ROLE[role]
         enable_incoming_a2a(project_endpoint, role, spec.agent_name)
     connections = create_a2a_connections(project_endpoint)
-    create_orchestrator_toolbox(project_endpoint, connections)
-    print("done. orchestrator toolbox now has Tool Search + specialist A2A connections.")
+    print(f"done. enabled A2A on {len(A2A_ROLES)} specialists and created "
+          f"{len(connections)} RemoteA2A connections: {connections}")
     return 0
 
 

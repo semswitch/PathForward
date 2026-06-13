@@ -23,7 +23,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECIALIST_SKILLS = {
     "pathforward": ("Orchestrator", "Never set `status=\"verified\"`", "ABSTAIN"),
     "pathforward-curate": ("Curator", "Never choose a skill outside the candidate set", "candidate_skill_ids"),
-    "pathforward-assess": ("Generator Contract", "Critic Contract", "Never override the Evidence Gate"),
+    "pathforward-assess": ("Generator Contract", "Never override the Evidence Gate"),
+    "pathforward-critic": ("Critic Contract", "recommendation", "Never treat a Critic pass as a credential pass"),
     "pathforward-plan": ("Planner", "weekly capacity", "Never decide readiness"),
     "pathforward-insights": ("Program Insights", "Fabric-Live Contract", "Never fabricate a statistic"),
 }
@@ -71,7 +72,7 @@ class TestSkillFiles(unittest.TestCase):
 
         curator_client = _RecordingClient({"ranking": [skill.id], "rationale": {skill.id: "because"}})
         Curator(curator_client, skill_instructions=marker).curate(worker, role, onto)
-        self.assertIn("Loaded Foundry Skill `/pathforward-curate`", curator_client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", curator_client.last_instructions)
         self.assertIn(marker, curator_client.last_instructions)
 
         generator_client = _RecordingClient({
@@ -83,8 +84,7 @@ class TestSkillFiles(unittest.TestCase):
         })
         Generator(generator_client, skill_instructions=marker).generate(
             driving, skill, ("corpus::AZ-204",), attempt=1)
-        self.assertIn("Loaded Foundry Skill `/pathforward-assess`",
-                      generator_client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", generator_client.last_instructions)
         self.assertIn(marker, generator_client.last_instructions)
 
         item = AssessmentItem(
@@ -100,8 +100,7 @@ class TestSkillFiles(unittest.TestCase):
         })
         Critic(critic_client, skill_instructions=marker).review(
             item, ("corpus::AZ-204",), skill, driving)
-        self.assertIn("Loaded Foundry Skill `/pathforward-assess`",
-                      critic_client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", critic_client.last_instructions)
         self.assertIn(marker, critic_client.last_instructions)
 
         planner_client = _RecordingClient({
@@ -112,14 +111,12 @@ class TestSkillFiles(unittest.TestCase):
         })
         Planner(planner_client, LocalNumericChecker(), skill_instructions=marker).plan(
             worker, (skill.id,), onto)
-        self.assertIn("Loaded Foundry Skill `/pathforward-plan`",
-                      planner_client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", planner_client.last_instructions)
         self.assertIn(marker, planner_client.last_instructions)
 
         insights_client = _RecordingClient({"narrative": "ok"})
         ProgramInsightsAgent(insights_client, skill_instructions=marker).analyze(worker, role, onto)
-        self.assertIn("Loaded Foundry Skill `/pathforward-insights`",
-                      insights_client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", insights_client.last_instructions)
         self.assertIn(marker, insights_client.last_instructions)
 
     def test_skill_file_requires_front_matter(self):

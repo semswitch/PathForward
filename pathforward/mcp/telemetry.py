@@ -126,6 +126,8 @@ def emit_mcp_result_event(route: str, raw_body: str, status_code: int, *,
         event_name = "pathforward.mcp.mint"
     elif route == "fabric-mcp":
         event_name = "pathforward.mcp.fabric"
+    elif route == "route-mcp":
+        event_name = "pathforward.mcp.route"
     else:
         event_name = "pathforward.mcp.response"
     return emitter(

@@ -10,8 +10,14 @@ import { BASELINE_RUN } from "./baseline";
  * these values (retimeBeats + narration.manifest.json) and nothing downstream
  * changes.
  *
- * caption = displayed text. narration = spoken text (written for the ear:
- * no literal underscores, ids, or punctuation soup).
+ * "Why-driven" intro: the user's chapter prose (fair test for the worker,
+ * undeniable proof for the enterprise) partitioned into per-beat sentences so
+ * the choreography keeps its moments — the cast contrast, the gate's red→green
+ * arc, the abstain. Two channels, on purpose:
+ *   caption   = the EYES. Exact runtime vocabulary — agent names, tool ids,
+ *               gate criteria, telemetry events, the cited gap edge.
+ *   narration = the EARS. The user's plain, why-first prose, verbatim.
+ *               (Tests enforce: no underscores or "::" in narration.)
  */
 
 export type ChapterId =
@@ -74,6 +80,15 @@ export interface TourBeat {
 type BeatSpec = Omit<TourBeat, "startMs">;
 
 const ALL_NODES: NodeId[] = [...TOUR_NODE_IDS];
+const AGENT_NODES: NodeId[] = [
+  "orchestrator",
+  "curator",
+  "generator",
+  "critic",
+  "planner",
+  "insights",
+];
+const CODE_NODES: NodeId[] = ["gate", "mint", "fabric-mcp", "abstain"];
 
 export function buildTourScript(
   baseline: TourBaseline = BASELINE_RUN
@@ -87,102 +102,62 @@ export function buildTourScript(
     {
       id: "b-welcome",
       chapter: "meet-the-flow",
-      durationMs: 7000,
+      durationMs: 13000,
       caption:
-        "This is PathForward's real production flow — every box is a live component in Microsoft Foundry, drawn with its real name. Press play and watch one worker's request move through it.",
+        "PathForward — enterprise talent mobility you can trust. Proof for the enterprise, a fair shot for the worker. Every box is a live Microsoft Foundry component, shown by its real runtime name.",
       narration:
-        "This is PathForward's real production flow. Every box you see is a live component running in Microsoft Foundry, drawn with its real name. Let's follow one worker's request through the whole system.",
+        "The hardest part of advancing your career isn't learning the skills — it's proving you have them. Meet PathForward. We built PathForward to solve enterprise talent mobility.",
       focusNodeIds: [],
       activeEdgeIds: [],
       camera: { nodeIds: ALL_NODES, padding: 0.1 },
     },
     {
-      id: "b-cast-agents",
+      id: "b-promise",
       chapter: "meet-the-flow",
-      durationMs: 7000,
+      durationMs: 13000,
       caption:
-        "Rounded, glowing nodes are LLM agents — they reason, rank, write, and narrate. PathForward runs six of them as versioned Microsoft Foundry agents.",
+        "The worker needs a fair, verifiable test; the enterprise needs undeniable proof — not a resume claim, and not an AI hallucination. Watch one real request traverse the live graph.",
       narration:
-        "The rounded, glowing nodes are language model agents. They reason, rank, write, and narrate. PathForward runs six of them, as versioned Microsoft Foundry agents.",
-      focusNodeIds: [
-        "orchestrator",
-        "curator",
-        "generator",
-        "critic",
-        "planner",
-        "insights",
-      ],
+        "When a worker wants to step into a new role, they need a fair test, and the enterprise needs undeniable proof. Let's watch one real request move through the map.",
+      focusNodeIds: ["user"],
       activeEdgeIds: [],
-      camera: {
-        nodeIds: [
-          "orchestrator",
-          "curator",
-          "generator",
-          "critic",
-          "planner",
-          "insights",
-        ],
-      },
-    },
-    {
-      id: "b-cast-code",
-      chapter: "meet-the-flow",
-      durationMs: 7500,
-      caption:
-        "Sharp, mint-edged nodes are deterministic code. They hold the power the agents never get: verifying evidence and minting credentials. Agents reason — code notarizes.",
-      narration:
-        "The sharp, mint-edged nodes are deterministic code. They hold the power the agents never get: verifying evidence, and minting credentials. Agents reason. Code notarizes.",
-      focusNodeIds: ["gate", "mint", "fabric-mcp", "abstain"],
-      activeEdgeIds: [],
-      camera: { nodeIds: ["gate", "mint", "fabric-mcp", "abstain"] },
+      camera: { nodeIds: ["user", "orchestrator"] },
     },
 
     // ——— Route reasoning ———
     {
-      id: "b-prompt",
+      id: "b-agents",
       chapter: "route",
-      durationMs: 7000,
-      caption: `Worker ${baseline.workerId} wants to move into the cloud role ${baseline.targetRoleId}. Their request lands on the orchestrator — a Microsoft Foundry Prompt Agent (${baseline.orchestratorVersion}) that loads its /pathforward Skill.`,
+      durationMs: 9000,
+      caption: `Worker ${baseline.workerId} requests role ${baseline.targetRoleId}; the request enters at pathforward-orchestrator (Foundry Prompt Agent ${baseline.orchestratorVersion}). Glowing nodes are LLM agents — they reason, draft, and explain.`,
       narration:
-        "Our worker wants to move into a cloud role. Their request lands on the orchestrator — a Microsoft Foundry prompt agent that starts by loading its PathForward skill.",
-      focusNodeIds: ["user", "orchestrator"],
+        "PathForward uses AI, but it doesn't trust it blindly. The glowing boxes are AI agents that analyze and write.",
+      focusNodeIds: [...AGENT_NODES],
       activeEdgeIds: ["e-user-orch"],
-      camera: { nodeIds: ["user", "orchestrator"] },
+      camera: { nodeIds: [...AGENT_NODES] },
       statusChanges: { user: "completed", orchestrator: "active" },
     },
     {
-      id: "b-allowed",
+      id: "b-code",
       chapter: "route",
-      durationMs: 8000,
+      durationMs: 13000,
       caption:
-        "The orchestrator may only choose from eight allowed moves — curate, assess, reflect_retry, plan, insights, request_approval, mint_if_verified, abstain. Deterministic validation rejects anything else.",
+        "Sharp, mint-edged nodes are deterministic code. Agents may reason; only code may verify and mint. The orchestrator routes — but holds no action that certifies its own work.",
       narration:
-        "The orchestrator can only choose from eight allowed moves — curate, assess, reflect and retry, plan, insights, request approval, mint if verified, or abstain. Deterministic validation rejects anything else.",
-      focusNodeIds: ["orchestrator"],
+        "But the sharp-edged boxes are plain code. In PathForward, agents are allowed to reason, but only the code can verify. That guarantees every credential we issue is bulletproof.",
+      focusNodeIds: [...CODE_NODES],
       activeEdgeIds: [],
-      camera: { nodeIds: ["orchestrator"], padding: 0.4 },
-    },
-    {
-      id: "b-forbidden",
-      chapter: "route",
-      durationMs: 7500,
-      caption:
-        "Five actions are forbidden outright: mint, verify, set_verified, override_gate, issue_credential. The reasoning agent has no path to certify its own work.",
-      narration:
-        "And five actions are forbidden outright: mint, verify, set verified, override gate, and issue credential. The reasoning agent simply has no path to certify its own work.",
-      focusNodeIds: ["orchestrator", "gate", "mint"],
-      activeEdgeIds: [],
-      camera: { nodeIds: ["orchestrator", "gate", "mint"] },
+      camera: { nodeIds: [...CODE_NODES] },
     },
 
     // ——— Grounded generation ———
     {
       id: "b-curator",
       chapter: "grounded-generation",
-      durationMs: 7000,
-      caption: `First move: the curator. Over an agent-to-agent call (pathforward-a2a-curator) it ranks ${baseline.workerId}'s skill gaps and picks the one skill worth assessing — ${baseline.skillId}.`,
+      durationMs: 12000,
+      caption: `First specialist — the curator (pathforward-a2a-curator). It ranks ${baseline.workerId}'s skill gaps and picks the one worth assessing now: skill ${baseline.skillId}.`,
       narration:
-        "First move: the curator. Over an agent-to-agent call, it ranks the worker's skill gaps, and picks the one skill worth assessing right now.",
+        "Here is how PathForward creates a fair assessment. When a worker applies for a role, our first agent reviews their specific skill gaps.",
       focusNodeIds: ["curator"],
       activeEdgeIds: ["e-orch-curator"],
       camera: { nodeIds: ["orchestrator", "curator"] },
@@ -191,11 +166,11 @@ export function buildTourScript(
     {
       id: "b-generator",
       chapter: "grounded-generation",
-      durationMs: 7500,
+      durationMs: 13000,
       caption:
-        "The generator writes an assessment item, grounding every claim through its azure_ai_search tool — it can only cite documents it actually retrieved from the approved corpus.",
+        "The generator drafts the assessment item, grounding every claim through its azure_ai_search tool — only documents actually retrieved from the approved corpus. No source, no question.",
       narration:
-        "Next, the generator writes an assessment item, grounding every claim through Azure AI Search. It can only cite documents it actually retrieved from the approved corpus.",
+        "Another agent drafts a custom question. To prevent hallucinations, PathForward forces the AI to pull every single fact from approved company documents. No source, no question.",
       focusNodeIds: ["generator", "azure-search"],
       activeEdgeIds: ["e-orch-generator", "e-gen-search"],
       camera: { nodeIds: ["orchestrator", "generator", "azure-search"] },
@@ -205,110 +180,60 @@ export function buildTourScript(
         "azure-search": "active",
       },
     },
-    {
-      id: "b-critic",
-      chapter: "grounded-generation",
-      durationMs: 7000,
-      caption:
-        "The critic reviews the draft for fairness, ambiguity, and answerability. It recommends — pass, repair, or reject — but it never decides. Advice only.",
-      narration:
-        "The critic reviews the draft for fairness, ambiguity, and answerability. It recommends — pass, repair, or reject — but it never decides. Advice only.",
-      focusNodeIds: ["critic"],
-      activeEdgeIds: ["e-orch-critic"],
-      camera: { nodeIds: ["orchestrator", "critic"] },
-      statusChanges: {
-        generator: "completed",
-        "azure-search": "completed",
-        critic: "active",
-      },
-    },
 
     // ——— The Gate says no ———
     {
-      id: "b-gate-intro",
+      id: "b-gate",
       chapter: "gate-rejects",
-      durationMs: 7000,
+      durationMs: 13000,
       caption:
-        "Now the draft faces the Evidence Gate — not an agent, a deterministic Azure Function called over MCP: verify_assessment_and_issue_mint_request.",
+        "Evidence Gate — deterministic code (verify_assessment_and_issue_mint_request), not an agent. Five checks: grounded, evidence_answerable, single_correct, no_leakage, numeric_valid.",
       narration:
-        "Now the draft faces the Evidence Gate. Not an agent — a deterministic Azure Function, called over MCP. Its one job: verify the assessment, and issue a mint request.",
+        "Once drafted, the question hits the Evidence Gate. This is strict code, not AI. It runs hard checks: is the evidence real? Is it fair to the worker?",
       focusNodeIds: ["gate"],
       activeEdgeIds: ["e-orch-gate"],
       camera: { nodeIds: ["orchestrator", "gate"] },
-      statusChanges: { critic: "completed", gate: "active" },
-    },
-    {
-      id: "b-criteria",
-      chapter: "gate-rejects",
-      durationMs: 7500,
-      caption:
-        "Five hard criteria, checked in code: grounded, evidence_answerable, single_correct, no_leakage, numeric_valid. No model opinion is consulted.",
-      narration:
-        "Five hard criteria, checked in code. Grounded. Answerable from the evidence. Exactly one correct option. No answer leakage. And valid arithmetic. No model opinion is consulted.",
-      focusNodeIds: ["gate"],
-      activeEdgeIds: [],
-      camera: { nodeIds: ["gate"], padding: 0.4 },
+      statusChanges: {
+        generator: "completed",
+        "azure-search": "completed",
+        gate: "active",
+      },
     },
     {
       id: "b-reject",
       chapter: "gate-rejects",
-      durationMs: 7000,
-      caption: `In this real run, attempt one failed: the citations didn't hold up — ${failedCriteria} both failed. Status: rejected.`,
+      durationMs: 13000,
+      caption: `Attempt 1 fails on ${failedCriteria}; status=rejected, logged to Application Insights (pathforward.mcp.gate). Nothing runs on the honor system.`,
       narration:
-        "In this real run, the first attempt failed. The citations didn't hold up — grounding, and answerability from evidence, both failed. Status: rejected.",
-      focusNodeIds: ["gate"],
-      activeEdgeIds: [],
-      camera: { nodeIds: ["gate"], padding: 0.4 },
-      statusChanges: { gate: "rejected" },
-    },
-    {
-      id: "b-tel-reject",
-      chapter: "gate-rejects",
-      durationMs: 6500,
-      caption:
-        "Every verdict is logged — Application Insights records pathforward.mcp.gate with pf.status=rejected. Nothing here runs on the honor system.",
-      narration:
-        "And every verdict is logged. Application Insights records the gate event, with status rejected. Nothing here runs on the honor system.",
-      focusNodeIds: ["app-insights"],
+        "In this run, the first attempt fails. The evidence wasn't strong enough. The Gate says no, logging the rejection to keep the PathForward system completely auditable.",
+      focusNodeIds: ["gate", "app-insights"],
       activeEdgeIds: ["e-gate-tel"],
       camera: { nodeIds: ["gate", "app-insights"] },
-      statusChanges: { "app-insights": "active" },
+      statusChanges: { gate: "rejected", "app-insights": "active" },
     },
 
     // ——— Reflection & retry ———
     {
       id: "b-feedback",
       chapter: "reflect-retry",
-      durationMs: 7000,
+      durationMs: 13000,
       caption:
-        "The gate sends back only its failed criteria and fixed remediation strings — never the answer, never its internals. Bounded feedback, by design.",
+        "Bounded feedback: only the failed criteria and remediation flow back — never the answer. The generator rewrites and re-grounds for attempt 2.",
       narration:
-        "The gate sends back only its failed criteria, and fixed remediation strings. Never the answer. Never its internals. Bounded feedback, by design.",
-      focusNodeIds: ["gate", "orchestrator"],
-      activeEdgeIds: ["e-gate-feedback"],
-      camera: { nodeIds: ["orchestrator", "gate"] },
-    },
-    {
-      id: "b-retry",
-      chapter: "reflect-retry",
-      durationMs: 6500,
-      caption:
-        "The orchestrator plays reflect_retry: the generator rewrites the item against the remediation, re-grounding through Azure AI Search.",
-      narration:
-        "The orchestrator plays its reflect-and-retry move. The generator rewrites the item against that feedback, re-grounding through Azure AI Search.",
-      focusNodeIds: ["generator", "azure-search"],
-      activeEdgeIds: ["e-orch-generator", "e-gen-search"],
-      camera: { nodeIds: ["orchestrator", "generator", "azure-search"] },
+        "But PathForward is built to recover. The Gate sends back exact notes on what failed. The AI reflects, fixes the question, and grounds it in better evidence.",
+      focusNodeIds: ["gate", "generator"],
+      activeEdgeIds: ["e-gate-feedback", "e-orch-generator", "e-gen-search"],
+      camera: { nodeIds: ["orchestrator", "gate", "generator"] },
       statusChanges: { generator: "active", gate: "active" },
     },
     {
       id: "b-verified",
       chapter: "reflect-retry",
-      durationMs: 7500,
+      durationMs: 10000,
       caption:
-        "Attempt two passes all five criteria. The gate flips to verified — and issues the one thing only it can create: a sealed mint_request token.",
+        "Attempt 2 passes all five checks. The gate flips to verified and issues a sealed mint_request token — the one artifact only it can create.",
       narration:
-        "Attempt two passes all five criteria. The gate flips to verified — and issues the one thing only it can create: a sealed mint request token.",
+        "This time, it passes all checks, and the Gate issues a secure token. The worker gets a fair, verified test.",
       focusNodeIds: ["gate"],
       activeEdgeIds: ["e-orch-gate", "e-gate-mint"],
       camera: { nodeIds: ["gate", "mint"] },
@@ -317,24 +242,12 @@ export function buildTourScript(
 
     // ——— Verified + insights ———
     {
-      id: "b-planner",
-      chapter: "verified-insights",
-      durationMs: 6000,
-      caption:
-        "With the assessment verified, the planner drafts a capacity-aware learning plan — advisory, deliberately off the trust path.",
-      narration:
-        "With the assessment verified, the planner drafts a learning plan that respects the worker's weekly capacity. Advisory — deliberately off the trust path.",
-      focusNodeIds: ["planner"],
-      activeEdgeIds: ["e-orch-planner"],
-      camera: { nodeIds: ["orchestrator", "planner"] },
-      statusChanges: { planner: "active" },
-    },
-    {
       id: "b-insights",
       chapter: "verified-insights",
-      durationMs: 7500,
-      caption: `The insights agent asks Microsoft Fabric's live data agent how ${baseline.workerId} sits in their cohort: ${baseline.cohortSize} workers, average readiness ${avgReadiness}, ${baseline.workerId} at ${workerReadiness}.`,
-      narration: `The insights agent asks Microsoft Fabric's live data agent how our worker sits in their cohort: ${baseline.cohortSize} workers, average readiness ${avgReadiness}, our worker at ${workerReadiness}.`,
+      durationMs: 14000,
+      caption: `Insights asks Microsoft Fabric's live data agent: ${baseline.cohortSize} workers chasing ${baseline.targetRoleId}, average readiness ${avgReadiness}, ${baseline.workerId} at ${workerReadiness} — every number source="fabric-live", read not invented.`,
+      narration:
+        "PathForward does more than just test; it guides. With the assessment passed, the system pulls live data to show how this worker compares to peers aiming for the exact same role.",
       focusNodeIds: ["insights", "fabric-mcp", "fabric"],
       activeEdgeIds: [
         "e-orch-insights",
@@ -343,24 +256,24 @@ export function buildTourScript(
       ],
       camera: { nodeIds: ["insights", "fabric-mcp", "fabric"] },
       statusChanges: {
-        planner: "completed",
         insights: "active",
         "fabric-mcp": "active",
         fabric: "active",
       },
     },
     {
-      id: "b-fabric-live",
+      id: "b-roadmap",
       chapter: "verified-insights",
       durationMs: 6500,
       caption:
-        'Every number is source="fabric-live" — read from Fabric, never invented. The agent narrates the statistics; code computes them.',
+        "The planner turns the verified result and cohort data into a capacity-aware learning roadmap — advisory, deliberately off the trust path.",
       narration:
-        "Every number is read live from Fabric — never invented. The agent narrates the statistics. Code computes them.",
-      focusNodeIds: ["fabric"],
-      activeEdgeIds: ["e-fabric-tel"],
-      camera: { nodeIds: ["fabric-mcp", "fabric", "app-insights"] },
+        "PathForward gives them a realistic, data-driven roadmap for their career.",
+      focusNodeIds: ["planner"],
+      activeEdgeIds: ["e-orch-planner"],
+      camera: { nodeIds: ["orchestrator", "planner"] },
       statusChanges: {
+        planner: "active",
         insights: "completed",
         "fabric-mcp": "completed",
         fabric: "completed",
@@ -369,78 +282,53 @@ export function buildTourScript(
 
     // ——— Approval & mint ———
     {
-      id: "b-approval",
+      id: "b-twokeys",
       chapter: "approval-mint",
-      durationMs: 7000,
+      durationMs: 11000,
       caption:
-        "Minting needs two keys: the gate's sealed token and a human saying yes. The orchestrator can request approval — it cannot grant it.",
+        "Two keys to mint: the gate's sealed token + explicit human approval. The orchestrator can request approval — it cannot grant it.",
       narration:
-        "Minting needs two keys. The gate's sealed token — and a human saying yes. The orchestrator can request approval. It cannot grant it.",
+        "To actually issue the credential, PathForward requires two keys: the system's mathematically secure token, and a human clicking approve.",
       focusNodeIds: ["approval", "mint"],
-      activeEdgeIds: ["e-approval-mint"],
+      activeEdgeIds: ["e-approval-mint", "e-orch-mint"],
       camera: { nodeIds: ["approval", "mint"] },
       statusChanges: { approval: "active" },
     },
     {
       id: "b-mint",
       chapter: "approval-mint",
-      durationMs: 7000,
-      caption:
-        "Approval granted. The MCP mint tool — pathforward_mint_credential — re-checks readiness and the causal spine, then mints.",
+      durationMs: 9500,
+      caption: `pathforward_mint_credential re-checks readiness and the causal spine, then issues a verifiable credential for skill ${baseline.skillId} toward ${baseline.targetRoleId} — citing the gap edge that began this run: ${baseline.citedEdgeId}.`,
       narration:
-        "Approval granted. The MCP mint tool re-checks readiness and the causal spine — then mints.",
-      focusNodeIds: ["mint"],
-      activeEdgeIds: ["e-orch-mint", "e-approval-mint"],
-      camera: { nodeIds: ["mint"], padding: 0.4 },
-      statusChanges: { approval: "completed", mint: "minted" },
-    },
-    {
-      id: "b-credential",
-      chapter: "approval-mint",
-      durationMs: 8000,
-      caption: `${baseline.workerId} now holds a credential for skill ${baseline.skillId} toward role ${baseline.targetRoleId} — citing the exact gap edge that started this run: ${baseline.citedEdgeId}. A provable chain, end to end.`,
-      narration:
-        "Our worker now holds a credential for the exact skill gap that started this run — citing the very edge in the graph that drove it. A provable chain, end to end.",
-      focusNodeIds: ["credential"],
+        "The AI cannot mint a credential on its own. It only prepares the proof for a human to validate.",
+      focusNodeIds: ["mint", "credential"],
       activeEdgeIds: ["e-mint-cred", "e-mint-tel"],
       camera: { nodeIds: ["mint", "credential"] },
-      statusChanges: { credential: "minted" },
+      statusChanges: { approval: "completed", mint: "minted", credential: "minted" },
     },
 
     // ——— ABSTAIN ———
     {
-      id: "b-abstain-path",
+      id: "b-abstain",
       chapter: "abstain",
-      durationMs: 7000,
+      durationMs: 13000,
       caption:
-        "And when the evidence isn't there? After three failed attempts — or no assessable path at all — the route ends here: ABSTAIN.",
+        "No proof, no credential: after three failed attempts — or no assessable path — the route ends at ABSTAIN (status=abstained): no citations, no approval, no credential.",
       narration:
-        "And when the evidence isn't there? After three failed attempts — or no assessable path at all — the route ends here. Abstain.",
+        "And what if the proof just isn't there? After three tries, PathForward does what most AI systems won't: it stops. It won't issue a credential.",
       focusNodeIds: ["abstain"],
       activeEdgeIds: ["e-orch-abstain"],
       camera: { nodeIds: ["orchestrator", "abstain"] },
       statusChanges: { abstain: "abstained" },
     },
     {
-      id: "b-abstain-meaning",
-      chapter: "abstain",
-      durationMs: 7000,
-      caption:
-        "Status abstained: no citations, no approval, no credential. PathForward would rather say “not yet” than mint a claim it can't prove.",
-      narration:
-        "Status: abstained. No citations. No approval. No credential. PathForward would rather say not yet, than mint a claim it can't prove.",
-      focusNodeIds: ["abstain"],
-      activeEdgeIds: [],
-      camera: { nodeIds: ["abstain"], padding: 0.4 },
-    },
-    {
       id: "b-closing",
       chapter: "abstain",
-      durationMs: 8000,
+      durationMs: 12000,
       caption:
-        "That's the whole loop: agents reason, code notarizes, humans approve, telemetry remembers. Explore the graph freely — or replay any chapter.",
+        "Agents reason, code notarizes, humans approve, telemetry remembers. PathForward champions the worker and protects the enterprise — built on proof, end to end.",
       narration:
-        "And that's the whole loop. Agents reason. Code notarizes. Humans approve. And telemetry remembers. Explore the graph freely — or replay any chapter.",
+        "PathForward is designed to say not yet, rather than guess. It is a system built on proof — championing the worker while protecting the enterprise.",
       focusNodeIds: [],
       activeEdgeIds: [],
       camera: { nodeIds: ALL_NODES, padding: 0.1 },

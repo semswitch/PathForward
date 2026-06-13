@@ -247,6 +247,24 @@ def _write_evidence(report: dict[str, Any], out_path: str = "") -> Path:
     return path
 
 
+def _resolve_eval_id_by_name(client: Any, name: str) -> str | None:
+    """Return the id of an existing eval object with this exact name, or None.
+
+    Reusing one stable eval_id makes runs accumulate under a single, versioned evaluation group in the
+    Foundry portal (instead of a fresh timestamped eval object per run). An eval object fixes its
+    data_source_config + testing_criteria at creation, so if the evaluator set or item schema changes,
+    bump `name` in the config (or pin a fresh `eval_id`) to start a new group.
+    """
+    try:
+        for evaluation in client.evals.list():
+            data = _as_dict(evaluation)
+            if data.get("name") == name:
+                return str(data.get("id"))
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
 def _result_counts(output_items: list[dict[str, Any]]) -> dict[str, int]:
     failures = 0
     errors = 0
@@ -262,12 +280,38 @@ def _result_counts(output_items: list[dict[str, Any]]) -> dict[str, int]:
     return {"result_count": result_count, "failure_count": failures, "error_count": errors}
 
 
+def _target_transient(output_items: list[dict[str, Any]]) -> bool:
+    """True if the agent-target invocation hit a retryable transient rather than a gradable response.
+
+    The route intermittently dies at a deep A2A-preview call with an "Agent task ... failed" /
+    tool_user_error and returns empty output. This mirrors the streaming smoke's `_is_transient` so the
+    cloud eval can retry the whole run the same way the smoke retries the whole turn.
+    """
+    if not output_items:
+        return False
+    for item in output_items:
+        sample = item.get("sample") or {}
+        error = sample.get("error") or {}
+        message = str(error.get("message", "")).lower()
+        if "agent task" in message and "failed" in message:
+            return True
+        if message and any(s in message for s in ("rate_limit", "too many requests", " 429",
+                                                  "timeout", "temporarily", " 500", " 502", " 503")):
+            return True
+        has_output = bool(sample.get("output") or sample.get("output_text"))
+        if error and not has_output:
+            return True
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="eval/prompt_orchestrator_smoke.yaml")
     parser.add_argument("--environment", default=os.environ.get("AZURE_ENV_NAME", "pathforward-dev"))
     parser.add_argument("--out", default="")
     parser.add_argument("--timeout-seconds", type=int, default=900)
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Create/resolve the versioned eval object only; skip the live target run.")
     args = parser.parse_args()
 
     settings = load_settings(str(ROOT / ".env"))
@@ -303,56 +347,105 @@ def main() -> int:
         for name in custom_names
     }
     stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-    eval_obj = client.evals.create(
-        name=f"{config['name']}-{stamp}",
-        data_source_config={
-            "type": "custom",
-            "item_schema": _item_schema(rows),
-            "include_sample_schema": True,
-        },
-        testing_criteria=_testing_criteria(
-            config,
-            settings.model_deployment or "reasoning",
-            evaluator_versions,
-        ),
+    data_source_config = {
+        "type": "custom",
+        "item_schema": _item_schema(rows),
+        "include_sample_schema": True,
+    }
+    testing_criteria = _testing_criteria(
+        config,
+        settings.model_deployment or "reasoning",
+        evaluator_versions,
     )
+    # Reuse one stable eval object so runs accumulate under a single versioned evaluation group in the
+    # Foundry portal. Precedence: explicit config eval_id -> existing eval with the stable name -> create.
+    stable_name = str(config["name"])
+    configured_eval_id = str(config.get("eval_id") or "").strip()
+    if configured_eval_id:
+        eval_obj = client.evals.retrieve(configured_eval_id)
+        eval_origin = "config"
+    elif (existing_id := _resolve_eval_id_by_name(client, stable_name)):
+        eval_obj = client.evals.retrieve(existing_id)
+        eval_origin = "reused"
+    else:
+        eval_obj = client.evals.create(
+            name=stable_name,
+            data_source_config=data_source_config,
+            testing_criteria=testing_criteria,
+        )
+        eval_origin = "created"
     eval_id = _as_dict(eval_obj)["id"]
-    run = client.evals.runs.create(
-        eval_id,
-        name=f"{config['name']}-run-{stamp}",
-        data_source={
-            "type": "azure_ai_target_completions",
-            "source": {
-                "type": "file_content",
-                "content": [{"item": row} for row in rows[: int(config.get("max_samples") or len(rows))]],
-            },
-            "input_messages": {
-                "type": "template",
-                "template": [{"type": "message", "role": "user", "content": "{{item.query}}"}],
-            },
-            "target": {
-                "type": "azure_ai_agent",
-                "name": agent_name,
-                "version": agent_version,
-            },
-        },
-    )
-    run_id = _as_dict(run)["id"]
 
-    deadline = time.time() + args.timeout_seconds
-    current = _as_dict(run)
-    while time.time() < deadline:
-        current = _as_dict(client.evals.runs.retrieve(run_id, eval_id=eval_id))
-        if str(current.get("status", "")).lower() in {"completed", "failed", "cancelled"}:
+    if args.dry_run:
+        print(json.dumps({
+            "dry_run": True,
+            "eval_id": eval_id,
+            "eval_name": _as_dict(eval_obj).get("name"),
+            "eval_origin": eval_origin,
+            "agent": f"{agent_name} v{agent_version}",
+            "evaluators": config.get("evaluators") or [],
+            "evaluator_versions": evaluator_versions,
+        }, indent=2, sort_keys=True))
+        return 0
+
+    # Run-level retry: the azure_ai_target_completions target has no internal retry, so an intermittent
+    # A2A-preview "Agent task ... failed" drops the whole run to empty output. Re-create the run on that
+    # transient (with backoff) the same way the streaming smoke retries the turn. Each attempt is a fresh
+    # run under the same eval_id, so the portal group shows the attempts and the eventual clean run.
+    max_attempts = max(1, int(config.get("run_retries", 3)))
+    retry_delays = (20, 40, 60)
+    run_id = ""
+    current: dict[str, Any] = {}
+    output_items: list[dict[str, Any]] = []
+    run_attempts = 0
+    for attempt in range(max_attempts):
+        if attempt:
+            delay = retry_delays[min(attempt - 1, len(retry_delays) - 1)]
+            print(json.dumps({"phase": "run_retry", "reason": "target_transient",
+                              "attempt": attempt + 1, "of": max_attempts, "delay_seconds": delay}))
+            time.sleep(delay)
+        run_attempts = attempt + 1
+        run = client.evals.runs.create(
+            eval_id,
+            name=f"{config['name']}-run-{stamp}-a{attempt + 1}",
+            data_source={
+                "type": "azure_ai_target_completions",
+                "source": {
+                    "type": "file_content",
+                    "content": [{"item": row} for row in rows[: int(config.get("max_samples") or len(rows))]],
+                },
+                "input_messages": {
+                    "type": "template",
+                    "template": [{"type": "message", "role": "user", "content": "{{item.query}}"}],
+                },
+                "target": {
+                    "type": "azure_ai_agent",
+                    "name": agent_name,
+                    "version": agent_version,
+                },
+            },
+        )
+        run_id = _as_dict(run)["id"]
+
+        deadline = time.time() + args.timeout_seconds
+        current = _as_dict(run)
+        while time.time() < deadline:
+            current = _as_dict(client.evals.runs.retrieve(run_id, eval_id=eval_id))
+            if str(current.get("status", "")).lower() in {"completed", "failed", "cancelled"}:
+                break
+            time.sleep(10)
+
+        output_items = [
+            _as_dict(item)
+            for item in client.evals.runs.output_items.list(run_id, eval_id=eval_id, limit=100)
+        ]
+        if not _target_transient(output_items):
             break
-        time.sleep(10)
 
-    output_items = [
-        _as_dict(item)
-        for item in client.evals.runs.output_items.list(run_id, eval_id=eval_id, limit=100)
-    ]
     report = {
         "eval_id": eval_id,
+        "eval_origin": eval_origin,
+        "run_attempts": run_attempts,
         "run_id": run_id,
         "eval_name": _as_dict(eval_obj).get("name"),
         "run_name": current.get("name"),
@@ -371,6 +464,8 @@ def main() -> int:
     evidence_path = _write_evidence(report, args.out)
     print(json.dumps({
         "eval_id": eval_id,
+        "eval_origin": eval_origin,
+        "run_attempts": run_attempts,
         "run_id": run_id,
         "status": current.get("status"),
         "agent": f"{agent_name} v{agent_version}",

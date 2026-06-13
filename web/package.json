@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "narration": "tsx scripts/generate-narration.ts"
+    "narration": "tsx scripts/generate-narration.ts",
+    "narration:transcript": "tsx scripts/narration-transcript.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.5",

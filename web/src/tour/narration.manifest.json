@@ -1,134 +1,89 @@
 {
   "version": 1,
-  "generatedAt": "2026-06-13T01:35:12.810Z",
+  "generatedAt": "2026-06-13T22:46:37.206Z",
   "voice": "en-US-Harper:MAI-Voice-2",
   "gapMs": 350,
-  "totalMs": 317628,
+  "totalMs": 156631,
   "beats": [
     {
       "id": "b-welcome",
       "startMs": 0,
-      "durationMs": 13638
+      "durationMs": 10962
     },
     {
-      "id": "b-cast-agents",
-      "startMs": 13638,
-      "durationMs": 12238
+      "id": "b-promise",
+      "startMs": 10962,
+      "durationMs": 10472
     },
     {
-      "id": "b-cast-code",
-      "startMs": 25876,
-      "durationMs": 16582
+      "id": "b-agents",
+      "startMs": 21434,
+      "durationMs": 7090
     },
     {
-      "id": "b-prompt",
-      "startMs": 42458,
-      "durationMs": 12006
-    },
-    {
-      "id": "b-allowed",
-      "startMs": 54464,
-      "durationMs": 18086
-    },
-    {
-      "id": "b-forbidden",
-      "startMs": 72550,
-      "durationMs": 12334
+      "id": "b-code",
+      "startMs": 28524,
+      "durationMs": 13687
     },
     {
       "id": "b-curator",
-      "startMs": 84884,
-      "durationMs": 10566
+      "startMs": 42211,
+      "durationMs": 8517
     },
     {
       "id": "b-generator",
-      "startMs": 95450,
-      "durationMs": 10638
+      "startMs": 50728,
+      "durationMs": 11792
     },
     {
-      "id": "b-critic",
-      "startMs": 106088,
-      "durationMs": 13518
-    },
-    {
-      "id": "b-gate-intro",
-      "startMs": 119606,
-      "durationMs": 13006
-    },
-    {
-      "id": "b-criteria",
-      "startMs": 132612,
-      "durationMs": 27630
+      "id": "b-gate",
+      "startMs": 62520,
+      "durationMs": 13364
     },
     {
       "id": "b-reject",
-      "startMs": 160242,
-      "durationMs": 10190
-    },
-    {
-      "id": "b-tel-reject",
-      "startMs": 170432,
-      "durationMs": 9454
+      "startMs": 75884,
+      "durationMs": 10355
     },
     {
       "id": "b-feedback",
-      "startMs": 179886,
-      "durationMs": 11950
-    },
-    {
-      "id": "b-retry",
-      "startMs": 191836,
-      "durationMs": 10214
+      "startMs": 86239,
+      "durationMs": 11375
     },
     {
       "id": "b-verified",
-      "startMs": 202050,
-      "durationMs": 11078
-    },
-    {
-      "id": "b-planner",
-      "startMs": 213128,
-      "durationMs": 9670
+      "startMs": 97614,
+      "durationMs": 7512
     },
     {
       "id": "b-insights",
-      "startMs": 222798,
-      "durationMs": 11982
+      "startMs": 105126,
+      "durationMs": 10773
     },
     {
-      "id": "b-fabric-live",
-      "startMs": 234780,
-      "durationMs": 8646
+      "id": "b-roadmap",
+      "startMs": 115899,
+      "durationMs": 4433
     },
     {
-      "id": "b-approval",
-      "startMs": 243426,
-      "durationMs": 11398
+      "id": "b-twokeys",
+      "startMs": 120332,
+      "durationMs": 9292
     },
     {
       "id": "b-mint",
-      "startMs": 254824,
-      "durationMs": 6286
+      "startMs": 129624,
+      "durationMs": 6531
     },
     {
-      "id": "b-credential",
-      "startMs": 261110,
-      "durationMs": 10478
-    },
-    {
-      "id": "b-abstain-path",
-      "startMs": 271588,
-      "durationMs": 12942
-    },
-    {
-      "id": "b-abstain-meaning",
-      "startMs": 284530,
-      "durationMs": 18950
+      "id": "b-abstain",
+      "startMs": 136155,
+      "durationMs": 10062
     },
     {
       "id": "b-closing",
-      "startMs": 303480,
-      "durationMs": 14148
+      "startMs": 146217,
+      "durationMs": 10414
     }
   ],
   "words": {
@@ -156,6 +111,17 @@
     "b-credential": [],
     "b-abstain-path": [],
     "b-abstain-meaning": [],
-    "b-closing": []
+    "b-closing": [],
+    "b-meet": [],
+    "b-route": [],
+    "b-grounded": [],
+    "b-gate": [],
+    "b-reflect": [],
+    "b-abstain": [],
+    "b-promise": [],
+    "b-agents": [],
+    "b-code": [],
+    "b-roadmap": [],
+    "b-twokeys": []
   }
 }

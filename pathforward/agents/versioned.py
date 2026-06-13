@@ -21,6 +21,10 @@ class VersionedAgentSpec:
     role: str
     agent_name: str
     skill_name: str
+    # Historical naming label only. PathForward no longer provisions Foundry toolboxes: Skills are
+    # registered for portal visibility (register_skills.py) and injected into each agent's
+    # instructions from the local skills/<name>/SKILL.md at provision time, while the tool surface is
+    # attached directly to the PromptAgentDefinition. Retained for the tool-surface naming contract.
     toolbox_name: str
     base_instructions: str
     schema: dict | None = None
@@ -60,7 +64,7 @@ VERSIONED_AGENT_SPECS: tuple[VersionedAgentSpec, ...] = (
     VersionedAgentSpec(
         role="critic",
         agent_name="pathforward-specialist-critic",
-        skill_name="pathforward-assess",
+        skill_name="pathforward-critic",
         toolbox_name="pathforward-critic-toolbox",
         base_instructions=CRIT_INSTRUCTIONS,
         schema=CRITIC_SCHEMA,
@@ -108,12 +112,9 @@ def versioned_agent_evidence() -> dict:
 
 
 def versioned_agent_instructions(spec: VersionedAgentSpec, skill_body: str) -> str:
-    """Compose the system instructions stored on the durable Foundry agent version."""
-    return (
-        f"{spec.base_instructions}\n\n"
-        f"Loaded Foundry Skill `/{spec.skill_name}`:\n"
-        f"{skill_body.strip()}\n\n"
-        "This Skill is part of this versioned Foundry agent definition. Follow it exactly, while "
-        "the structured output schema, deterministic validators, Evidence Gate, and mint boundary "
-        "remain authoritative."
-    )
+    """The agent's system instruction IS its skill — a single clean block, injected at provision time.
+
+    `spec` is retained for call-site stability and evidence; the structured output schema and the
+    deterministic validators / Evidence Gate / mint boundary are enforced by code, not prose.
+    """
+    return skill_body.strip()

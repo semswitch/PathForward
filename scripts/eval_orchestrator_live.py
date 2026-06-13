@@ -38,7 +38,7 @@ from pathforward.eval.runner import CaseResult, Scorecard  # noqa: E402
 from pathforward.iq import derivation as dv  # noqa: E402
 from pathforward.iq import mirror  # noqa: E402
 from pathforward.iq.seed import build_seed  # noqa: E402
-from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
+from pathforward.skills import read_skill_file  # noqa: E402
 
 
 def _content_by_ref(onto, edges) -> dict[str, str]:
@@ -181,15 +181,14 @@ def main() -> int:
 
     skill_evidence = {}
     for spec in VERSIONED_AGENT_SPECS:
-        _, mcp = read_skill_from_toolbox(settings.foundry_project_endpoint,
-                                         spec.toolbox_name, spec.skill_name)
+        skill_path = os.path.join(_ROOT, "skills", spec.skill_name, "SKILL.md")
+        skill = read_skill_file(skill_path)
         skill_evidence[spec.role] = {
-            "toolbox": spec.toolbox_name,
-            "skill_uri": mcp.get("skill_uri"),
-            "chars": mcp.get("skill_chars"),
-            "tools": mcp.get("tools"),
+            "skill": f"/{spec.skill_name}",
+            "source_path": os.path.relpath(skill_path, _ROOT).replace(os.sep, "/"),
+            "chars": len(skill.instructions),
         }
-    print(f"scoped skills: {skill_evidence}")
+    print(f"baked skills: {skill_evidence}")
 
     onto = build_seed()
     edges = dv.build_all_edges(onto)

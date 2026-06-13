@@ -113,7 +113,7 @@ class TestOrchestratorValidator(unittest.TestCase):
         })
         orch = Orchestrator(client, skill_instructions="# PathForward Orchestrator Skill\nRun it.")
         orch.plan(self.worker, self.role, self.onto)
-        self.assertIn("Loaded Foundry Skill `/pathforward`", client.last_instructions)
+        self.assertNotIn("Loaded Foundry Skill", client.last_instructions)
         self.assertIn("PathForward Orchestrator Skill", client.last_instructions)
 
 

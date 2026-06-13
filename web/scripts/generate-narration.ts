@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import * as sdk from "microsoft-cognitiveservices-speech-sdk";
 import { buildTourScript } from "../src/tour/script";
 import type { TourBeat } from "../src/tour/script";
+import { writeTranscript } from "./lib/transcript";
 
 const WEB_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WORK_DIR = join(WEB_ROOT, "narration-work");
@@ -292,6 +293,7 @@ async function main(): Promise<void> {
       "3. Bounce the final master, full length from 00:00.000, as MP3 (≥160 kbps)",
       "   to `web/public/narration/tour.mp3`.",
       "4. Per-beat dry stems are in `stems/` if needed for reference.",
+      "5. A timecoded read-along transcript is in `narration-script.md`.",
       "",
       `Current pass: voice ${VOICE}, gap ${GAP_MS} ms, total ${(totalMs / 1000).toFixed(1)} s.`,
       "",
@@ -300,6 +302,12 @@ async function main(): Promise<void> {
       "",
     ].join("\n")
   );
+
+  try {
+    writeTranscript(join(WORK_DIR, "narration-script.md"), beats, manifest);
+  } catch (error) {
+    console.warn(`transcript emit skipped: ${error}`);
+  }
 
   console.log(
     `\nDone. ${beats.length} beats, ${(totalMs / 1000).toFixed(1)}s total.\n` +

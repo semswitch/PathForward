@@ -1,8 +1,11 @@
 """Create durable Foundry prompt-agent versions for PathForward product agents.
 
 This replaces request-time Skill text injection with versioned Foundry agents. The script reads each
-registered Skill from that agent's scoped toolbox, bakes the Skill into its matching agent
-definition, attaches the required tool surface, and creates a new visible Foundry agent version.
+agent's Skill from its repo-local `skills/<name>/SKILL.md` source, bakes the Skill into its matching
+agent definition, attaches the required tool surface directly to the definition, and creates a new
+visible Foundry agent version. Toolboxes are not used: Skills are injected at provision time and the
+tool surface (Azure AI Search, the A2A links, and the route/gate/mint/fabric MCP tools) is attached
+directly to each `PromptAgentDefinition`.
 
 Usage:
     .venv\\Scripts\\python.exe scripts\\provision_foundry_specialist_agents.py
@@ -22,61 +25,21 @@ from pathforward.agents.versioned import (  # noqa: E402
     versioned_agent_instructions,
 )
 from pathforward.config import load_settings  # noqa: E402
-from pathforward.toolbox_mcp import read_skill_from_toolbox  # noqa: E402
+from pathforward.skills import read_skill_file  # noqa: E402
 
 SEARCH_CONNECTION = "pathforward-search"
 MINT_CONNECTION = "pathforward-mint-mcp"
 GATE_CONNECTION = "pathforward-gate-mcp"
+ROUTE_CONNECTION = "pathforward-route-mcp"
 FABRIC_MCP_CONNECTION = "pathforward-fabric-mcp"
 A2A_CONNECTION_PREFIX = "pathforward-a2a"
 A2A_ROLES = ("curator", "generator", "critic", "planner", "insights")
 
 
 def _orchestrator_instructions(skill_body: str) -> str:
-    return (
-        "You are pathforward-orchestrator, the live Foundry Prompt Agent for PathForward.\n\n"
-        "Loaded Foundry Skill `/pathforward`:\n"
-        f"{skill_body.strip()}\n\n"
-        "When the user asks to run /pathforward, execute the workflow with your attached "
-        "Foundry tools:\n"
-        "1. Call pathforward-a2a-curator to rank admissible candidate skills. Do not list "
-        "`pathforward-a2a-curator` in tools_called unless the tool was actually invoked in the "
-        "current response.\n"
-        "2. Select the highest-ranked admissible skill. Set driving_edge_id to the deterministic "
-        "edge id `certgap::{worker_id}::{skill_id}` for that selected skill unless the "
-        "code-provided payload supplies that exact edge id.\n"
-        "3. Call pathforward-a2a-generator to create the grounded assessment item for that "
-        "selected skill. The Generator call must include worker_id, target_role_id, target_role, "
-        "selected skill_id, driving_edge_id, approved_refs, attempt, and difficulty_band. It must "
-        "ask for exactly this JSON item contract: stem, options, answer_index, cited_ref_ids, "
-        "numeric_claim. Do not ask for a summary from Generator.\n"
-        "4. Call pathforward-a2a-critic to review ambiguity, fairness, answerability, and "
-        "citation relevance. The Critic call must ask for exactly this JSON contract: "
-        "recommendation is one of pass, repair, reject; concerns is a list of "
-        "criterion_name/severity objects; advisory_notes is a string. Never ask for pass/fail.\n"
-        "5. Call pathforward-gate.verify_assessment_and_issue_mint_request with the selected "
-        "worker, role, skill, driving edge, attempt, and Generator item. If the gate returns "
-        "status=rejected with feedback, call Generator again with only that bounded feedback. If "
-        "the gate returns status=verified, keep the returned mint_request_token.\n"
-        "6. Call pathforward-a2a-planner for the advisory learning plan.\n"
-        "7. Call pathforward-a2a-insights for Fabric-backed cohort/program insight. The Insights "
-        "message must explicitly instruct the specialist to use its attached pathforward-fabric "
-        "MCP tool and return a compact metrics-only response: source=fabric-live, cohort_size, "
-        "average_readiness, and selected_skill_bottleneck_count. Do not request narrative or "
-        "extra analysis in the A2A call.\n"
-        "8. Do not forge Evidence Gate, readiness, verified status, or mint request tokens.\n"
-        "9. Only call pathforward-mint.pathforward_mint_credential if a deterministic code-issued "
-        "mint_request_token is present and the user explicitly approves the mint action. If no "
-        "token is present, report mint_pending_no_code_token. If the caller explicitly asks to "
-        "stage the live proof across turns, stop at the requested boundary and continue the same "
-        "route from the prior response on the next user instruction.\n\n"
-        "For this live Foundry Prompt Agent, these attached tool instructions are the runtime "
-        "contract for `/pathforward`; do not collapse the flow into a plan-only response. A "
-        "self-reported tools_called list without matching Foundry tool calls is invalid.\n\n"
-        "Return a concise final report with: tools_called, selected_skill_id, assessment_summary, "
-        "critic_summary, planner_summary, fabric_insight_summary, and mint_state. Never use local "
-        "Python orchestration or FakeLLM behavior."
-    )
+    # The `/pathforward` skill is the complete operational runbook (A2A specialist links + the
+    # deterministic route/gate/mint tools); it IS the orchestrator's system instruction. No wrapper.
+    return skill_body.strip()
 
 
 def _a2a_base_url(project_endpoint: str, agent_name: str) -> str:
@@ -128,6 +91,14 @@ def _derived_gate_mcp_url(settings) -> str:
     return ""
 
 
+def _derived_route_mcp_url(settings) -> str:
+    if settings.mcp_route_url:
+        return settings.mcp_route_url
+    if settings.mcp_mint_url and settings.mcp_mint_url.rstrip("/").endswith("/api/mcp"):
+        return settings.mcp_mint_url.rstrip("/")[:-len("/api/mcp")] + "/api/route-mcp"
+    return ""
+
+
 def _fabric_tool(project, settings):
     from azure.ai.projects.models import MCPTool
     from pathforward.mcp.fabric_server import SERVER_LABEL, TOOL_NAME
@@ -153,8 +124,22 @@ def _orchestrator_tools(project, settings):
     gate_url = _derived_gate_mcp_url(settings)
     if not gate_url:
         raise RuntimeError("pathforward-orchestrator requires MCP_GATE_URL or derivable MCP_MINT_URL")
+    route_url = _derived_route_mcp_url(settings)
+    if not route_url:
+        raise RuntimeError("pathforward-orchestrator requires MCP_ROUTE_URL or derivable MCP_MINT_URL")
 
-    tools = []
+    from pathforward.mcp.route_server import SERVER_LABEL as ROUTE_LABEL, TOOL_NAME as ROUTE_TOOL
+
+    route_conn = project.connections.get(ROUTE_CONNECTION)
+    tools = [
+        MCPTool(
+            server_label=ROUTE_LABEL,
+            server_url=route_url,
+            require_approval="never",
+            allowed_tools=[ROUTE_TOOL],
+            project_connection_id=route_conn.id,
+        )
+    ]
     for role in A2A_ROLES:
         spec = VERSIONED_AGENT_BY_ROLE[role]
         conn = project.connections.get(f"{A2A_CONNECTION_PREFIX}-{role}")
@@ -239,8 +224,6 @@ def main() -> int:
     ap = argparse.ArgumentParser(
         description="Provision versioned PathForward specialist prompt agents in Foundry."
     )
-    ap.add_argument("--legacy-shared-toolbox", default="",
-                    help="Optional legacy shared toolbox override. Use only for migration/debugging.")
     ap.add_argument("--roles", nargs="*", default=None,
                     help="Optional subset of roles to provision, e.g. --roles insights.")
     args = ap.parse_args()
@@ -263,23 +246,18 @@ def main() -> int:
             return 1
 
     skill_bodies = {}
-    evidence_by_role = {}
     for spec in specs:
-        toolbox_name = args.legacy_shared_toolbox or spec.toolbox_name
+        skill_path = os.path.join(_ROOT, "skills", spec.skill_name, "SKILL.md")
         try:
-            body, evidence = read_skill_from_toolbox(
-                settings.foundry_project_endpoint,
-                toolbox_name,
-                spec.skill_name,
-            )
+            skill = read_skill_file(skill_path)
         except Exception as exc:  # noqa: BLE001
-            print(f"FAIL: could not load /{spec.skill_name} from toolbox {toolbox_name!r}: "
+            print(f"FAIL: could not load /{spec.skill_name} from {skill_path}: "
                   f"{type(exc).__name__}: {exc}")
             return 1
-        skill_bodies[spec.role] = body
-        evidence_by_role[spec.role] = evidence
-        print(f"loaded /{spec.skill_name} from {toolbox_name}: "
-              f"uri={evidence.get('skill_uri')} chars={evidence.get('skill_chars')}")
+        skill_bodies[spec.role] = skill.instructions
+        print(f"loaded /{spec.skill_name} from "
+              f"{os.path.relpath(skill_path, _ROOT).replace(os.sep, '/')}: "
+              f"chars={len(skill.instructions)}")
 
     from azure.ai.projects import AIProjectClient
     from azure.ai.projects.models import PromptAgentDefinition, Reasoning
@@ -311,8 +289,7 @@ def main() -> int:
             definition=definition,
             description=(
                 f"PathForward versioned prompt agent: {spec.role}; "
-                f"skill=/{spec.skill_name}; toolbox={spec.toolbox_name}; "
-                f"tool_surface={spec.tool_surface}."
+                f"skill=/{spec.skill_name}; tool_surface={spec.tool_surface}."
             ),
         )
         created.append(agent)

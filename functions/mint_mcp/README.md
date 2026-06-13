@@ -8,6 +8,7 @@ Endpoints after deployment:
 https://<function-app>.azurewebsites.net/api/mcp
 https://<function-app>.azurewebsites.net/api/gate-mcp
 https://<function-app>.azurewebsites.net/api/fabric-mcp
+https://<function-app>.azurewebsites.net/api/route-mcp
 ```
 
 Required app settings:
@@ -48,12 +49,28 @@ allowed_tools: verify_assessment_and_issue_mint_request
 The gate issuer verifies the assessment item in code and returns a signed mint request token only
 when the Evidence Gate passes.
 
+Route-facts resolver toolbox configuration:
+
+```text
+type: mcp
+server_label: pathforward-route
+server_url: https://<function-app>.azurewebsites.net/api/route-mcp
+require_approval: never
+allowed_tools: resolve_route_facts
+```
+
+The route-facts resolver returns deterministic route facts for a worker (target role, existing
+skills, admissible certification-gap skills, driving edge ids, approved grounding refs) so the
+Orchestrator can run `/pathforward` from a minimal prompt without injected facts. It is read-only:
+it never mints, verifies, or issues a token.
+
 The Function emits non-secret custom events:
 
 ```text
 pathforward.mcp.gate
 pathforward.mcp.mint
 pathforward.mcp.fabric
+pathforward.mcp.route
 ```
 
 These events exclude request bodies, prompts, citations, credential evidence, and

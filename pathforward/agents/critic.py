@@ -68,13 +68,7 @@ class Critic:
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return CRIT_INSTRUCTIONS
-        return (
-            f"{CRIT_INSTRUCTIONS}\n\n"
-            "Loaded Foundry Skill `/pathforward-assess`:\n"
-            f"{self.skill_instructions}\n\n"
-            "Follow the Critic contract in the loaded skill. You advise only; deterministic code "
-            "still owns the Evidence Gate and mint boundary."
-        )
+        return f"{CRIT_INSTRUCTIONS}\n\n{self.skill_instructions}"
 
     def review(self, item: AssessmentItem, allowed_ref_ids: tuple[str, ...],
                skill: Skill, edge: Edge) -> CriticReview:

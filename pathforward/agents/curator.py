@@ -44,13 +44,7 @@ class Curator:
     def _instructions(self) -> str:
         if not self.skill_instructions:
             return CUR_INSTRUCTIONS
-        return (
-            f"{CUR_INSTRUCTIONS}\n\n"
-            "Loaded Foundry Skill `/pathforward-curate`:\n"
-            f"{self.skill_instructions}\n\n"
-            "Follow the loaded skill, but the structured output schema and deterministic admissible "
-            "set remain authoritative."
-        )
+        return f"{CUR_INSTRUCTIONS}\n\n{self.skill_instructions}"
 
     def curate(self, worker: Worker, role: Role, onto: Ontology) -> CuratorDecision:
         # Deterministic source of truth: the assessable CertGap skills, in the role's required
