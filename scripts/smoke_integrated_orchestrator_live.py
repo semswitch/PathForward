@@ -63,6 +63,62 @@ def _preview(value: Any, limit: int = 1400) -> str:
     return _redact(value)[:limit]
 
 
+def _message_json(text: str) -> dict[str, Any] | None:
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
+        text = re.sub(r"\s*```$", "", text)
+    candidates = [text]
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        candidates.append(text[start:end + 1])
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    return None
+
+
+def _abstain_state(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    state = re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
+    if not state:
+        return None
+    if state in {
+        "not_abstain",
+        "not_abstained",
+        "no_abstain",
+        "no_abstention",
+        "false",
+        "none",
+        "minted",
+        "verified",
+    }:
+        return False
+    if state in {
+        "abstain",
+        "abstained",
+        "abstention",
+        "fail_closed_abstain",
+        "failed_closed_abstain",
+        "no_mint_abstain",
+    }:
+        return True
+    return None
+
+
+def _message_mentions_abstain(message: str) -> bool:
+    upper = message.upper()
+    if re.search(r"\b(?:NOT|NO|NON)\s+ABSTAIN(?:ED)?\b|\bNOT[_-]ABSTAIN(?:ED)?\b", upper):
+        return False
+    return bool(re.search(r"\bABSTAIN(?:ED)?\b", upper))
+
+
 def _integrated_prompt(attempt: int, approve_mint: bool) -> str:
     approval_line = (
         "I approve minting only after the deterministic gate returns a code-issued "
@@ -127,7 +183,11 @@ def _summarize_response(resp: Any) -> tuple[list[dict[str, Any]], list[Any]]:
         if item_type == "mcp_approval_request":
             approvals.append(item)
         if item_type == "message":
-            row["message_preview"] = _preview(_content_text(item), limit=2200)
+            message_text = _content_text(item)
+            message_doc = _message_json(message_text)
+            if message_doc and "abstain_state" in message_doc:
+                row["abstain_state"] = str(message_doc["abstain_state"])
+            row["message_preview"] = _preview(message_text, limit=2200)
         rows.append(row)
     return rows, approvals
 
@@ -136,12 +196,16 @@ def _observations(rows: list[dict[str, Any]]) -> dict[str, bool]:
     names = [str(row.get("name", "")) for row in rows]
     types = [str(row.get("type", "")) for row in rows]
     messages = [str(row.get("message_preview", "")) for row in rows]
-    abstain = any(
-        "ABSTAIN" in message.upper()
-        and "NOT_ABSTAIN" not in message.upper()
-        and "NOT_ABSTAINED" not in message.upper()
-        for message in messages
-    )
+    abstain = False
+    for row in reversed(rows):
+        if "abstain_state" not in row:
+            continue
+        parsed_abstain = _abstain_state(row["abstain_state"])
+        if parsed_abstain is not None:
+            abstain = parsed_abstain
+            break
+    else:
+        abstain = any(_message_mentions_abstain(message) for message in messages)
     return {
         "curator_a2a": "pathforward-a2a-curator" in names,
         "generator_a2a": "pathforward-a2a-generator" in names,
