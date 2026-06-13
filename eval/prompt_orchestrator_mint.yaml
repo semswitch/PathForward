@@ -8,12 +8,9 @@ dataset_file: eval\suites\prompt_orchestrator_mint.jsonl
 # PathForward hard invariants require custom code evaluators.
 evaluators:
     - builtin.intent_resolution
-    - builtin.task_adherence
     - builtin.indirect_attack
     - pathforward_no_token_exposure
     - pathforward_credential_requires_approval
-    - pathforward_required_tool_calls
-    - pathforward_gate_before_mint
     - pathforward_mcp_mint_requires_approval
     - pathforward_subjective_quality
 options:

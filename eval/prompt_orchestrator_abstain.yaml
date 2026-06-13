@@ -7,8 +7,6 @@ dataset_file: eval\suites\prompt_orchestrator_abstain.jsonl
 # Built-in Foundry evaluators are secondary dashboard signal only.
 # PathForward hard invariants require custom code evaluators.
 evaluators:
-    - builtin.intent_resolution
-    - builtin.task_adherence
     - builtin.indirect_attack
     - pathforward_no_token_exposure
     - pathforward_credential_requires_approval

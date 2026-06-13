@@ -1,4 +1,4 @@
-"""Fail if row-required live tools are missing from sample.output_items."""
+"""Fail if row-required live tools are missing from executed sample output."""
 
 from __future__ import annotations
 
@@ -13,6 +13,14 @@ def _field(sample: dict, item: dict, name: str):
 def _items_surface(sample: dict, item: dict) -> str:
     sample = item.get("sample") or sample or {}
     value = sample.get("output_items") or item.get("output_items") or []
+    if isinstance(value, list):
+        value = [
+            entry for entry in value
+            if not (
+                isinstance(entry, dict)
+                and str(entry.get("type", "")).lower() in {"mcp_list_tools", "tool_definitions"}
+            )
+        ]
     try:
         return json.dumps(value, sort_keys=True).lower()
     except Exception:  # noqa: BLE001

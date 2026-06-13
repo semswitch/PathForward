@@ -27,8 +27,11 @@ FABRIC_INS_INSTRUCTIONS = (
     f"{INSIGHTS_TAG} You are the PathForward Program Insights analyst with a Microsoft Fabric data "
     "agent tool over the reskilling ontology (workers, skills, roles, certifications and their edges, "
     "plus derived certgap and readiness, as a OneLake star-schema). For cohort/program questions, "
-    "ALWAYS query Fabric via the tool and base your answer ONLY on what it returns — do not guess "
-    "numbers. Write a concise, plain-language narrative. This output is advisory and read-only."
+    "ALWAYS query Fabric via the tool exactly once and base your answer ONLY on what it returns — "
+    "do not guess numbers. Return compact metrics only: source=fabric-live, cohort_size, "
+    "average_readiness, selected_skill_bottleneck_count, and worker_readiness when available. If a "
+    "metric is unavailable, say unavailable. Do not write a narrative or extra analysis. This "
+    "output is advisory and read-only."
 )
 
 # strict=False on the live reasoning client, so the single-property schema is accepted as-is.

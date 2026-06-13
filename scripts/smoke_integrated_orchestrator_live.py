@@ -22,9 +22,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from pathforward.config import load_settings  # noqa: E402
+from pathforward.iq import traversal  # noqa: E402
+from pathforward.iq.seed import build_seed  # noqa: E402
 
 
 AGENT_NAME = "pathforward-orchestrator"
+WORKER_ID = "EMP-001"
+TARGET_ROLE_ID = "R-CLOUD"
+TARGET_ROLE_NAME = "Cloud Engineer"
+EXISTING_SKILLS = ("S05", "S12", "S03")
+ADMISSIBLE_SKILLS = ("S01", "S02", "S08")
 
 
 warnings.filterwarnings("ignore", message="Pydantic serializer warnings:*")
@@ -105,6 +112,11 @@ def _message_json(text: str) -> dict[str, Any] | None:
 def _abstain_state(value: Any) -> bool | None:
     if isinstance(value, bool):
         return value
+    if isinstance(value, dict):
+        if isinstance(value.get("abstained"), bool):
+            return bool(value["abstained"])
+        if "state" in value:
+            return _abstain_state(value["state"])
     state = re.sub(r"[^a-z0-9]+", "_", str(value).strip().lower()).strip("_")
     if not state:
         return None
@@ -139,7 +151,19 @@ def _message_mentions_abstain(message: str) -> bool:
     return bool(re.search(r"\bABSTAIN(?:ED)?\b", upper))
 
 
+def _approved_ref_map() -> dict[str, list[str]]:
+    onto = build_seed()
+    worker = onto.workers[WORKER_ID]
+    if worker.target_role_id != TARGET_ROLE_ID:
+        raise ValueError("smoke proof worker target role mismatch")
+    return {
+        skill_id: list(traversal.approved_refs(worker, onto.skills[skill_id], onto))
+        for skill_id in ADMISSIBLE_SKILLS
+    }
+
+
 def _integrated_prompt(attempt: int, approve_mint: bool) -> str:
+    approved_refs = json.dumps(_approved_ref_map(), sort_keys=True)
     approval_line = (
         "I approve minting only after the deterministic gate returns a code-issued "
         "mint_request_token and the Foundry MCP approval step is presented."
@@ -147,27 +171,38 @@ def _integrated_prompt(attempt: int, approve_mint: bool) -> str:
         "Do not mint unless the deterministic gate returns a code-issued mint_request_token and "
         "a separate MCP approval response is supplied."
     )
-    return f"""Run /pathforward as the live integrated product route for EMP-001 targeting R-CLOUD.
+    return f"""Run /pathforward as the live integrated product route for {WORKER_ID} targeting {TARGET_ROLE_ID}.
 
 Use the attached Foundry tools. Do not answer from memory and do not collapse this into a plan-only
 response.
 
+Code-provided route facts:
+- worker_id: {WORKER_ID}
+- target_role_id: {TARGET_ROLE_ID}
+- target_role: {TARGET_ROLE_NAME}
+- existing_skills: {list(EXISTING_SKILLS)}
+- admissible_skill_ids: {list(ADMISSIBLE_SKILLS)}
+- approved_ref_map: {approved_refs}
+
 Required live route:
-1. Call pathforward-a2a-curator with worker_id EMP-001, target_role_id R-CLOUD, target_role Cloud
-   Engineer, existing skills [S05, S12, S03], and admissible skills [S01, S02, S08].
-2. Select one skill only from [S01, S02, S08]. The deterministic driving edge id must be
-   certgap::EMP-001::<selected_skill_id>.
+1. Call pathforward-a2a-curator with worker_id {WORKER_ID}, target_role_id {TARGET_ROLE_ID},
+   target_role {TARGET_ROLE_NAME}, existing skills {list(EXISTING_SKILLS)}, and admissible skills
+   {list(ADMISSIBLE_SKILLS)}.
+2. Select one skill only from {list(ADMISSIBLE_SKILLS)}. The deterministic driving edge id must be
+   certgap::{WORKER_ID}::<selected_skill_id>.
 3. Use difficulty_band=core and attempt={attempt}.
-4. Call pathforward-a2a-generator for the selected skill with the exact JSON item contract:
-   stem, options, answer_index, cited_ref_ids, numeric_claim.
+4. Call pathforward-a2a-generator for the selected skill. The Generator call must include
+   approved_refs exactly equal to approved_ref_map[selected_skill_id]; approved_refs must never be
+   empty for S01, S02, or S08. Ask Generator for the exact JSON item contract: stem, options,
+   answer_index, cited_ref_ids, numeric_claim.
 5. Call pathforward-a2a-critic before the gate.
 6. Call pathforward-gate.verify_assessment_and_issue_mint_request using the generated item.
 7. If the gate rejects, retry Generator once using only the bounded failed criteria/remediation from
    the gate, then call the gate again. If it still rejects, ABSTAIN and do not mint.
 8. If the gate verifies and returns a mint_request_token, call pathforward-a2a-planner.
-9. Call pathforward-a2a-insights with an explicit instruction to use its attached pathforward-fabric
-   MCP tool. The Insights output must include source=fabric-live and concrete Fabric cohort metrics:
-   cohort size, average readiness, and bottleneck skill counts when available.
+9. This proof is staged across live Prompt Orchestrator turns. Do not call pathforward-a2a-insights
+   in this first response. Stop after Planner and report that Fabric Insights is pending the next
+   live turn.
 10. {approval_line}
 
 Return concise JSON with:
@@ -229,10 +264,30 @@ def _summarize_response(resp: Any) -> tuple[list[dict[str, Any]], list[Any]]:
             message_text = _content_text(item)
             message_doc = _message_json(message_text)
             if message_doc and "abstain_state" in message_doc:
-                row["abstain_state"] = str(message_doc["abstain_state"])
+                row["abstain_state"] = _jsonable(message_doc["abstain_state"])
             row["message_preview"] = _preview(message_text, limit=2200)
         rows.append(row)
     return rows, approvals
+
+
+def _mint_approval_instruction() -> str:
+    return (
+        "I explicitly approve the credential mint action now. Use the existing deterministic "
+        "Evidence Gate output from this live proof conversation. Call "
+        "pathforward-mint.pathforward_mint_credential with the code-issued mint_request_token "
+        "already returned by the gate. Do not print or reveal the token."
+    )
+
+
+def _fabric_insights_instruction() -> str:
+    return (
+        "Continue the same /pathforward live proof from the previous response. Call only "
+        "pathforward-a2a-insights now. Use the selected worker, target role, and selected skill from "
+        "the verified route. Instruct the specialist to use its attached pathforward-fabric MCP tool. "
+        "Return compact JSON with source='fabric-live', cohort_size, average_readiness, "
+        "selected_skill_bottleneck_count, and no narrative. Do not call Generator, Critic, Evidence "
+        "Gate, approval, or mint in this turn."
+    )
 
 
 def _observations(rows: list[dict[str, Any]]) -> dict[str, bool]:
@@ -330,6 +385,29 @@ def _stream_create(client: Any, *, evidence_prefix: str, **kwargs: Any) -> tuple
     return final_response, path
 
 
+def _responses_create_with_backoff(client: Any, **kwargs: Any) -> Any:
+    delays = (15, 30, 45)
+    for idx, delay in enumerate((0, *delays)):
+        if delay:
+            time.sleep(delay)
+        try:
+            return client.responses.create(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            message = str(exc).lower()
+            is_rate_limit = (
+                type(exc).__name__ == "RateLimitError"
+                or "rate_limit" in message
+                or "too many requests" in message
+            )
+            if not is_rate_limit or idx == len(delays):
+                raise
+            print(json.dumps({
+                "phase": "responses_retry",
+                "error_type": type(exc).__name__,
+                "delay_seconds": delays[idx],
+            }))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the integrated live Prompt Orchestrator route.")
     parser.add_argument("--attempt", type=int, default=int(time.time()))
@@ -376,12 +454,56 @@ def main() -> int:
         "rows": first_rows,
     }, indent=2))
 
-    second_rows: list[dict[str, Any]] = []
-    if approvals and args.approve:
-        approval_id = str(_get_attr(approvals[0], "id"))
-        second = client.responses.create(
+    fabric_parent_id = _get_attr(first, "id")
+    if not args.abstain and first_obs.get("gate_verified"):
+        fabric_turn = _responses_create_with_backoff(
+            client,
             model=settings.model_deployment,
             previous_response_id=_get_attr(first, "id"),
+            input=_fabric_insights_instruction(),
+            tool_choice="auto",
+            extra_body={"agent_reference": {"name": AGENT_NAME, "type": "agent_reference"}},
+        )
+        fabric_parent_id = _get_attr(fabric_turn, "id")
+        fabric_rows, _ = _summarize_response(fabric_turn)
+        all_rows.extend(fabric_rows)
+        print(json.dumps({
+            "phase": "fabric_insights",
+            "response_id": fabric_parent_id,
+            "status": _get_attr(fabric_turn, "status"),
+            "observations": _observations(fabric_rows),
+            "rows": fabric_rows,
+        }, indent=2))
+
+    second_rows: list[dict[str, Any]] = []
+    approval_parent_id = fabric_parent_id
+    if args.approve and not args.abstain and not approvals and first_obs.get("gate_verified"):
+        approval_turn = _responses_create_with_backoff(
+            client,
+            model=settings.model_deployment,
+            previous_response_id=fabric_parent_id,
+            input=_mint_approval_instruction(),
+            tool_choice="auto",
+            extra_body={"agent_reference": {"name": AGENT_NAME, "type": "agent_reference"}},
+        )
+        approval_parent_id = _get_attr(approval_turn, "id")
+        approval_turn_rows, approvals = _summarize_response(approval_turn)
+        all_rows.extend(approval_turn_rows)
+        print(json.dumps({
+            "phase": "approval_instruction",
+            "response_id": approval_parent_id,
+            "status": _get_attr(approval_turn, "status"),
+            "approval_count": len(approvals),
+            "observations": _observations(approval_turn_rows),
+            "rows": approval_turn_rows,
+        }, indent=2))
+
+    if approvals and args.approve:
+        approval_id = str(_get_attr(approvals[0], "id"))
+        second = _responses_create_with_backoff(
+            client,
+            model=settings.model_deployment,
+            previous_response_id=approval_parent_id,
             input=[{
                 "type": "mcp_approval_response",
                 "approval_request_id": approval_id,

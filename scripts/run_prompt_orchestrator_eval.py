@@ -105,7 +105,7 @@ def _item_schema(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _custom_code_mapping() -> dict[str, str]:
     return {
         "output_text": "{{sample.output_text}}",
-        "output_items": "{{sample.output_items}}",
+        "output_items": "{{sample.output}}",
         "expected_outcome": "{{item.expected_outcome}}",
         "risk_category": "{{item.risk_category}}",
         "feature_area": "{{item.feature_area}}",
@@ -135,7 +135,41 @@ def _builtin_mapping() -> dict[str, str]:
     }
 
 
-def _testing_criteria(config: dict[str, Any], settings_model: str) -> list[dict[str, Any]]:
+def _latest_agent_version(project: Any, agent_name: str) -> str:
+    versions = []
+    for agent in project.agents.list_versions(agent_name=agent_name):
+        version = str(getattr(agent, "version", "") or "")
+        if version:
+            versions.append(version)
+    if not versions:
+        raise RuntimeError(f"no Foundry agent versions found for {agent_name!r}")
+
+    def key(value: str) -> tuple[int, str]:
+        return (int(value), value) if value.isdigit() else (-1, value)
+
+    return max(versions, key=key)
+
+
+def _latest_evaluator_version(project: Any, name: str) -> str:
+    versions = []
+    for evaluator in project.beta.evaluators.list_versions(name):
+        version = str(getattr(evaluator, "version", "") or "")
+        if version:
+            versions.append(version)
+    if not versions:
+        raise RuntimeError(f"no Foundry evaluator versions found for {name!r}")
+
+    def key(value: str) -> tuple[int, str]:
+        return (int(value), value) if value.isdigit() else (-1, value)
+
+    return max(versions, key=key)
+
+
+def _testing_criteria(
+    config: dict[str, Any],
+    settings_model: str,
+    evaluator_versions: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
     code_manifest = _load_manifest(ROOT / "eval" / "evaluators" / "manifest.json")
     prompt_manifest = _load_manifest(ROOT / "eval" / "evaluators" / "prompt_manifest.json")
     code_names = {entry["name"] for entry in code_manifest["evaluators"]}
@@ -155,6 +189,8 @@ def _testing_criteria(config: dict[str, Any], settings_model: str) -> list[dict[
         }
         if name in code_names:
             criterion["name"] = name
+            if evaluator_versions and evaluator_versions.get(name):
+                criterion["evaluator_version"] = evaluator_versions[name]
             criterion["data_mapping"] = _custom_code_mapping()
             criterion["initialization_parameters"] = {
                 "deployment_name": deployment_name,
@@ -163,6 +199,8 @@ def _testing_criteria(config: dict[str, Any], settings_model: str) -> list[dict[
             }
         elif name in prompt_names:
             criterion["name"] = name
+            if evaluator_versions and evaluator_versions.get(name):
+                criterion["evaluator_version"] = evaluator_versions[name]
             criterion["data_mapping"] = _prompt_mapping()
             criterion["initialization_parameters"] = {
                 "deployment_name": deployment_name,
@@ -243,9 +281,9 @@ def main() -> int:
     azd_values = _azd_env_values(args.environment)
     agent_cfg = config.get("agent") or {}
     agent_name = str(agent_cfg.get("name") or azd_values.get("AGENT_PATHFORWARD_ORCHESTRATOR_NAME"))
-    agent_version = str(agent_cfg.get("version") or azd_values.get("AGENT_PATHFORWARD_ORCHESTRATOR_VERSION") or "")
-    if not agent_name or not agent_version:
-        print("FAIL: agent name/version could not be resolved")
+    configured_agent_version = str(agent_cfg.get("version") or "")
+    if not agent_name:
+        print("FAIL: agent name could not be resolved")
         return 1
 
     from azure.ai.projects import AIProjectClient
@@ -254,6 +292,16 @@ def main() -> int:
     project = AIProjectClient(endpoint=settings.foundry_project_endpoint,
                               credential=DefaultAzureCredential())
     client = project.get_openai_client()
+    agent_version = configured_agent_version or _latest_agent_version(project, agent_name)
+    custom_names = [
+        str(name)
+        for name in config.get("evaluators") or []
+        if not str(name).startswith("builtin.")
+    ]
+    evaluator_versions = {
+        name: _latest_evaluator_version(project, name)
+        for name in custom_names
+    }
     stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
     eval_obj = client.evals.create(
         name=f"{config['name']}-{stamp}",
@@ -262,7 +310,11 @@ def main() -> int:
             "item_schema": _item_schema(rows),
             "include_sample_schema": True,
         },
-        testing_criteria=_testing_criteria(config, settings.model_deployment or "reasoning"),
+        testing_criteria=_testing_criteria(
+            config,
+            settings.model_deployment or "reasoning",
+            evaluator_versions,
+        ),
     )
     eval_id = _as_dict(eval_obj)["id"]
     run = client.evals.runs.create(
@@ -312,6 +364,7 @@ def main() -> int:
         "sample_rows": min(len(rows), int(config.get("max_samples") or len(rows))),
         "agent": {"name": agent_name, "version": agent_version, "kind": str(agent_cfg.get("kind", "prompt"))},
         "evaluators": config.get("evaluators") or [],
+        "evaluator_versions": evaluator_versions,
         "counts": _result_counts(output_items),
         "output_items": output_items,
     }
