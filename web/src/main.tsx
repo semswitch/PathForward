@@ -12,9 +12,11 @@ if (!rootElement) {
   throw new Error("Root element #root not found");
 }
 
+// BASE_URL follows Vite's `base` (see vite.config.ts) — "/" locally,
+// "/PathForward/" on GitHub Pages — so deep links resolve under the repo subpath.
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <App />
     </BrowserRouter>
   </React.StrictMode>
