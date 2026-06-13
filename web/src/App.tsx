@@ -1,55 +1,54 @@
-import {
-  FluentProvider,
-  webDarkTheme,
-  Title1,
-  Subtitle2,
-  Body1,
-  Badge,
-} from "@fluentui/react-components";
-import fixtureData from "./lib/fixture.json";
-import type { Fixture } from "./lib/contracts";
-import { GlassBoxGraph } from "./components/GlassBoxGraph";
-import { AssessmentArena } from "./components/AssessmentArena";
-import { TrustConsole } from "./components/TrustConsole";
-import { useStyles } from "./App.styles";
+import { Suspense, lazy } from "react";
+import { Outlet, Route, Routes } from "react-router";
+import { MotionConfig } from "motion/react";
+import { TopNav } from "./components/TopNav";
+import { Home } from "./pages/Home";
+import { Technical } from "./pages/Technical";
 
-const fixture = fixtureData as unknown as Fixture;
+// The tour carries React Flow — split it out of the shell chunk.
+const ArchitectureTour = lazy(() =>
+  import("./pages/ArchitectureTour").then((m) => ({
+    default: m.ArchitectureTour,
+  }))
+);
+
+function Layout() {
+  return (
+    <div className="flex h-dvh flex-col bg-surface font-sans text-ink">
+      <TopNav />
+      <main className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
 
 export function App() {
-  const styles = useStyles();
-  const { worker } = fixture;
   return (
-    <FluentProvider theme={webDarkTheme} className={styles.root}>
-      <main className={styles.page}>
-        <header className={styles.header}>
-          <Title1 as="h1">PathForward</Title1>
-          <div className={styles.intro}>
-            <Body1>
-              Grounded reskilling for displaced workers — Agents League @ AISF 2026 ·
-              Reasoning Agents track.{" "}
-            </Body1>
-            <Badge appearance="tint" color="brand">synthetic data</Badge>
-          </div>
-          <div className={styles.row}>
-            <Badge appearance="outline" role="img" aria-label={`worker ${worker.id}`}>
-              {worker.id}
-            </Badge>
-            <Subtitle2>{worker.current_role_title}</Subtitle2>
-            <Badge appearance="tint" color="informative">→ {worker.target_role}</Badge>
-            {worker.accessibility_needs.map((a) => (
-              <Badge key={a} appearance="tint" color="success" role="img" aria-label={a}>
-                {a}
-              </Badge>
-            ))}
-          </div>
-        </header>
-
-        <div className={styles.stack}>
-          <GlassBoxGraph fixture={fixture} />
-          <AssessmentArena fixture={fixture} />
-          <TrustConsole fixture={fixture} />
-        </div>
-      </main>
-    </FluentProvider>
+    <MotionConfig reducedMotion="user">
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="technical" element={<Technical />} />
+          <Route
+          path="tour"
+          element={
+            <Suspense
+              fallback={
+                <div
+                  data-theme="dark"
+                  className="flex min-h-0 flex-1 items-center justify-center bg-surface text-ink-muted"
+                >
+                  Loading the tour…
+                </div>
+              }
+            >
+              <ArchitectureTour />
+            </Suspense>
+          }
+        />
+        </Route>
+      </Routes>
+    </MotionConfig>
   );
 }

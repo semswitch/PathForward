@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/*
+ * Hybrid theme: the shell is light/warm/human; the Architecture Tour wraps itself in
+ * [data-theme="dark"] and goes cinematic. The dark: variant is scoped to that wrapper,
+ * NOT to <html>.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", monospace;
+
+  /* Static ramps. Brand = warm amber/coral (agents reason: rounded + luminous). */
+  --color-brand-300: oklch(0.85 0.11 55);
+  --color-brand-400: oklch(0.78 0.14 50);
+  --color-brand-500: oklch(0.7 0.16 45);
+  --color-brand-600: oklch(0.62 0.15 40);
+
+  /* Mint = deterministic code accent (code notarizes: sharp + mint). */
+  --color-mint-300: oklch(0.87 0.09 165);
+  --color-mint-400: oklch(0.8 0.11 165);
+  --color-mint-500: oklch(0.72 0.12 165);
+
+  /* Near-black tour canvas. */
+  --color-canvas-900: oklch(0.21 0.015 270);
+  --color-canvas-950: oklch(0.16 0.015 270);
+
+  /* "Agents reason, code notarizes" — rounded vs sharp. */
+  --radius-agent: 1rem;
+  --radius-code: 0px;
+}
+
+/* Semantic tokens — light/warm shell defaults. */
+:root {
+  --surface: oklch(0.985 0.008 85);
+  --surface-raised: oklch(1 0 0);
+  --ink: oklch(0.24 0.02 60);
+  --ink-muted: oklch(0.46 0.02 60);
+  --line: oklch(0.9 0.012 85);
+  color-scheme: light;
+}
+
+/* Dark cinematic scope (the Tour). */
+[data-theme="dark"] {
+  --surface: var(--color-canvas-950);
+  --surface-raised: oklch(0.23 0.02 270);
+  --ink: oklch(0.93 0.012 270);
+  --ink-muted: oklch(0.7 0.02 270);
+  --line: oklch(0.33 0.02 270);
+
+  --edge-dormant: oklch(0.4 0.02 270 / 0.75);
+  --edge-traversed: oklch(0.58 0.04 270);
+  --edge-active: oklch(0.78 0.14 50);
+  --edge-active-glow: oklch(0.78 0.14 50 / 0.6);
+  --node-glow: 0 0 24px oklch(0.78 0.14 50 / 0.35);
+  color-scheme: dark;
+}
+
+/*
+ * Map semantic vars into utilities. MUST be `@theme inline` (var-of-var) so e.g.
+ * bg-surface emits `background-color: var(--surface)` and flips at runtime under
+ * [data-theme="dark"] — plain @theme would inline the build-time literal.
+ */
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+}
+
+/* Tour graph chrome: the graph is presentation-only — handles anchor edges, invisibly. */
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+.react-flow__edge-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--ink-muted);
+}
+.react-flow__edge-textbg {
+  fill: var(--surface);
+  fill-opacity: 0.85;
+}
+.react-flow__edge.edge-telemetry path.react-flow__edge-path {
+  stroke-dasharray: 2 5;
+}
+
+/* React Flow edge states (Tour). Active edges glow + flow; ≤3 active at a time. */
+.react-flow__edge.edge-dormant path.react-flow__edge-path {
+  stroke: var(--edge-dormant);
+}
+.react-flow__edge.edge-traversed path.react-flow__edge-path {
+  stroke: var(--edge-traversed);
+}
+.react-flow__edge.edge-active path.react-flow__edge-path {
+  stroke: var(--edge-active);
+  filter: drop-shadow(0 0 6px var(--edge-active-glow));
+  stroke-dasharray: 6;
+  animation: pf-edge-flow 700ms linear infinite;
+}
+@keyframes pf-edge-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* Focused-node pulse (applied by node components via data-status). */
+.pf-node-pulse {
+  animation: pf-node-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pf-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 12px var(--edge-active-glow);
+  }
+  50% {
+    box-shadow: 0 0 28px var(--edge-active-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge.edge-active path.react-flow__edge-path {
+    animation: none;
+    stroke-dasharray: none;
+  }
+  .pf-node-pulse {
+    animation: none;
+    box-shadow: 0 0 16px var(--edge-active-glow);
+  }
+}

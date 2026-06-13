@@ -1,15 +1,32 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { App } from "./App";
 
-describe("App", () => {
-  it("renders the title and the three hero surfaces", () => {
-    render(<App />);
+describe("App shell", () => {
+  it("renders the primary nav with all three routes", () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole("link", { name: "Home" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "PathForward", level: 1 }),
+      screen.getByRole("link", { name: "Architecture Tour" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Glass-Box Reasoning Graph")).toBeInTheDocument();
-    expect(screen.getByText("Adversarial Assessment Arena")).toBeInTheDocument();
-    expect(screen.getByText("Trust Console")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "How it works" })
+    ).toBeInTheDocument();
+  });
+
+  it("renders the Home page at the index route", () => {
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
+    expect(
+      screen.getByRole("heading", { name: /your next role/i })
+    ).toBeInTheDocument();
   });
 });
