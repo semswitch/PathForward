@@ -65,6 +65,17 @@ manifest and SDK smoke path use `output_text`, `output_items`, `expected_outcome
 reuse old remote criteria even when local YAML lists new evaluator names; inspect per-criteria results
 before treating a dashboard run as current proof.
 
+For formal PathForward dashboard evals with these custom evaluators, use the SDK runner:
+
+```bash
+python scripts/run_prompt_orchestrator_eval.py --config eval/prompt_orchestrator_smoke.yaml
+python scripts/correlate_eval_appinsights.py --eval-id <eval_id> --run-id <evalrun_id> --config eval/prompt_orchestrator_smoke.yaml
+```
+
+The SDK runner creates a normal Foundry eval/run for the portal, targets the current versioned Prompt
+Agent, passes required evaluator initialization parameters, writes redacted local proof, and avoids
+persisting system-prompt content in evidence.
+
 Tracked custom prompt evaluator:
 
 | Evaluator | Source | Authority |
@@ -125,7 +136,7 @@ by the hardened defense (run with `python -m unittest discover -s tests -t .`).
 
 ```bash
 azd ai agent eval run --environment pathforward-dev --config eval.yaml
-azd ai agent eval run --environment pathforward-dev --config eval/prompt_orchestrator_smoke.yaml
+python scripts/run_prompt_orchestrator_eval.py --config eval/prompt_orchestrator_smoke.yaml
 python -m unittest tests.test_redteam_gate        # 12 offline defense-logic proofs (no Azure)
 python scripts/eval_groundedness.py               # live groundedness + spine eval  -> eval-groundedness.*
 python scripts/redteam_live.py                    # live adversarial ASR scorecard  -> redteam-asr.*

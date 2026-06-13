@@ -14,6 +14,11 @@ def _output_surface(sample: dict, item: dict) -> str:
     ]
     for key in ("output_items", "messages"):
         value = sample.get(key) or item.get(key) or []
+        if isinstance(value, list):
+            value = [
+                entry for entry in value
+                if not (isinstance(entry, dict) and str(entry.get("role", "")).lower() == "system")
+            ]
         try:
             parts.append(json.dumps(value, sort_keys=True))
         except Exception:  # noqa: BLE001
