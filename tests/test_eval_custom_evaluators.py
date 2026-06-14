@@ -4,6 +4,8 @@ import importlib.util
 import unittest
 from pathlib import Path
 
+from tests.captured_route_fixtures import full_route_events
+
 
 ROOT = Path(__file__).resolve().parents[1]
 EVALUATOR_DIR = ROOT / "eval" / "evaluators"
@@ -61,6 +63,9 @@ class CustomEvaluatorTests(unittest.TestCase):
                 "source=fabric-live",
                 "mcp_approval_request",
             ],
+            # A2A + Fabric route: the structured captured_events are the authoritative basis the
+            # required_tool_calls / fabric_live_source evaluators grade (cloud text alone fails closed).
+            captured_events=full_route_events(),
         )
         for name in (
             "no_token_exposure",
