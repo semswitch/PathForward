@@ -1,3 +1,0 @@
-Bounce the mastered tour mix here as: tour.mp3 (MP3, >=160 kbps).
-The live site auto-switches from silent mode to narration once this file is committed.
-Source dry VO to import into the DAW: ../../narration-work/tour-dry.wav (48kHz, import at 00:00.000, no time edits).

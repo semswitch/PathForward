@@ -3,7 +3,7 @@
   "generatedAt": "2026-06-13T22:46:37.206Z",
   "voice": "en-US-Harper:MAI-Voice-2",
   "gapMs": 350,
-  "totalMs": 156631,
+  "totalMs": 159500,
   "beats": [
     {
       "id": "b-welcome",
@@ -83,7 +83,7 @@
     {
       "id": "b-closing",
       "startMs": 146217,
-      "durationMs": 10414
+      "durationMs": 13283
     }
   ],
   "words": {
