@@ -35,7 +35,7 @@ Invoke-WebRequest -Uri "https://api.fabric.microsoft.com/v1/workspaces/$ws/items
 ## Environment
 - Workspace `PathForward-IQ` = `<FABRIC_WORKSPACE_ID>` (real value in `.env`, gitignored)
 - Lakehouse `PathForwardLH` = `<FABRIC_LAKEHOUSE_ID>` (10 Delta tables; real value in `.env`)
-- Capacity `<fabric-capacity>` (F2, **Central US**)
+- Capacity `<fabric-capacity>` (F2)
 - Tables loaded by `scripts/load_fabric_lakehouse.py`; rebuild source CSVs with `scripts/export_fabric_tables.py`.
 
 > Bindings reference lakehouse table GUIDs in **this** workspace; restoring into a

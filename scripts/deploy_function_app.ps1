@@ -10,7 +10,7 @@
   Function App -- no manual copying, no ad-hoc workarounds.
 
 .PARAMETER FunctionApp
-  Target Function App name. Default: pathforward-mint-mcp-34786.
+  Target Function App name. Provide via -FunctionApp or the PATHFORWARD_FUNCTION_APP environment variable.
 
 .PARAMETER StageOnly
   Assemble and list the package but do NOT publish (dry run for inspection).
@@ -24,11 +24,14 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$FunctionApp = "pathforward-mint-mcp-34786",
+    [string]$FunctionApp = $env:PATHFORWARD_FUNCTION_APP,
     [switch]$StageOnly,
     [switch]$Smoke
 )
 $ErrorActionPreference = "Stop"
+if (-not $FunctionApp -and -not $StageOnly) {
+    throw "Target Function App name required: pass -FunctionApp <name> or set the PATHFORWARD_FUNCTION_APP environment variable."
+}
 $root  = Split-Path -Parent $PSScriptRoot
 $src   = Join-Path $root "functions\mint_mcp"
 $pkg   = Join-Path $root "pathforward"

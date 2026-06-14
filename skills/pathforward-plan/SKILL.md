@@ -1,7 +1,7 @@
 ---
 name: pathforward-plan
 description: Build advisory PathForward learning plans around code-owned hours, capacity, and accessibility constraints.
-compatibility: Azure AI Foundry Skills preview; consumed through Foundry Toolbox MCP resources or direct Foundry Skill download.
+compatibility: Azure AI Foundry Skills preview; baked into the versioned Foundry planner agent at provision time.
 ---
 
 # PathForward Planner Skill

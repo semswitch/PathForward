@@ -1,5 +1,7 @@
 # PathForward — Eval & Red-Team Pack
 
+Narrated flow: https://semswitch.github.io/PathForward/tour
+
 Current dashboard eval target:
 
 ```text
@@ -135,11 +137,11 @@ by the hardened defense (run with `python -m unittest discover -s tests -t .`).
 ## Run it
 
 ```bash
-azd ai agent eval run --environment pathforward-dev --config eval.yaml
-python scripts/run_prompt_orchestrator_eval.py --config eval/prompt_orchestrator_smoke.yaml
+python scripts/run_prompt_orchestrator_eval.py --config eval/prompt_orchestrator_smoke.yaml  # authoritative SDK runner
 python -m unittest tests.test_redteam_gate        # 12 offline defense-logic proofs (no Azure)
 python scripts/eval_groundedness.py               # live groundedness + spine eval  -> eval-groundedness.*
 python scripts/redteam_live.py                    # live adversarial ASR scorecard  -> redteam-asr.*
+azd ai agent eval run --environment <env> --config eval.yaml  # secondary dashboard signal only; under-captures A2A
 ```
 
 The live scripts use keyless `DefaultAzureCredential` and back off on the deployment's rate limit. The
@@ -149,7 +151,7 @@ Microsoft Foundry **GroundednessEvaluator** runs as a corroborating second opini
 ## Known limitations (honest — defended in depth, not deterministically closed)
 
 These are inherent LLM-judgment gaps. They are mitigated by the RAI filter + strict schema + the gate,
-and are surfaced here rather than hidden (see `.agents/decisions/004` for the full taxonomy):
+and are surfaced here rather than hidden (see the internal red-team coverage taxonomy for the full list):
 
 - **Semantic ungrounding** — an item whose citation *ids* are valid but whose keyed answer isn't
   supported by the cited prose (the gate checks ids, not semantics).

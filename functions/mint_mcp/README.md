@@ -23,7 +23,7 @@ APPLICATIONINSIGHTS_CONNECTION_STRING=<pathforward-telemetry connection string>
 PYTHON_APPLICATIONINSIGHTS_ENABLE_TELEMETRY=true
 ```
 
-Foundry Toolbox configuration must use:
+MCP connection (mint — attached directly to the orchestrator):
 
 ```text
 type: mcp
@@ -36,7 +36,7 @@ allowed_tools: pathforward_mint_credential
 The MCP tool accepts only `mint_request_token`. It does not accept raw credential facts, verified
 flags, worker readiness, or Evidence Gate verdicts.
 
-Gate issuer toolbox configuration:
+MCP connection (gate issuer):
 
 ```text
 type: mcp
@@ -49,7 +49,7 @@ allowed_tools: verify_assessment_and_issue_mint_request
 The gate issuer verifies the assessment item in code and returns a signed mint request token only
 when the Evidence Gate passes.
 
-Route-facts resolver toolbox configuration:
+MCP connection (route-facts resolver):
 
 ```text
 type: mcp

@@ -1,6 +1,6 @@
 """Red-team gate code-contract proofs.
 
-For each OFFLINE-testable attack family from the coverage taxonomy (.agents/decisions/004), a hand-
+For each OFFLINE-testable attack family from the internal red-team coverage taxonomy, a hand-
 crafted malicious item or mint call is asserted to be STRUCK by the hardened defense. These prove
 the defense LOGIC in code; the live model-side families (jailbreak, injection, semantic) run in
 scripts/redteam_live.py against the real agent.

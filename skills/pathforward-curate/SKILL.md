@@ -1,7 +1,7 @@
 ---
 name: pathforward-curate
 description: Rank PathForward certification-gap skills for an admissible, grounded assessment route.
-compatibility: Azure AI Foundry Skills preview; consumed through Foundry Toolbox MCP resources or direct Foundry Skill download.
+compatibility: Azure AI Foundry Skills preview; baked into the versioned Foundry curator agent at provision time.
 ---
 
 # PathForward Curator Skill

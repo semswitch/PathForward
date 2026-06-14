@@ -11,8 +11,8 @@ from scripts import correlate_eval_appinsights as corr
 
 class EvalAppInsightsCorrelationTests(unittest.TestCase):
     def test_parse_azd_env_values(self):
-        parsed = corr._parse_azd_env_values('AZURE_RESOURCE_GROUP="rg-pathforward-eus2"\nBAD LINE\nX=1\n')
-        self.assertEqual("rg-pathforward-eus2", parsed["AZURE_RESOURCE_GROUP"])
+        parsed = corr._parse_azd_env_values('AZURE_RESOURCE_GROUP="rg-example-eus2"\nBAD LINE\nX=1\n')
+        self.assertEqual("rg-example-eus2", parsed["AZURE_RESOURCE_GROUP"])
         self.assertEqual("1", parsed["X"])
 
     def test_dataset_info_uses_sha_and_row_count(self):
