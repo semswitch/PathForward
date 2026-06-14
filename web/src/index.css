@@ -121,6 +121,18 @@
   }
 }
 
+/*
+ * Caption legibility. The caption panel is intentionally see-through (so node
+ * cards behind it stay visible), so the text carries its own contrast with a
+ * dark shadow halo that holds up over both the near-black canvas and bright
+ * node glows.
+ */
+.pf-caption-text {
+  text-shadow:
+    0 1px 2px oklch(0.16 0.015 270 / 0.95),
+    0 0 10px oklch(0.16 0.015 270 / 0.7);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .react-flow__edge.edge-active path.react-flow__edge-path {
     animation: none;
