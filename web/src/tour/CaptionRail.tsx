@@ -6,14 +6,15 @@ interface CaptionRailProps {
 }
 
 /**
- * Narration panel. Solid backdrop so contrast holds over the glowing canvas.
- * The aria-live wrapper persists across caption swaps (a live region that
- * unmounts never announces); only the inner text animates.
+ * Narration panel. Frosted glass — translucent backdrop + backdrop-blur so node
+ * glows behind it read through while the caption text stays legible over the
+ * glowing canvas. The aria-live wrapper persists across caption swaps (a live
+ * region that unmounts never announces); only the inner text animates.
  */
 export function CaptionRail({ caption, chapterLabel }: CaptionRailProps) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-6">
-      <div className="w-full max-w-2xl rounded-xl border border-line bg-surface-raised px-5 py-3 shadow-xl">
+      <div className="w-full max-w-2xl rounded-xl border border-line bg-surface-raised/70 px-5 py-3 shadow-xl backdrop-blur-md">
         <p className="font-mono text-[10px] tracking-widest text-brand-300 uppercase">
           {chapterLabel}
         </p>
