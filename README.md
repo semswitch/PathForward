@@ -7,76 +7,32 @@ in-demand technical roles. It reasons over a skill ontology, builds a practical 
 runs a grounded competency-verification loop that issues a portable credential only when the evidence
 supports it.
 
-The core product promise is simple:
-
 > PathForward would rather say **not yet** than issue a credential it cannot prove.
 
-## Competition Focus
+## ▶ See it in action
 
-**Microsoft Agents League @ AISF 2026**  
-**Track:** Reasoning Agents
+**[Architecture Tour → semswitch.github.io/PathForward/tour](https://semswitch.github.io/PathForward/tour)** —
+a narrated walkthrough of the full reasoning flow.
 
-PathForward is built around a real agentic workflow:
+## The flow
 
-- A Foundry Prompt Agent, `pathforward-orchestrator`, acts as the top-level Orchestrator.
-- Its Foundry Toolbox exposes `/pathforward`, Tool Search, and A2A calls to specialist prompt
-  agents.
-- Specialist reasoning agents handle skill-gap selection, assessment generation, critique, planning,
-  and program insights.
-- Foundry Skills define the agent behavior and are baked into versioned specialist agents through
-  scoped Foundry Toolboxes/provisioning surfaces.
-- Azure AI Search grounds assessment generation in cited evidence.
-- Microsoft Fabric provides live cohort/program insights over the reskilling ontology.
-- A deterministic Evidence Gate and governed mint boundary prevent unsafe credential issuance.
+A Foundry Prompt Agent — `pathforward-orchestrator` — reasons over the allowed route and hands off to
+versioned Foundry specialist agents:
 
-## What It Demonstrates
+1. **Route** — resolve the worker's skill-gap facts autonomously (no facts injected into the prompt).
+2. **Curator → Generator → Critic** — select the skill gap, generate assessment items grounded in
+   cited evidence (Azure AI Search), and critique them.
+3. **Evidence Gate** — a deterministic check; only a verified assessment earns a signed mint request.
+4. **Planner → Program Insights** — advise next steps and place the worker against live Microsoft
+   Fabric cohort metrics.
+5. **Mint** — issue a portable credential only after the Evidence Gate passes **and** an explicit
+   approval, through a governed MCP boundary that re-checks the proof.
 
-- **Multi-agent reasoning:** agents plan, critique, adapt, and explain the reskilling path.
-- **Grounded verification:** assessment items must cite retrieved evidence before they can pass.
-- **Honest refusal:** failed or ungrounded attempts end in ABSTAIN, not a fake pass.
-- **Governed credentialing:** minting re-checks the causal spine and fails closed when proof is missing.
-- **Microsoft-native architecture:** Foundry Prompt Agent, Foundry Skills, Azure AI Search,
-  Fabric data agent, Azure Monitor telemetry, and Foundry evals.
-
-## Runtime Boundary
-
-The product orchestration surface is Foundry, not a Python control loop:
-
-```text
-pathforward-orchestrator Prompt Agent
-  /pathforward Skill (baked into the agent instructions)
-  directly-attached A2A links + route/gate/mint MCP tools
-  versioned specialist Prompt Agents
-```
-
-Python remains in the repo for deterministic executors, provisioning, tests, eval utilities, and
-small service/tool glue such as the MCP mint boundary. It is not the product Orchestrator brain.
-
-## Pending Product Requirements
-
-- **Voice Live / Engagement:** Azure Foundry Voice Live is in scope for the project, but the
-  PathForward Voice Live engagement path is not yet implemented.
-
-## Current Proof Status
-
-The project has live proof for the Foundry Prompt Orchestrator, versioned specialist agents, Tool
-Search, A2A specialist calls, Fabric-backed Program Insights, and approval-approved MCP credential
-minting from a code-issued gate token.
-
-Offline regression suite:
-
-```powershell
-python -m unittest discover -s tests -t .
-```
-
-Live proof scripts require the configured Azure/Fabric environment and project `.env`.
+Specialist Skills are baked into each agent at provision time; the route / gate / mint / Fabric MCP
+tools and the conversational A2A specialist handoffs are attached directly to the agent definitions.
 
 ## Safety
 
-PathForward uses synthetic data only. No real workers, employee records, or PII are included.
-
-The system is designed to fail closed:
-
-- no grounded evidence means no verified assessment;
-- no verified assessment means no credential;
-- denied or missing mint authorization means no credential.
+PathForward uses synthetic data only — no real workers, employee records, or PII. The system fails
+closed: no grounded evidence → no verified assessment; no verified assessment → no credential; denied
+or missing mint authorization → no credential.

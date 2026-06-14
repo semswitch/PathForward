@@ -17,14 +17,14 @@
 #   This file is route (A) — the recommended fast path to get the artifact_id today.
 #
 # Setup before running:
-#   1. Open the PathForward-IQ workspace (id 1568f5b8-3d1f-460b-8a74-bebb59a15a62).
+#   1. Open the PathForward-IQ workspace (id <FABRIC_WORKSPACE_ID>).
 #   2. New notebook; attach PathForwardLH as the default lakehouse.
 #   3. Paste this whole file into one cell and Run.
 #
 # After it runs, get the artifact_id (we already know the workspace_id):
 #   Open the data agent -> Settings -> copy the published URL:
 #     https://<env>.fabric.microsoft.com/groups/<workspace_id>/aiskills/<artifact_id>
-#   workspace_id = 1568f5b8-3d1f-460b-8a74-bebb59a15a62
+#   workspace_id = <FABRIC_WORKSPACE_ID>
 #   Hand back <artifact_id>; the Foundry "Microsoft Fabric" connection is wired from there.
 #
 # Verified API (Learn MCP, 2026-06-08): fabric.dataagent.client.create_data_agent /
@@ -72,6 +72,6 @@ ds.update_configuration(
 
 da.publish()
 print("PUBLISHED data agent:", AGENT_NAME)
-print("workspace_id = 1568f5b8-3d1f-460b-8a74-bebb59a15a62")
+print("workspace_id = <FABRIC_WORKSPACE_ID>")
 print("Now copy the artifact_id from the data agent Settings -> published URL (.../aiskills/<artifact_id>).")
 ds.pretty_print()

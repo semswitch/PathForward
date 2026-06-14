@@ -21,6 +21,9 @@ functions/mint_mcp/.deploy/
 # generated (reproducible via scripts/) — keep the repo clean
 data/generated/
 
+# fabric ontology recovery backup — embeds real tenant artifact IDs; keep local, not in public repo
+infra/fabric/ontology-definition.json
+
 # node / web
 web/node_modules/
 web/dist/

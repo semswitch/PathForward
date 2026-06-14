@@ -7,9 +7,9 @@ and `readiness` edges, with their lakehouse data bindings). Captured via the
 Fabric REST `items/getDefinition` API.
 
 > Note: this file embeds **workspace-scoped internal artifact IDs** (EntityType IDs,
-> DataBinding/Contextualization GUIDs). These are not credentials, but they are real
-> identifiers for this tenant's Fabric items — left intact because they're required for
-> the recovery import below; treat accordingly if this repo is made public.
+> DataBinding/Contextualization GUIDs) — real identifiers for this tenant's Fabric items, not
+> credentials. It is kept as a **local, gitignored backup** (not tracked in the public repo) and is
+> required for the recovery import below.
 
 This is our **version backup**: Fabric IQ Ontology (preview) has no native
 versioning, so a deleted ontology or its backing "Graph in Microsoft Fabric"

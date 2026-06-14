@@ -20,7 +20,7 @@ There are two deploy planes:
 - Signed in as the **service principal**, pointed at the project subscription:
   ```powershell
   az account show --query "{user:user.name, type:user.type, sub:id}" -o json
-  # expect type=servicePrincipal, sub=051c6828-6781-4a8b-b775-915e220b38fa
+  # expect type=servicePrincipal, sub=<your-subscription-id>
   ```
   (`DefaultAzureCredential` picks up the SP from `.env` `AZURE_CLIENT_ID/SECRET/TENANT`.)
 - Local `.env` present (gitignored) with at least: `AZURE_AI_PROJECT_ENDPOINT`, the SP creds,

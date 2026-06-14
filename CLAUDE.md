@@ -1,13 +1,15 @@
 # PathForward Non-Negotiable Agentic Architecture Contract
 
+> Public site / narrated flow: https://semswitch.github.io/PathForward/tour
+
 ## Required Architecture Shape
 
 ```text
 Foundry Prompt Agent: pathforward-orchestrator
-  /pathforward Skill
-  pathforward-orchestrator-toolbox
-  Tool Search + A2A calls to versioned Foundry specialist agents
-  Foundry Skills / Toolbox define those agent contracts
+  /pathforward Skill (baked into the agent instructions)
+  route/gate/mint/Fabric MCP tools + A2A specialist links attached directly to the agent
+  autonomous route-fact resolution + conversational A2A calls to versioned Foundry specialist agents
+  Foundry Skills baked into agents + directly-attached tools define those agent contracts
   Orchestrator / Conductor reasoning over the allowed route
   Curator agent
   Generator agent with Foundry grounded retrieval
@@ -42,7 +44,7 @@ provisioning, tests, eval utilities, and serverless/tool glue such as MCP mint.
    reflection, adaptive band, Evidence Gate, Fabric, and ABSTAIN. Telemetry or nested trace views may
    be used for the internal loop if decomposing any execution graph would duplicate trust logic.
 
-4. **Foundry Toolbox and Foundry Skill are runtime surfaces.**
+4. **Foundry Skill is the runtime surface (Skills baked into agents; tools attached directly).**
    `/pathforward` must exist as a real `agentskills.io` Skill, be registered in Foundry, be visible in
    the portal/dashboard, and be baked into the versioned Foundry agent definitions used at runtime.
    Local-only Markdown, inline prompt copies, registry-only Skills, and legacy non-Prompt/non-A2A
